@@ -11,7 +11,7 @@ pip install vodex
 
 ## Usage
 
-Please see notebooks/examples.
+Please see notebooks/examples (coming soon).
 
 ## Contributing
 Pull requests are welcome, but for now it's only me working on this project, so it might take me some time. For major changes, please open an issue first to discuss what you would like to change.
