@@ -11,14 +11,16 @@ from tqdm import tqdm
 class Stimulus:
     """
     Describes a particular stimulus presented during the experiment.
+    Any specific aspect of the experiment is a stimulus : temperature|light|sound|image on the screen|drug ... etc.
 
     :param name: the name for the stimulus. This is a unique identifier of the stimulus.
                     Different stimuli should have different names.
                     Different Stimuli are compared based on their names, so same name means it is the same stimuli.
     :type name: str
 
-    :param description: a detailed description of the stimulus.
-                    This is to give you more info, but it is not used for stimuli comparison.
+    :param description: a detailed description of the stimulus. This is to give you more info, but it is not used for
+    anything else. Make sure that different stmuli have different name, because they are compared by name,
+    not by description.
     :type description: str
     """
 
@@ -47,8 +49,8 @@ class Stimulus:
 
 class Condition:
     """
-    Information about the experiment conditions.
-    Condition can be made of multiple simultaneous stimuli, note their order doesn't matter.
+    Information about the experiment conditions. Condition can be made of multiple simultaneous stimuli and
+    conditions are compared based on the stimuli that that contain. Note that their order doesn't matter.
 
     :param stimuli: a list of stimuli that make up the condition
     :type stimuli: Stimulus or list[Stimulus]
@@ -69,6 +71,10 @@ class Condition:
 
     def __str__(self):
         description = ""
+        if self.name is not None:
+            description = description + f"Condition {self.name}:\n"
+        else:
+            description = description + f"Condition:\n"
         for stimulus in self.stimuli:
             description = description + f"Stimulus {stimulus.name}: {stimulus.description}\n"
         return description
@@ -91,12 +97,14 @@ class Condition:
 
 class Cycle:
     """
-    Information about the repeated cycle.
+    Information about the repeated cycle of conditions. Use it when you have some periodic conditions, like : light
+    on , light off, light on, light off... will be made of list of conditions [light_on, light_off] that repeat ...
 
     :param conditions: a list of conditions in the right order in which conditions follow
     :type conditions: list[Condition]
 
-    :param timing: timing of the corresponding conditions, in frames (based on your imaging)
+    :param timing: timing of the corresponding conditions, in frames (based on your imaging). Note that these are
+    frames, not volumes !
     :type timing: list[int]
     """
 
@@ -127,9 +135,9 @@ class Cycle:
 class FileManager:
     """
     Figures out stuff concerning the many files. For example in what order do stacks go?
+    Will grab all the tif files in the provided folder and order them alphabetically.
 
     :param project_dir: path to the folder with the files, ends with "/" or "\\"
-    TODO : check ends with "/" or "\\"
     :type project_dir: str
     """
 
@@ -142,7 +150,7 @@ class FileManager:
     def change_order(self, order):
         """
         Changes the order of the files. If you notices that files are in the wrong order, provide the new order.
-        If you wish to exclude any files, get rid of them.
+        If you wish to exclude any files, get rid of them ( don't include their IDs into the new order ).
 
         :param order: The new order in which the files follow. Refer to file by it's position in the original list.
         Should be the same length as the number of files in the original list, or smaller (if you want to get rid of
@@ -181,7 +189,7 @@ class FileManager:
 
 class FrameManager:
     """
-    Deals with frames. What frame corresponds to a volume / cycle/ condition.
+    Deals with frames. Which frames correspond to a volume / cycle/ condition.
 
     :param file_manager: info about the files.
     :type file_manager: FileManager
@@ -240,7 +248,7 @@ class FrameManager:
 
     def load_frames(self, frames, verbose=False, show_progress=True):
         """
-        Load frames from files and retrn as an array.
+        Load frames from files and return as an array.
 
         :param frames: list of frames to load
         :type frames: list[int]
@@ -400,7 +408,8 @@ class VolumeManager:
 class Experiment:
     """
     Information about the experiment. Can contain cycles and more.
-    For now only contains repeating cycle.
+    For now assumes there are always repeating cycles, but if you have only one repetition it will still work fine ;)
+    If you don't need to track the conditions and only need to track volumes/ z-slices,
     """
 
     def __init__(self, frame_manager, volume_manager, cycle):
