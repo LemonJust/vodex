@@ -2,10 +2,44 @@
 Classes to specify the experimental conditions and load necessary data.
 """
 from tifffile import TiffFile
+import json
 import numpy as np
 import collections
 import glob
 from tqdm import tqdm
+
+
+# SAVING AS JSON :
+# TODO : Write custom JSONEncoder to make class JSON serializable (???)
+
+def to_json(objs, filename):
+    """
+    Writes an object, or list of objects as json file.
+    The objects should have method to_dict()
+    """
+    if isinstance(objs, list):
+        j = json.dumps([obj.to_dict() for obj in objs])
+    else:
+        j = json.dumps(objs.to_dict())
+
+    with open(filename, 'w') as json_file:
+        json_file.write(j)
+
+
+def from_json(cls, filename):
+    """
+    Loads an object, or list of objects of class cls from json file.
+    The objects should have method from_dict()
+    """
+    with open(filename) as json_file:
+        j = json.load(json_file)
+
+    if isinstance(j, list):
+        objs = [cls.from_dict(d) for d in j]
+    else:
+        objs = cls.from_dict(j)
+
+    return objs
 
 
 class Stimulus:
@@ -45,6 +79,16 @@ class Stimulus:
         if not isinstance(other, Stimulus):
             return NotImplemented
         return not self.name == other.name
+
+    @classmethod
+    def from_dict(cls, d):
+        name = d['name']
+        description = d['description']
+        return cls(name, description)
+
+    def to_dict(self):
+        d = {'name': self.name, 'description': self.description}
+        return d
 
 
 class Condition:
@@ -94,6 +138,20 @@ class Condition:
         # comparing by names, ignoring order
         return not set(self.names) == set(other.names)
 
+    @classmethod
+    def from_dict(cls, d):
+        stimuli = [Stimulus.from_dict(ds) for ds in d['stimuli']]
+        if 'name' in d:
+            name = d['name']
+        else:
+            name = None
+        return cls(stimuli, name=name)
+
+    def to_dict(self):
+        stimuli = [stimulus.to_dict() for stimulus in self.stimuli]
+        d = {'name': self.name, 'stimuli': stimuli}
+        return d
+
 
 class Cycle:
     """
@@ -131,6 +189,17 @@ class Cycle:
     def __repr__(self):
         return self.__str__()
 
+    @classmethod
+    def from_dict(cls, d):
+        conditions = [Condition.from_dict(ds) for ds in d['conditions']]
+        timing = d['timing']
+        return cls(conditions, timing)
+
+    def to_dict(self):
+        conditions = [condition.to_dict() for condition in self.conditions]
+        d = {'timing': self.timing, 'conditions': conditions}
+        return d
+
 
 class FileManager:
     """
@@ -141,11 +210,20 @@ class FileManager:
     :type project_dir: str
     """
 
-    def __init__(self, project_dir):
+    def __init__(self, project_dir, tif_files=None, frames_in_file=None):
         self.project_dir = project_dir
-        self.tif_files = [file for file in glob.glob(f"{project_dir}*.tif")]
+
+        if tif_files is None:
+            self.tif_files = [file for file in glob.glob(f"{project_dir}*.tif")]
+        else:
+            self.tif_files = tif_files
+
         self.n_files = len(self.tif_files)
-        self.frames_in_file = self.get_n_frames()
+
+        if frames_in_file is None:
+            self.frames_in_file = self.get_n_frames()
+        else:
+            self.frames_in_file = frames_in_file
 
     def change_order(self, order):
         """
@@ -186,6 +264,19 @@ class FileManager:
     def __repr__(self):
         return self.__str__()
 
+    @classmethod
+    def from_dict(cls, d):
+        project_dir = d['project_dir']
+        tif_files = d['tif_files']
+        frames_in_file = d['frames_in_file']
+        return cls(project_dir, tif_files=tif_files, frames_in_file=frames_in_file)
+
+    def to_dict(self):
+        d = {'project_dir': self.project_dir,
+             'tif_files': self.tif_files,
+             'frames_in_file': self.frames_in_file}
+        return d
+
 
 class FrameManager:
     """
@@ -195,11 +286,23 @@ class FrameManager:
     :type file_manager: FileManager
     """
 
-    def __init__(self, file_manager):
+    def __init__(self, file_manager, n_frames=None, frame_size=None, frame_to_file=None):
         self.file_manager = file_manager
-        self.n_frames = self.get_n_frames()
-        self.frame_size = self.get_frame_size()
-        self.frame_to_file = self.get_frame_list()
+        # TODO : create separate method "from_filemanager" and get all the None cases there ...
+        if n_frames is None:
+            self.n_frames = self.get_n_frames()
+        else:
+            self.n_frames = n_frames
+
+        if frame_size is None:
+            self.frame_size = self.get_frame_size()
+        else:
+            self.frame_size = frame_size
+
+        if frame_to_file is None:
+            self.frame_to_file = self.get_frame_list()
+        else:
+            self.frame_to_file = frame_to_file
 
     def get_n_frames(self):
         """
@@ -298,6 +401,21 @@ class FrameManager:
     def __repr__(self):
         return self.__str__()
 
+    @classmethod
+    def from_dict(cls, d):
+        file_manager = FileManager.from_dict(d['file_manager'])
+        n_frames = d['n_frames']
+        frame_size = d['frame_size']
+        frame_to_file = d['frame_to_file']
+        return cls(file_manager, n_frames=n_frames, frame_size=frame_size, frame_to_file=frame_to_file)
+
+    def to_dict(self):
+        d = {'file_manager': self.file_manager.to_dict(),
+             'n_frames': self.n_frames,
+             'frame_size': self.frame_size,
+             'frame_to_file': self.frame_to_file}
+        return d
+
 
 class VolumeManager:
     """
@@ -329,6 +447,19 @@ class VolumeManager:
         # frames to z :
         self.frame_to_z = self.get_frames_to_z_list()
         self.frame_to_vol = self.get_frames_to_volumes_list()
+
+    @classmethod
+    def from_dict(cls, d):
+        fpv = d['fpv']
+        fgf = d['fgf']
+        frame_manager = FrameManager.from_dict(d['frame_manager'])
+        return cls(fpv, frame_manager, fgf=fgf)
+
+    def to_dict(self):
+        d = {'frame_manager': self.frame_manager.to_dict(),
+             'fpv': self.fpv,
+             'fgf': self.fgf}
+        return d
 
     def __str__(self):
         description = ""
@@ -376,7 +507,7 @@ class VolumeManager:
         which_frames = np.where(np.in1d(self.frame_to_vol, volumes))[0]
         frames_reshaped = self.frame_manager.load_frames(which_frames,
                                                          verbose=verbose, show_progress=show_progress).reshape(
-                                                                                    (len(volumes), self.fpv, w, h))
+            (len(volumes), self.fpv, w, h))
         return frames_reshaped
 
     def load_zslices(self, zpos, slices=None):
@@ -422,6 +553,19 @@ class Experiment:
         self.n_frames = frame_manager.n_frames
         self.full_cycles = int(np.ceil(self.n_frames / self.cycle.full_length))
         self.frame_to_condition = self.get_frame_to_condition_list()
+
+    @classmethod
+    def from_dict(cls, d):
+        frame_manager = FrameManager.from_dict(d['frame_manager'])
+        volume_manager = VolumeManager.from_dict(d['volume_manager'])
+        cycle = Cycle.from_dict(d['cycle'])
+        return cls(frame_manager, volume_manager, cycle)
+
+    def to_dict(self):
+        d = {'frame_manager': self.frame_manager.to_dict(),
+             'volume_manager': self.volume_manager.to_dict(),
+             'cycle': self.cycle.to_dic()}
+        return d
 
     def get_frame_to_condition_list(self):
         """
@@ -506,9 +650,9 @@ class Experiment:
         print(self.volume_manager)
 
     @classmethod
-    def from_dic(cls, spec):
+    def from_spec(cls, spec):
         """
-        Create experiment object from the dictionary.
+        Create experiment object from the specification dictionary.
         Necessary fields:
 
         __specify Cycle__
