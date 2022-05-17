@@ -197,7 +197,7 @@ class Cycle:
 
     def to_dict(self):
         conditions = [condition.to_dict() for condition in self.conditions]
-        d = {'timing': self.timing, 'conditions': conditions}
+        d = {'timing': self.timing.tolist(), 'conditions': conditions}
         return d
 
 
@@ -328,11 +328,17 @@ class FrameManager:
 
         :rtype: dict of str: list[int]
         """
-        frame_to_file = collections.defaultdict(list)
+        frame_to_file = {'file_idx': [],
+                         'in_file_frame': []}  # collections.defaultdict(list)
+
         for file_idx in range(self.file_manager.n_files):
             n_frames = self.file_manager.frames_in_file[file_idx]
             frame_to_file['file_idx'].extend(n_frames * [file_idx])
-            frame_to_file['in_file_frame'].extend(np.arange(n_frames))
+            frame_to_file['in_file_frame'].extend(np.arange(n_frames).tolist())
+
+        frame_to_file['file_idx'] = frame_to_file['file_idx']
+        frame_to_file['in_file_frame'] = frame_to_file['in_file_frame']
+
         return frame_to_file
 
     def get_frame_size(self):
@@ -411,7 +417,7 @@ class FrameManager:
 
     def to_dict(self):
         d = {'file_manager': self.file_manager.to_dict(),
-             'n_frames': self.n_frames,
+             'n_frames': int(self.n_frames),
              'frame_size': self.frame_size,
              'frame_to_file': self.frame_to_file}
         return d
@@ -564,7 +570,7 @@ class Experiment:
     def to_dict(self):
         d = {'frame_manager': self.frame_manager.to_dict(),
              'volume_manager': self.volume_manager.to_dict(),
-             'cycle': self.cycle.to_dic()}
+             'cycle': self.cycle.to_dict()}
         return d
 
     def get_frame_to_condition_list(self):
