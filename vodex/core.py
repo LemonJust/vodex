@@ -192,7 +192,7 @@ class Cycle:
     @classmethod
     def from_dict(cls, d):
         conditions = [Condition.from_dict(ds) for ds in d['conditions']]
-        timing = d['timing']
+        timing = np.array(d['timing'])
         return cls(conditions, timing)
 
     def to_dict(self):
