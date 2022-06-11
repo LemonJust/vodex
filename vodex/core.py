@@ -10,7 +10,7 @@ from tqdm import tqdm
 
 
 # SAVING AS JSON :
-# TODO : Write custom JSONEncoder to make class JSON serializable (???)
+# TODO : Write custom JSONEncoder to make class JSON serializable (???) (or use object_hook)
 
 def to_json(objs, filename):
     """
@@ -100,7 +100,7 @@ class Condition:
     :type stimuli: Stimulus or list[Stimulus]
     """
 
-    def __init__(self, stimuli, name=None):
+    def __init__(self, stimuli, name=None, id=None):
         if not isinstance(stimuli, list):
             stimuli = [stimuli]
         # TODO : figure out why
@@ -127,12 +127,18 @@ class Condition:
         return self.__str__()
 
     def __eq__(self, other):
+        """
+        Conditions are equal if they contain the same stimuli, order of stimuli doesn't matter.
+        """
         if not isinstance(other, Condition):
             return NotImplemented
         # comparing by names, ignoring order
         return set(self.names) == set(other.names)
 
     def __ne__(self, other):
+        """
+        Conditions are NOT equal if they contain different stimuli, order of stimuli doesn't matter.
+        """
         if not isinstance(other, Condition):
             return NotImplemented
         # comparing by names, ignoring order
@@ -169,12 +175,15 @@ class Cycle:
     def __init__(self, conditions, timing):
 
         self.conditions = conditions
-        self.timing = timing
+        self.timing = np.array(timing)
         self.full_length = sum(self.timing)
         # list the length of the cycle, each element is the condition ( index as in the conditions list )
-        self.per_frame_list = self.get_per_frame_list()
+        self.per_frame_list = self.get_conditions_per_frame()
 
-    def get_per_frame_list(self):
+    def get_conditions_per_frame(self):
+        """
+        A list of conditions per frame for one cycle only.
+        """
         per_frame_condition_list = []
         for (condition_time, condition) in zip(self.timing, self.conditions):
             per_frame_condition_list.extend(condition_time * [condition])
@@ -221,7 +230,7 @@ class FileManager:
         self.n_files = len(self.tif_files)
 
         if frames_in_file is None:
-            self.frames_in_file = self.get_n_frames()
+            self.frames_in_file = self.get_frames_in_file()
         else:
             self.frames_in_file = frames_in_file
 
@@ -241,13 +250,13 @@ class FileManager:
         self.tif_files = [self.tif_files[i] for i in order]
         self.frames_in_file = [self.frames_in_file[i] for i in order]
 
-    def get_n_frames(self):
+    def get_frames_in_file(self):
         """
         Get the number of frames  per file.
         """
         frames_in_file = []
         for tif_file in self.tif_files:
-            # setting multifile to false since sometimes there was a problem with the corrupted metadata
+            # setting multifile to false since sometimes there is a problem with the corrupted metadata
             stack = TiffFile(tif_file, _multifile=False)
             n_frames = len(stack.pages)
             frames_in_file.append(n_frames)
@@ -447,12 +456,13 @@ class VolumeManager:
         # total number of frames
         self.frame_manager = frame_manager
         self.n_frames = frame_manager.n_frames
-        # frames at the beginning, full volumes and at the end
+        # frames at the beginning, full volumes and frames at the end
         self.n_head = self.fgf
         self.full_volumes, self.n_tail = divmod((self.n_frames - self.fgf), self.fpv)
-        # frames to z :
-        self.frame_to_z = self.get_frames_to_z_list()
-        self.frame_to_vol = self.get_frames_to_volumes_list()
+        # frames to slices :
+        self.frame_to_z = self.get_frames_to_z()
+        # frames to full volumes :
+        self.frame_to_vol = self.get_frames_to_volumes()
 
     @classmethod
     def from_dict(cls, d):
@@ -474,14 +484,14 @@ class VolumeManager:
         description = description + f"Frames per volume : {self.fpv}\n"
         return description
 
-    def get_frames_to_z_list(self):
+    def get_frames_to_z(self):
         cycle_per_frame_list = np.arange(self.fpv)
         i_from = self.fpv - self.n_head
         i_to = self.n_tail - self.fpv
         frame_to_z = np.tile(cycle_per_frame_list, self.full_volumes + 2)[i_from:i_to]
         return frame_to_z
 
-    def get_frames_to_volumes_list(self):
+    def get_frames_to_volumes(self):
         """
         maps frames to volumes
         -1 for head ( not full volume at the beginning )
@@ -510,7 +520,9 @@ class VolumeManager:
         :rtype: numpy.ndarray
         """
         w, h = self.frame_manager.get_frame_size()
+        # convert volumes to frames: get all the frames corresponding to the requested volumes
         which_frames = np.where(np.in1d(self.frame_to_vol, volumes))[0]
+        # load frames and shape them into volumes
         frames_reshaped = self.frame_manager.load_frames(which_frames,
                                                          verbose=verbose, show_progress=show_progress).reshape(
             (len(volumes), self.fpv, w, h))
@@ -527,12 +539,12 @@ class VolumeManager:
 
         :param slices: which of the slices to load. If None loads all.
         :type slices: int or list[int] or numpy.ndarray
-        # TODO : list[int] or numpy.ndarray seems wrong, verify ...
+        # TODO : writing stuff like list[int] or numpy.ndarray seems wrong, verify ...
 
         :return: 3D array of shape (number of zslices, height, width)
         :rtype: numpy.ndarray
         """
-
+        # convert z slices to frames
         which_frames = np.where(np.in1d(self.frame_to_z, zpos))[0]
         if slices:
             which_frames = which_frames[slices]
@@ -557,8 +569,9 @@ class Experiment:
         self.volume_manager = volume_manager
         # total experiment length in frames
         self.n_frames = frame_manager.n_frames
+        # how many cycles
         self.full_cycles = int(np.ceil(self.n_frames / self.cycle.full_length))
-        self.frame_to_condition = self.get_frame_to_condition_list()
+        self.frame_to_condition = self.get_frame_to_condition()
 
     @classmethod
     def from_dict(cls, d):
@@ -573,9 +586,9 @@ class Experiment:
              'cycle': self.cycle.to_dict()}
         return d
 
-    def get_frame_to_condition_list(self):
+    def get_frame_to_condition(self):
         """
-        Creates a mapping of frames to conditions.
+        Maps frames to conditions.
 
         :return: a list of length equal to the total number of frames in all the files,
         where each element corresponds to a frame and contains the condition presented during that frame.
