@@ -7,6 +7,7 @@ import numpy as np
 import collections
 import glob
 from tqdm import tqdm
+import pandas as pd
 
 
 # SAVING AS JSON :
@@ -113,7 +114,7 @@ class Condition:
         self.names = [stimulus.name for stimulus in stimuli]
         self.name = name
 
-    def __str__(self):
+    def __repr__(self):
         description = ""
         if self.name is not None:
             description = description + f"Condition {self.name}:\n"
@@ -123,8 +124,18 @@ class Condition:
             description = description + f"Stimulus {stimulus.name}: {stimulus.description}\n"
         return description
 
-    def __repr__(self):
-        return self.__str__()
+    def __str__(self):
+        """
+        Used when printing the condition info and in pandas dataframe description
+        """
+        description = ""
+        if self.name is not None:
+            description = description + f"{self.name}"
+        else:
+            description = description + f"Stimuli:"
+            for stimulus in self.stimuli:
+                description = description + f" {stimulus.name}"
+        return description
 
     def __eq__(self, other):
         """
@@ -350,6 +361,9 @@ class FrameManager:
 
         return frame_to_file
 
+    def get_frame_to_file_name(self):
+        return [self.file_manager.tif_files[idx] for idx in self.frame_to_file['file_idx']]
+
     def get_frame_size(self):
         """
         Gets frame size.
@@ -485,10 +499,12 @@ class VolumeManager:
         return description
 
     def get_frames_to_z(self):
-        cycle_per_frame_list = np.arange(self.fpv)
+        z_per_frame_list = np.arange(self.fpv)
+        # set at what z the imaging starts and ends
         i_from = self.fpv - self.n_head
         i_to = self.n_tail - self.fpv
-        frame_to_z = np.tile(cycle_per_frame_list, self.full_volumes + 2)[i_from:i_to]
+        # map frames to z
+        frame_to_z = np.tile(z_per_frame_list, self.full_volumes + 2)[i_from:i_to]
         return frame_to_z
 
     def get_frames_to_volumes(self):
@@ -561,17 +577,21 @@ class Experiment:
     If you don't need to track the conditions and only need to track volumes/ z-slices,
     """
 
-    def __init__(self, frame_manager, volume_manager, cycle):
+    def __init__(self, frame_manager, volume_manager, cycle, cycle_start=0):
 
-        self.cycle = cycle
         # TODO : frame manager doesn't need to be separate here, since it's already in volume manager ... change it!
         self.frame_manager = frame_manager
         self.volume_manager = volume_manager
-        # total experiment length in frames
+        # get total experiment length in frames from frame manager
         self.n_frames = frame_manager.n_frames
+
         # how many cycles
-        self.full_cycles = int(np.ceil(self.n_frames / self.cycle.full_length))
+        self.cycle = cycle
+        self.cycle_start = cycle_start
+        self.full_cycles = int(np.ceil((self.n_frames - self.cycle_start) / self.cycle.full_length))
+        # TODO : remove this, since you have info
         self.frame_to_condition = self.get_frame_to_condition()
+        self.info = self.get_info()
 
     @classmethod
     def from_dict(cls, d):
@@ -597,6 +617,33 @@ class Experiment:
         """
         frame_to_condition_list = np.tile(self.cycle.per_frame_list, self.full_cycles)[0:self.n_frames]
         return frame_to_condition_list
+
+    def get_frame_to_cycle(self):
+        """
+        Maps frames to cycle ( in order as they go through experiment).
+        Time before the beginning of the cycle if labeled with -1.
+        """
+        # frames before the cycle starts are labeled with -1
+        cycle_per_frame_list = [-1]*self.cycle_start
+        for icycle in np.arange(self.full_cycles):
+            cycle_per_frame_list.extend([icycle] * self.cycle.full_length)
+        # crop the tail
+        cycle_per_frame_list = cycle_per_frame_list[0:self.n_frames]
+        return cycle_per_frame_list
+
+    def get_info(self):
+        """
+        Created a summary table per frame
+        """
+        d = {'conditions': self.frame_to_condition,
+             'slices': self.volume_manager.frame_to_z,
+             'volumes': self.volume_manager.frame_to_vol,
+             'cycles': self.get_frame_to_cycle(),
+             'files': self.frame_manager.get_frame_to_file_name(),
+             'frame in file': self.frame_manager.frame_to_file['in_file_frame']}
+        df = pd.DataFrame(data=d)
+        df.index.name = 'frames'
+        return df
 
     def select_zslices(self, zslice, condition=None):
         """
