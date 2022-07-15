@@ -350,13 +350,13 @@ class FileManager:
         project_dir = d['project_dir']
         tif_files = d['tif_files']
         frames_in_file = d['frames_in_file']
-        return cls(project_dir, tif_files=tif_files, frames_in_file=frames_in_file)
+        return cls(project_dir, file_names=tif_files, frames_in_file=frames_in_file)
 
     def to_dict(self):
         """
         Writes FileManager object to dictionary.
         """
-        d = {'project_dir': self.project_dir,
+        d = {'project_dir': self.data_dir,
              'tif_files': self.tif_files,
              'frames_in_file': self.frames_in_file}
         return d
@@ -387,37 +387,6 @@ class FrameManager:
             self.frame_to_file = self.get_frame_list()
         else:
             self.frame_to_file = frame_to_file
-
-    # INFO methods ________________________________________________________________________
-    def append_info(self, info_df):
-        """
-        Adds information about file idx, file path and frame order on that file per frame to the a summary table
-
-        :param info_df: the summary table to append info to
-        :return: info_df: updated summary table
-        """
-        # TODO : eventually remove self.frame_to_file ?
-        info_df['file_idx'] = self.frame_to_file['file_idx']
-        info_df['file'] = self.get_frame_to_file_name()
-        info_df['frame in file'] = self.frame_to_file['in_file_frame']
-
-        return info_df
-
-    def create_info(self):
-        """
-        Creates a summary table with information about file idx, file path and frame order on that file per frame
-
-        :return: info_df: the summary table
-        """
-        d = {'file_idx': self.frame_to_file['file_idx'],
-             'file': self.get_frame_to_file_name(),
-             'frame in file': self.frame_to_file['in_file_frame']}
-        # TODO : eventually remove self.frame_to_file ?
-        info_df = pd.DataFrame(data=d)
-        info_df.index.name = 'frames'
-        return info_df
-
-    # ________________________________________________________________________
 
     def get_n_frames(self):
         """
@@ -579,35 +548,6 @@ class VolumeManager:
         self.frame_to_z = self.get_frames_to_z()
         # frames to full volumes :
         self.frame_to_vol = self.get_frames_to_volumes()
-
-    # INFO methods ________________________________________________________________________
-    def append_info(self, info_df):
-        """
-        Adds information about volumes per frame and z-slices per frame to the a summary table
-
-        :param info_df: the summary table to append info to
-        :return: info_df: updated summary table
-        """
-        info_df['slices'] = self.frame_to_z
-        info_df['volumes'] = self.frame_to_vol
-
-        return info_df
-
-    def create_info(self):
-        """
-        Creates a summary table with information about volumes per frame and z-slices per frame
-
-        :return: info_df: the summary table
-        """
-        d = {}
-        d['slices'] = self.frame_to_z
-        d['volumes'] = self.frame_to_vol
-
-        info_df = pd.DataFrame(data=d)
-        info_df.index.name = 'frames'
-        return info_df
-
-    # ________________________________________________________________________
 
     @classmethod
     def from_dict(cls, d):
@@ -860,34 +800,6 @@ class Annotation:
         d = {'frame_to_label': self.frame_to_label,
              'n_frames': self.n_frames}
         return d
-
-    # INFO methods ________________________________________________________________________
-    def append_info(self, info_df):
-        """
-        Adds information about labels per frame and cycles per frame to the a summary table
-
-        :param info_df: the summary table to append info to
-        :return: info_df: updated the summary table
-        """
-        for cycle in self.cycles:
-            info_df[f'{cycle.name} cycle id'] = self.frame_to_cycle[cycle.name]
-            info_df[f'{cycle.name} labels'] = self.frame_to_label[cycle.name]
-        return info_df
-
-    def create_info(self):
-        """
-        Creates a summary table with information about labels per frame and cycles per frame
-
-        :return: info_df: the summary table
-        """
-        d = {}
-        for cycle in self.cycles:
-            d[f'{cycle.name} cycle id'] = self.frame_to_cycle[cycle.name]
-            d[f'{cycle.name} labels'] = self.frame_to_label[cycle.name]
-        info_df = pd.DataFrame(data=d)
-        info_df.index.name = 'frames'
-        return info_df
-
 
 class Experiment:
     """
