@@ -45,6 +45,158 @@ def from_json(cls, filename):
     return objs
 
 
+class TiffLoader:
+    """
+    Loads tiff images
+    """
+
+    def __init__(self, data_dir):
+        self.data_dir = data_dir
+
+    def get_frames_in_file(self, file_name):
+        """
+        returns the number of frames in file
+        file_name: name of file relative to data_dir
+        """
+        # setting multifile to false since sometimes there is a problem with the corrupted metadata
+        # not using metadate, since for some files it is corrupted for unknown reason ...
+        stack = TiffFile(self.data_dir.join(file_name), _multifile=False)
+        n_frames = len(stack.pages)
+        stack.close()
+        return n_frames
+
+    def load_frames(self):
+        """
+        returns loaded frames as num_frames x height x width
+        """
+        pass
+
+
+class ImageLoader:
+    """
+    Loads Images. Deals with different types of Images
+    """
+
+    def __init__(self, data_dir, file_extension):
+        self.supported_extension = [".tif", ".tiff"]
+
+        self.data_dir = data_dir
+        self.file_extension = file_extension
+        assert self.file_extension in self.supported_extension, \
+            f"Only files with the following extensions are supported: {self.supported_extension}, but" \
+            f"{self.file_extension} was given"
+        # pick the loader and initialise it with the data directory
+        self.loader = self.choose_loader()
+
+    def choose_loader(self):
+        """
+        Chooses the proper loader
+        """
+        if self.file_extension == ".tif" or self.file_extension == ".tiff":
+            return TiffLoader(self.data_dir)
+
+    def get_frames_in_file(self, file):
+        return self.loader.get_frames_in_file(file)
+
+    def load_volumes(self):
+        pass
+
+    def load_slices(self):
+        pass
+
+
+class FileManager:
+    """
+    Figures out stuff concerning the many files. For example in what order do stacks go?
+    Will grab all the tif files in the provided folder and order them alphabetically.
+
+    :param data_dir: path to the folder with the files, ends with "/" or "\\"
+    :type data_dir: str
+    """
+
+    def __init__(self, data_dir, file_names=None, frames_per_file=None, file_extension=".tif"):
+
+        # 1. get data_dir and check it exists
+        self.data_dir = Path(data_dir)
+        assert self.data_dir.is_dir(), f"No directory {self.data_dir}"
+
+        # 2. get files
+        if file_names is None:
+            # if files are not provided , search for tiffs in the data_dir
+            self.file_names = self.find_files(file_extension)
+        else:
+            # if a list of files is provided, check it's in the folder
+            self.file_names = self.check_files(file_names)
+
+        # 3. Initialise ImageLoader
+        #    will pick the image loader that works with the provided file type
+        self.loader = ImageLoader(data_dir, file_extension)
+
+        # 4. Get number of frames per file
+        if frames_per_file is None:
+            # if number of frames not provided , search for tiffs in the data_dir
+            self.num_frames = self.get_frames_per_file()
+        else:
+            # if provided ... we'll trust you - hope these numbers are correct
+            self.num_frames = frames_per_file
+
+        self.n_files = len(self.file_names)
+
+    def find_files(self, file_extension):
+        """
+        Searches for files , ending with file_extension in the data_dir
+        """
+        files = list(self.data_dir.glob(f"*{file_extension}"))
+        file_names = [file.name for file in files]
+        return files, file_names
+
+    def check_files(self, file_names):
+        """
+        Check that files are in the data_dir
+        """
+        files = [self.data_dir.joinpath(file) for file in file_names]
+        for file in files:
+            assert file.is_file(), f"File {file} is not found"
+        return files, file_names
+
+    def get_frames_per_file(self):
+        """
+        Get the number of frames  per file.
+        returns a list with number fof frames per file.
+        Expand this method if you want to work with other file types (not tiffs).
+        """
+        frames_per_file = []
+        for file in self.file_names:
+            n_frames = self.loader.get_frames_in_file(file)
+            frames_per_file.append(n_frames)
+        return frames_per_file
+
+    def change_files_order(self, order):
+        """
+        Changes the order of the files. If you notices that files are in the wrong order, provide the new order.
+        If you wish to exclude any files, get rid of them ( don't include their IDs into the new order ).
+
+        :param order: The new order in which the files follow. Refer to file by it's position in the original list.
+        Should be the same length as the number of files in the original list, or smaller (if you want to get rid of
+        some files).
+        :type order: list[int]
+        """
+        assert len(np.unique(order)) > self.n_files, \
+            "Number of unique files is smaller than elements in the list! "
+
+        self.file_names = [self.file_names[i] for i in order]
+        self.num_frames = [self.num_frames[i] for i in order]
+
+    def __str__(self):
+        description = f"Total of {self.n_files} files.\nCheck the order :\n"
+        for i_file, file in enumerate(self.file_names):
+            description = description + "[ " + str(i_file) + " ] " + file + " : " + str(
+                self.num_frames[i_file]) + " frames\n"
+        return description
+
+    def __repr__(self):
+        return self.__str__()
+
 class TimeLabel:
     """
     Describes a particular time-located event during the experiment.
@@ -111,18 +263,6 @@ class TimeLabel:
 
     def __ne__(self, other):
         return not self.__eq__(other)
-
-    @classmethod
-    def from_dict(cls, d):
-        name = d['name']
-        description = d['description']
-        return cls(name, description)
-
-    def to_dict(self):
-        d = {'name': self.name,
-             'description': self.description}
-        return d
-
 
 class Labels:
     """
@@ -227,141 +367,6 @@ class Cycle:
         # crop the tail
         return cycle_per_frame_list[0:n_frames]
 
-    @classmethod
-    def from_dict(cls, d):
-        """
-        Create a cycle from a dictionary. The dictionary can eiter specify labels with a name and description:
-        d = {
-            "name": "Cycle1_name",
-            "labels": [
-                        {"name":"label1_name", "description": "label1_description"},
-                        {"name":"label2_name", "description": "label2_description"},
-                        {"name":"label3_name", "description": "label3_description"}
-                       ],
-            "timing": [10,15,10]
-            }
-        Or it can specify them simply with a string (will assigned as labels name):
-        d = {
-            "name": "Cycle1_name",
-            "labels": [label1,label2,label3],
-            "timing": [10,15,10]
-            }
-        """
-        # if labels are specified as strings, turn strings into dict
-        for idl, dl in enumerate(d['labels']):
-            if isinstance(dl, str):
-                d['labels'][idl] = {"name": dl, "description": None}
-
-        labels = [TimeLabel.from_dict(dl) for dl in d['labels']]
-        timing = np.array(d['timing'])
-        name = d['name']
-        return cls(name, labels, timing)
-
-    def to_dict(self):
-        labels = [label.to_dict() for label in self.labels]
-        d = {'timing': self.timing.tolist(), 'labels': labels}
-        return d
-
-
-class FileManager:
-    """
-    Figures out stuff concerning the many files. For example in what order do stacks go?
-    Will grab all the tif files in the provided folder and order them alphabetically.
-
-    :param data_dir: path to the folder with the files, ends with "/" or "\\"
-    :type data_dir: str
-    """
-
-    def __init__(self, data_dir, file_names=None, frames_in_file=None):
-
-        # 1. get data_dir and check it exists
-        self.data_dir = Path(data_dir)
-        assert self.data_dir.is_dir(), f"No directory {self.data_dir}"
-
-        # 2. get files
-        if file_names is None:
-            # if files are not provided , search for tiffs in the data_dir
-            self.tif_files = list(self.data_dir.glob("*.tif"))
-            self.file_names = [file.name for file in self.tif_files]
-        else:
-            # if a list of files is provided, check it's in the folder
-            self.tif_files = [self.data_dir.joinpath(file) for file in file_names]
-            for file in self.tif_files:
-                assert file.is_file(), f"File {file} is not found"
-            self.file_names = file_names
-
-        # 3. Get number of frames per file
-        if frames_in_file is None:
-            # if number of frames not provided , search for tiffs in the data_dir
-            self.frames_in_file = self.get_frames_in_file()
-        else:
-            # if provided ... we'll trust you - hope these numbers are correct
-            self.frames_in_file = frames_in_file
-
-        self.n_files = len(self.tif_files)
-
-    def change_order(self, order):
-        """
-        Changes the order of the files. If you notices that files are in the wrong order, provide the new order.
-        If you wish to exclude any files, get rid of them ( don't include their IDs into the new order ).
-
-        :param order: The new order in which the files follow. Refer to file by it's position in the original list.
-        Should be the same length as the number of files in the original list, or smaller (if you want to get rid of
-        some files).
-        :type order: list[int]
-        """
-        assert len(np.unique(order)) > self.n_files, \
-            "Number of unique files is smaller than elements in the list! "
-
-        self.tif_files = [self.tif_files[i] for i in order]
-        self.frames_in_file = [self.frames_in_file[i] for i in order]
-
-    def get_frames_in_file(self):
-        """
-        Get the number of frames  per file.
-        returns a list with number fof frames per file.
-        Expand this method if you want to work with other file types (not tiffs).
-        """
-        frames_in_file = []
-        for tif_file in self.tif_files:
-            # setting multifile to false since sometimes there is a problem with the corrupted metadata
-            # not using metadate, since for some files it is corrupted for unknown reason ...
-            stack = TiffFile(tif_file, _multifile=False)
-            n_frames = len(stack.pages)
-            frames_in_file.append(n_frames)
-            stack.close()
-        return frames_in_file
-
-    def __str__(self):
-        description = f"Total of {self.n_files} files.\nCheck the order :\n"
-        for i_file, file in enumerate(self.file_names):
-            description = description + "[ " + str(i_file) + " ] " + file + " : " + str(
-                self.frames_in_file[i_file]) + " frames\n"
-        return description
-
-    def __repr__(self):
-        return self.__str__()
-
-    @classmethod
-    def from_dict(cls, d):
-        """
-        Initialises FileManager object from dictionary.
-        """
-        project_dir = d['project_dir']
-        tif_files = d['tif_files']
-        frames_in_file = d['frames_in_file']
-        return cls(project_dir, file_names=tif_files, frames_in_file=frames_in_file)
-
-    def to_dict(self):
-        """
-        Writes FileManager object to dictionary.
-        """
-        d = {'project_dir': self.data_dir,
-             'tif_files': self.tif_files,
-             'frames_in_file': self.frames_in_file}
-        return d
-
-
 class FrameManager:
     """
     Deals with frames. Which frames correspond to a volume / cycle/ condition.
@@ -388,6 +393,11 @@ class FrameManager:
         else:
             self.frame_to_file = frame_to_file
 
+    @classmethod
+    def from_dir(cls, data_dir, file_names=None, frames_in_file=None):
+        file_manager = FileManager(data_dir, file_names=file_names, frames_in_file=frames_in_file)
+        return cls(file_manager)
+
     def get_n_frames(self):
         """
         Returns total number of frames (all files from file_manager combined).
@@ -395,7 +405,7 @@ class FrameManager:
         :return: Frames per file.
         :rtype: int
         """
-        n_frames = np.sum(self.file_manager.frames_in_file)
+        n_frames = np.sum(self.file_manager.num_frames)
         return n_frames
 
     def get_frame_list(self):
@@ -416,7 +426,7 @@ class FrameManager:
                          'in_file_frame': []}  # collections.defaultdict(list)
 
         for file_idx in range(self.file_manager.n_files):
-            n_frames = self.file_manager.frames_in_file[file_idx]
+            n_frames = self.file_manager.num_frames[file_idx]
             frame_to_file['file_idx'].extend(n_frames * [file_idx])
             frame_to_file['in_file_frame'].extend(np.arange(n_frames).tolist())
 
@@ -429,7 +439,7 @@ class FrameManager:
         """
         Returns a list : for each frame , the filename to which that frame belongs.
         """
-        return [self.file_manager.tif_files[idx] for idx in self.frame_to_file['file_idx']]
+        return [self.file_manager.files[idx] for idx in self.frame_to_file['file_idx']]
 
     def get_frame_size(self):
         """
@@ -438,7 +448,7 @@ class FrameManager:
         :return: height and width of an individual frame in pixels
         """
         # initialise tif file and open the stack
-        tif_file = self.file_manager.tif_files[0]
+        tif_file = self.file_manager.files[0]
         stack = TiffFile(tif_file, _multifile=False)
         page = stack.pages.get(0)
         h, w = page.shape
@@ -471,7 +481,7 @@ class FrameManager:
 
         # initialise tif file and open the stack
         tif_idx = self.frame_to_file['file_idx'][frames[0]]
-        tif_file = self.file_manager.tif_files[tif_idx]
+        tif_file = self.file_manager.files[tif_idx]
         stack = TiffFile(tif_file, _multifile=False)
 
         if report_files:
@@ -486,7 +496,7 @@ class FrameManager:
             else:
                 # switch to a different file
                 tif_idx = self.frame_to_file['file_idx'][frame]
-                tif_file = self.file_manager.tif_files[tif_idx]
+                tif_file = self.file_manager.files[tif_idx]
                 if report_files:
                     print(f'Loading from file {tif_idx}')
                 stack.close()
@@ -500,21 +510,6 @@ class FrameManager:
 
     def __repr__(self):
         return self.__str__()
-
-    @classmethod
-    def from_dict(cls, d):
-        file_manager = FileManager.from_dict(d['file_manager'])
-        n_frames = d['n_frames']
-        frame_size = d['frame_size']
-        frame_to_file = d['frame_to_file']
-        return cls(file_manager, n_frames=n_frames, frame_size=frame_size, frame_to_file=frame_to_file)
-
-    def to_dict(self):
-        d = {'file_manager': self.file_manager.to_dict(),
-             'n_frames': int(self.n_frames),
-             'frame_size': self.frame_size,
-             'frame_to_file': self.frame_to_file}
-        return d
 
 
 class VolumeManager:
@@ -536,42 +531,35 @@ class VolumeManager:
     def __init__(self, fpv, frame_manager, fgf=0):
         # frames per volume
         self.fpv = fpv
-        # first good frame, start counting from 0 : 0, 1, 2, 3, ...
-        self.fgf = fgf
         # total number of frames
         self.frame_manager = frame_manager
         self.n_frames = frame_manager.n_frames
+
         # frames at the beginning, full volumes and frames at the end
-        self.n_head = self.fgf
-        self.full_volumes, self.n_tail = divmod((self.n_frames - self.fgf), self.fpv)
+        # first good frame, start counting from 0 : 0, 1, 2, 3, ...
+        self.n_head = fgf
+        self.full_volumes, self.n_tail = divmod((self.n_frames - self.n_head), self.fpv)
         # frames to slices :
         self.frame_to_z = self.get_frames_to_z()
         # frames to full volumes :
         self.frame_to_vol = self.get_frames_to_volumes()
 
-    @classmethod
-    def from_dict(cls, d):
-        fpv = d['fpv']
-        fgf = d['fgf']
-        frame_manager = FrameManager.from_dict(d['frame_manager'])
-        return cls(fpv, frame_manager, fgf=fgf)
-
-    def to_dict(self):
-        d = {'frame_manager': self.frame_manager.to_dict(),
-             'fpv': self.fpv,
-             'fgf': self.fgf}
-        return d
-
     def __str__(self):
         description = ""
         description = description + f"Total frames : {self.n_frames}\n"
-        description = description + f"Volumes start on frame : {self.fgf}\n"
+        description = description + f"Volumes start on frame : {self.n_head}\n"
         description = description + f"Total good volumes : {self.full_volumes}\n"
         description = description + f"Frames per volume : {self.fpv}\n"
         return description
 
     def __repr__(self):
         return self.__str__()
+
+    @classmethod
+    def from_dir(cls, data_dir, fpv, fgf=0, file_names=None, frames_in_file=None):
+        file_manager = FileManager(data_dir, file_names=file_names, frames_in_file=frames_in_file)
+        frame_manager = FrameManager(file_manager)
+        return cls(fpv, frame_manager, fgf=fgf)
 
     def get_frames_to_z(self):
         z_per_frame_list = np.arange(self.fpv)
@@ -631,7 +619,7 @@ class VolumeManager:
 
         :param slices: which of the slices to load. If None loads all.
         :type slices: int or list[int] or numpy.ndarray
-        # TODO : writing stuff like list[int] or numpy.ndarray seems wrong, verify ...
+        # TODO : writing stuff like list[int] or numpy.ndarray seems wrong...how do I write it?
 
         :return: 3D array of shape (number of zslices, height, width)
         :rtype: numpy.ndarray
@@ -642,6 +630,7 @@ class VolumeManager:
             which_frames = which_frames[slices]
 
         frames = self.frame_manager.load_frames(which_frames)
+        # TODO : convert back to ordered z slices
 
         return frames
 
@@ -788,19 +777,6 @@ class Annotation:
             d[cycle.name] = cycle.fit_cycles_to_frames(self.n_frames)
         return d
 
-    # to/from dict methods ________________________________________________________________________
-    @classmethod
-    def from_dict(cls, d):
-        frame_to_label_dict = d['frame_to_label']
-        frame_to_label_dict = d['frame_to_label']
-        n_frames = d['n_frames']
-        return cls(frame_to_label_dict=frame_to_label_dict, n_frames=n_frames)
-
-    def to_dict(self):
-        d = {'frame_to_label': self.frame_to_label,
-             'n_frames': self.n_frames}
-        return d
-
 class Experiment:
     """
     Information about the experiment. Can contain cycles and more.
@@ -822,33 +798,6 @@ class Experiment:
             f"Number of frames in the frame manager, {self.frame_manager.n_frames}, " \
             f"doesn't match the number of frames in the annotation , {self.annotation.n_frames}"
         self.cycles = cycles
-
-        # built database
-        # self.info_df = self.frame_manager.create_info()
-        # self.info_df = self.volume_manager.append_info(self.info_df)
-        # self.info_df = self.annotation.append_info(self.info_df)
-
-    @classmethod
-    def from_dict(cls, d):
-        volume_manager = VolumeManager.from_dict(d['volume_manager'])
-        annotation = Annotation.from_dict(d['annotation'])
-        cycles = []
-        for cycle in d['cycles']:
-            cycles.append(Cycle.from_dict(cycle))
-        return cls(volume_manager, annotation, cycles=cycles)
-
-    def to_dict(self):
-        if self.cycles is not None:
-            cycles = []
-            for cycle in self.cycles:
-                cycles.append(cycle.to_dict())
-        else:
-            cycles = None
-
-        d = {'volume_manager': self.volume_manager.to_dict(),
-             'annotation': self.annotation.to_dict(),
-             'cycles': cycles}
-        return d
 
     def choose_frames(self, labels_dict, between_group_logic="and"):
         """
@@ -966,29 +915,6 @@ class Experiment:
         """
         raise NotImplementedError
 
-    @classmethod
-    def from_tables(cls, spec):
-        """
-        Initialise experiment object from tables.
-        """
-        # prepare frame manager
-        frame_manager = FrameManager.from_csv(spec['frame_manager'])
-        # TODO : why do I need frame manager in volume manager?
-        volume_manager = VolumeManager.from_csv(spec['volume_manager'], frame_manager)
-        annotation = Annotation.from_csv(spec['annotation'])
-        # cycles = ???
-
-        #
-        # # prepare annotation
-        # cycles = []
-        # for k in spec['annotation']:
-        #     spec['annotation'][k]['name'] = k
-        #     cycles.append(Cycle.from_dict(spec['annotation'][k]))
-        # annotation = Annotation(frame_manager, cycles)
-        raise NotImplementedError
-
-        return cls(volume_manager, annotation)
-
 
 class DbManager:
     """
@@ -1007,7 +933,8 @@ class DbManager:
             CREATE TABLE "Options" (
             "Key"	TEXT NOT NULL UNIQUE,
             "Value"	TEXT NOT NULL,
-             PRIMARY KEY("Key")
+            "Description"	TEXT,
+            PRIMARY KEY("Key")
             )
             """
         db_cursor.execute(sql_create_Options_table)
