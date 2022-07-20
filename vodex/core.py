@@ -6,6 +6,7 @@ import json
 import numpy as np
 import collections
 from pathlib import Path
+import pandas as pd
 import glob
 from tqdm import tqdm
 # import pandas as pd
@@ -50,26 +51,95 @@ class TiffLoader:
     Loads tiff images
     """
 
-    def __init__(self, data_dir):
-        self.data_dir = data_dir
+    def __init__(self, file_example):
+        """
+        file_example : an example file file from the data
+        """
+        self.frame_size = self.get_frame_size(file_example)
 
-    def get_frames_in_file(self, file_name):
+    @staticmethod
+    def get_frames_in_file(file):
         """
         returns the number of frames in file
         file_name: name of file relative to data_dir
         """
+        # TODO : try-catch here ?
         # setting multifile to false since sometimes there is a problem with the corrupted metadata
         # not using metadate, since for some files it is corrupted for unknown reason ...
-        stack = TiffFile(self.data_dir.join(file_name), _multifile=False)
+        stack = TiffFile(file, _multifile=False)
         n_frames = len(stack.pages)
         stack.close()
+
         return n_frames
 
-    def load_frames(self):
+    @staticmethod
+    def get_frame_size(file):
         """
-        returns loaded frames as num_frames x height x width
+        Gets frame size ( height , width ).
+
+        :return: height and width of an individual frame in pixels
         """
-        pass
+        # TODO : try-catch here ?
+        # setting multifile to false since sometimes there is a problem with the corrupted metadata
+        # not using metadate, since for some files it is corrupted for unknown reason ...
+        stack = TiffFile(file, _multifile=False)
+        page = stack.pages.get(0)
+        h, w = page.shape
+        stack.close()
+        return h, w
+
+    def load_frames(self, frames, report_files=False, show_progress=True):
+        """
+        Load frames from files and return as an array (frame, y, x).
+
+        :param frames: list of frames to load
+        :type frames: list[int]
+
+        :param report_files: whether to print the file from which the frames are loaded on the screen.
+        :type report_files: bool
+
+        :param show_progress: whether to show the progress bar of how many frames have been loaded.
+        :type show_progress: bool
+
+        :return: 3D array of requested frames (frame, y, x)
+        :rtype: numpy.ndarray
+        """
+        if report_files:
+            if show_progress:
+                print("Setting show_progress to False.\nshow_progress can't be True when report_files is True")
+                show_progress = False
+
+        # prepare an empty array:
+        h, w = self.frame_size
+        frames_img = np.zeros((len(frames), h, w))
+
+        # TODO : all of this needs to change
+
+        # initialise tif file and open the stack
+        tif_idx = self.frame_to_file['file_idx'][frames[0]]
+        tif_file = self.file_manager.files[tif_idx]
+        stack = TiffFile(tif_file, _multifile=False)
+
+        if report_files:
+            print(f'Loading from file {tif_idx}')
+        for i, frame in enumerate(tqdm(frames, disable=not show_progress)):
+            # locate frame in file
+            frame_idx = self.frame_to_file['in_file_frame'][frame]
+            # check if he frame belongs to an opened file
+            if tif_idx == self.frame_to_file['file_idx'][frame]:
+                # continue loading from the previously opened file
+                frames_img[i, :, :] = stack.asarray(frame_idx)
+            else:
+                # switch to a different file
+                tif_idx = self.frame_to_file['file_idx'][frame]
+                tif_file = self.file_manager.files[tif_idx]
+                if report_files:
+                    print(f'Loading from file {tif_idx}')
+                stack.close()
+                stack = TiffFile(tif_file, _multifile=False)
+                frames_img[i, :, :] = stack.asarray(frame_idx)
+        stack.close()
+        return frames_img
 
 
 class ImageLoader:
@@ -77,45 +147,102 @@ class ImageLoader:
     Loads Images. Deals with different types of Images
     """
 
-    def __init__(self, data_dir, file_extension):
-        self.supported_extension = [".tif", ".tiff"]
+    def __init__(self, file_example):
+        """
+        file_example : needed to get file extention and get the frame size
+        """
 
-        self.data_dir = data_dir
-        self.file_extension = file_extension
+        self.supported_extension = [".tif", ".tiff"]
+        self.file_extension = file_example.suffix
         assert self.file_extension in self.supported_extension, \
             f"Only files with the following extensions are supported: {self.supported_extension}, but" \
             f"{self.file_extension} was given"
         # pick the loader and initialise it with the data directory
-        self.loader = self.choose_loader()
+        self.loader = self.choose_loader(file_example)
 
-    def choose_loader(self):
+    def choose_loader(self, file_example):
         """
-        Chooses the proper loader
+        Chooses the proper loader based on the files extension.
         """
         if self.file_extension == ".tif" or self.file_extension == ".tiff":
-            return TiffLoader(self.data_dir)
+            return TiffLoader(file_example)
 
-    def get_frames_in_file(self, file):
-        return self.loader.get_frames_in_file(file)
+    def get_frames_in_file(self, file_name):
+        return self.loader.get_frames_in_file(file_name)
 
-    def load_volumes(self):
+    def get_frame_size(self, file_name):
+        return self.loader.get_frame_size(file_name)
+
+    def load_frames(self):
         pass
 
-    def load_slices(self):
-        pass
+    def load_volumes(self, volumes, verbose=False, show_progress=True):
+        """
+        Loads specified volumes.
+        :param volumes: list of volumes indices to load.
+        :type volumes: list[int]
+
+        :param verbose: whether to print the file from which the frames are loaded on the screen.
+        :type verbose: bool
+
+        :param show_progress: whether to show the progress bar of how many frames have been loaded.
+        :type show_progress: bool
+
+        :return: 4D array of shape (number of volumes, zslices, height, width)
+        :rtype: numpy.ndarray
+        """
+        w, h = self.loader.frame_size
+
+        # TODO : all of this needs to change
+
+        # convert volumes to frames: get all the frames corresponding to the requested volumes
+        which_frames = np.where(np.in1d(self.frame_to_vol, volumes))[0]
+        # load frames and shape them into volumes
+        frames_reshaped = self.frame_manager.load_frames(which_frames,
+                                                         report_files=verbose,
+                                                         show_progress=show_progress).reshape(
+            (len(volumes), self.fpv, w, h))
+        return frames_reshaped
+
+    def load_slices(self, zpos, slices=None):
+        """
+        Loads specified zslices.
+        For example only the first 3 z slices at z 30 : zpos = 30, slices= [0,1,2];
+        all z slices at z 30 : zpos = 30, slices = None
+
+        :param zpos: z position, what z slice to load.
+        :type zpos: int
+
+        :param slices: which of the slices to load. If None loads all.
+        :type slices: int or list[int] or numpy.ndarray
+        # TODO : writing stuff like list[int] or numpy.ndarray seems wrong...how do I write it?
+
+        :return: 3D array of shape (number of zslices, height, width)
+        :rtype: numpy.ndarray
+        """
+        # convert z slices to frames
+        which_frames = np.where(np.in1d(self.frame_to_z, zpos))[0]
+        if slices:
+            which_frames = which_frames[slices]
+
+        frames = self.frame_manager.load_frames(which_frames)
+        # TODO : convert back to ordered z slices
+
+        return frames
 
 
 class FileManager:
     """
     Figures out stuff concerning the many files. For example in what order do stacks go?
-    Will grab all the tif files in the provided folder and order them alphabetically.
-
-    :param data_dir: path to the folder with the files, ends with "/" or "\\"
-    :type data_dir: str
+    Will grab all the files with the provided file_extension
+    in the provided folder and order them alphabetically.
     """
 
     def __init__(self, data_dir, file_names=None, frames_per_file=None, file_extension=".tif"):
-
+        """
+        :param data_dir: path to the folder with the files, ends with "/" or "\\"
+        :type data_dir: str
+        """
         # 1. get data_dir and check it exists
         self.data_dir = Path(data_dir)
         assert self.data_dir.is_dir(), f"No directory {self.data_dir}"
@@ -127,10 +254,9 @@ class FileManager:
         else:
             # if a list of files is provided, check it's in the folder
             self.file_names = self.check_files(file_names)
-
         # 3. Initialise ImageLoader
         #    will pick the image loader that works with the provided file type
-        self.loader = ImageLoader(data_dir, file_extension)
+        self.loader = ImageLoader(self.data_dir.joinpath(self.file_names[0]))
 
         # 4. Get number of frames per file
         if frames_per_file is None:
@@ -139,6 +265,8 @@ class FileManager:
         else:
             # if provided ... we'll trust you - hope these numbers are correct
             self.num_frames = frames_per_file
+        # check that the type is int
+        assert all(isinstance(n, int) for n in self.num_frames), "self.num_frames should be a list of int"
 
         self.n_files = len(self.file_names)
 
@@ -148,7 +276,7 @@ class FileManager:
         """
         files = list(self.data_dir.glob(f"*{file_extension}"))
         file_names = [file.name for file in files]
-        return files, file_names
+        return file_names
 
     def check_files(self, file_names):
         """
@@ -167,7 +295,7 @@ class FileManager:
         """
         frames_per_file = []
         for file in self.file_names:
-            n_frames = self.loader.get_frames_in_file(file)
+            n_frames = self.loader.get_frames_in_file(self.data_dir.joinpath(file))
             frames_per_file.append(n_frames)
         return frames_per_file
 
@@ -196,6 +324,7 @@ class FileManager:
 
     def __repr__(self):
         return self.__str__()
+
 
 class TimeLabel:
     """
@@ -264,26 +393,55 @@ class TimeLabel:
     def __ne__(self, other):
         return not self.__eq__(other)
 
+    def to_dict(self):
+        d = {'name': self.name}
+        if self.group is not None:
+            d['group'] = self.group
+        if self.description is not None:
+            d['description'] = self.description
+        return d
+
+    @classmethod
+    def from_dict(cls, d):
+        if 'description' not in d:
+            d['description'] = None
+        if 'group' not in d:
+            d['group'] = None
+        return cls(d['name'], description=d['description'], group=d['group'])
+
+
 class Labels:
     """
     Describes a particular group of time labels.
     TODO : also responsible for colors for plotting these labels.
     """
 
-    def __init__(self, group, states, state_info={}):
+    def __init__(self, group, state_names, group_info=None, state_info={}):
+        """
+        group : str, the name of the group
+        group_info : str, description of what this group is about
+        states: list[str], the state names
+        state_info: {state name : description}
+        """
         self.group = group
-        self.states = states
-        for state in states:
-            if state in state_info:
-                setattr(self, state, TimeLabel(state, description=state_info[state], group=self.group))
+        self.group_info = group_info
+        self.state_names = state_names
+        # create states
+        self.states = []
+        for state_name in self.state_names:
+            if state_name in state_info:
+                state = TimeLabel(state_name, description=state_info[state_name], group=self.group)
+                setattr(self, state_name, state)
             else:
-                setattr(self, state, TimeLabel(state, group=self.group))
+                state = TimeLabel(state_name, group=self.group)
+                setattr(self, state_name, state)
+            self.states.append(state)
 
     def __str__(self):
         description = f"Label group : {self.group}\n"
         description = description + f"States:\n"
-        for state in self.states:
-            description = description + f"{getattr(self, state)}\n"
+        for state_name in self.state_names:
+            description = description + f"{getattr(self, state_name)}\n"
         return description
 
     def __repr__(self):
@@ -295,21 +453,27 @@ class Cycle:
     Information about the repeated cycle of labels. Use it when you have some periodic conditions, like : light
     on , light off, light on, light off... will be made of list of labels [light_on, light_off] that repeat ..."""
 
-    def __init__(self, name, labels, timing):
+    def __init__(self, label_order, timing):
         """
-        :param name: cycle name. Used to identify this specific cycle.
-        :type name: str
-
-        :param labels: a list of labels in the right order in which they follow
-        :type labels: list[TimeLabel]
+        :param label_order: a list of labels in the right order in which they follow
+        :type label_order: list[TimeLabel]
 
         :param timing: timing of the corresponding labels, in frames (based on your imaging). Note that these are
         frames, not volumes !
         :type timing: list[int]
         """
-        self.name = name
-        self.labels = labels
-        self.timing = np.array(timing)
+        # check that all labels are from the same group
+        label_group = label_order[0].group
+        for label in label_order:
+            assert label.group == label_group, \
+                f"All labels should be from the same group, but got {label.group} and {label_group}"
+
+        # check that timing is int
+        assert all(isinstance(n, int) for n in timing), "timing should be a list of int"
+
+        self.name = label_group
+        self.label_order = label_order
+        self.timing = list(timing)
         self.full_length = sum(self.timing)
         # list the length of the cycle, each element is the TimeLabel
         # TODO : turn it into an index ?
@@ -320,14 +484,14 @@ class Cycle:
         A list of labels per frame for one cycle only.
         """
         per_frame_label_list = []
-        for (label_time, label) in zip(self.timing, self.labels):
+        for (label_time, label) in zip(self.timing, self.label_order):
             per_frame_label_list.extend(label_time * [label])
         return per_frame_label_list
 
     def __str__(self):
         description = f"Cycle : {self.name}\n"
         description = description + f"Length: {self.full_length}\n"
-        for (label_time, label) in zip(self.timing, self.labels):
+        for (label_time, label) in zip(self.timing, self.label_order):
             description = description + f"Label {label.name}: for {label_time} frames\n"
         return description
 
@@ -363,9 +527,31 @@ class Cycle:
         n_cycles = self.fit_frames(n_frames)
         cycle_per_frame_list = []
         for n in np.arange(n_cycles):
-            cycle_per_frame_list.extend([n] * self.full_length)
+            cycle_per_frame_list.extend([int(n)] * self.full_length)
         # crop the tail
         return cycle_per_frame_list[0:n_frames]
+
+    def to_dict(self):
+        label_order = [label.to_dict() for label in self.label_order]
+        d = {'timing': self.timing, 'label_order': label_order}
+        return d
+
+    def to_json(self):
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_dict(cls, d):
+        label_order = [TimeLabel.from_dict(ld) for ld in d['label_order']]
+        return cls(label_order, d['timing'])
+
+    @classmethod
+    def from_json(cls, j):
+        """
+        j : json string
+        """
+        d = json.loads(j)
+        return cls.from_dict(d)
+
 
 class FrameManager:
     """
@@ -375,40 +561,16 @@ class FrameManager:
     :type file_manager: FileManager
     """
 
-    def __init__(self, file_manager, n_frames=None, frame_size=None, frame_to_file=None):
+    def __init__(self, file_manager):
         self.file_manager = file_manager
-        # TODO : create separate method "from_filemanager" and get all the None cases there ...
-        if n_frames is None:
-            self.n_frames = self.get_n_frames()
-        else:
-            self.n_frames = n_frames
-
-        if frame_size is None:
-            self.frame_size = self.get_frame_size()
-        else:
-            self.frame_size = frame_size
-
-        if frame_to_file is None:
-            self.frame_to_file = self.get_frame_list()
-        else:
-            self.frame_to_file = frame_to_file
+        self.frame_to_file, self.frame_in_file = self.get_frame_mapping()
 
     @classmethod
-    def from_dir(cls, data_dir, file_names=None, frames_in_file=None):
-        file_manager = FileManager(data_dir, file_names=file_names, frames_in_file=frames_in_file)
+    def from_dir(cls, data_dir, file_names=None, frames_per_file=None):
+        file_manager = FileManager(data_dir, file_names=file_names, frames_per_file=frames_per_file)
         return cls(file_manager)
 
-    def get_n_frames(self):
-        """
-        Returns total number of frames (all files from file_manager combined).
-
-        :return: Frames per file.
-        :rtype: int
-        """
-        n_frames = np.sum(self.file_manager.num_frames)
-        return n_frames
-
-    def get_frame_list(self):
+    def get_frame_mapping(self):
         """
         Calculate frame range in each file.
         Returns a dict with file index for each frame and frame index in the file.
@@ -422,91 +584,18 @@ class FrameManager:
 
         :rtype: dict of str: list[int]
         """
-        frame_to_file = {'file_idx': [],
-                         'in_file_frame': []}  # collections.defaultdict(list)
+        frame_to_file = []
+        frame_in_file = []
 
         for file_idx in range(self.file_manager.n_files):
             n_frames = self.file_manager.num_frames[file_idx]
-            frame_to_file['file_idx'].extend(n_frames * [file_idx])
-            frame_to_file['in_file_frame'].extend(np.arange(n_frames).tolist())
+            frame_to_file.extend(n_frames * [file_idx])
+            frame_in_file.extend(range(n_frames))
 
-        frame_to_file['file_idx'] = frame_to_file['file_idx']
-        frame_to_file['in_file_frame'] = frame_to_file['in_file_frame']
-
-        return frame_to_file
-
-    def get_frame_to_file_name(self):
-        """
-        Returns a list : for each frame , the filename to which that frame belongs.
-        """
-        return [self.file_manager.files[idx] for idx in self.frame_to_file['file_idx']]
-
-    def get_frame_size(self):
-        """
-        Gets frame size ( height , width ).
-        
-        :return: height and width of an individual frame in pixels
-        """
-        # initialise tif file and open the stack
-        tif_file = self.file_manager.files[0]
-        stack = TiffFile(tif_file, _multifile=False)
-        page = stack.pages.get(0)
-        h, w = page.shape
-        stack.close()
-        return h, w
-
-    def load_frames(self, frames, report_files=False, show_progress=True):
-        """
-        Load frames from files and return as an array (frame, y, x).
-
-        :param frames: list of frames to load
-        :type frames: list[int]
-
-        :param report_files: whether to print the file from which the frames are loaded on the screen.
-        :type report_files: bool
-
-        :param show_progress: whether to show the progress bar of how many frames have been loaded.
-        :type show_progress: bool
-
-        :return: 3D array of requested frames (frame, y, x)
-        :rtype: numpy.ndarray
-        """
-        if report_files:
-            show_progress = False
-            print("Set show_progress to False , because report_files  is set to True")
-
-        # prepare an empty array:
-        h, w = self.frame_size
-        frames_img = np.zeros((len(frames), h, w))
-
-        # initialise tif file and open the stack
-        tif_idx = self.frame_to_file['file_idx'][frames[0]]
-        tif_file = self.file_manager.files[tif_idx]
-        stack = TiffFile(tif_file, _multifile=False)
-
-        if report_files:
-            print(f'Loading from file {tif_idx}')
-        for i, frame in enumerate(tqdm(frames, disable=not show_progress)):
-            # locate frame in file
-            frame_idx = self.frame_to_file['in_file_frame'][frame]
-            # check if he frame belongs to an opened file
-            if tif_idx == self.frame_to_file['file_idx'][frame]:
-                # continue loading from the previously opened file
-                frames_img[i, :, :] = stack.asarray(frame_idx)
-            else:
-                # switch to a different file
-                tif_idx = self.frame_to_file['file_idx'][frame]
-                tif_file = self.file_manager.files[tif_idx]
-                if report_files:
-                    print(f'Loading from file {tif_idx}')
-                stack.close()
-                stack = TiffFile(tif_file, _multifile=False)
-                frames_img[i, :, :] = stack.asarray(frame_idx)
-        stack.close()
-        return frames_img
+        return frame_to_file, frame_in_file
 
     def __str__(self):
-        return f"Total {self.n_frames} frames."
+        return f"Total {np.sum(self.file_manager.num_frames)} frames."
 
     def __repr__(self):
         return self.__str__()
@@ -529,20 +618,51 @@ class VolumeManager:
     """
 
     def __init__(self, fpv, frame_manager, fgf=0):
-        # frames per volume
-        self.fpv = fpv
-        # total number of frames
-        self.frame_manager = frame_manager
-        self.n_frames = frame_manager.n_frames
+        assert isinstance(fpv, int) or (isinstance(fpv, float) and fpv.is_integer()), "fpv must be an integer"
+        assert isinstance(fgf, int) or (isinstance(fgf, float) and fgf.is_integer()), "fgf must be an integer"
 
-        # frames at the beginning, full volumes and frames at the end
+        # frames per volume
+        self.fpv = int(fpv)
+
+        # get total number of frames
+        self.frame_manager = frame_manager
+        self.file_manager = frame_manager.file_manager
+        self.n_frames = np.sum(self.file_manager.num_frames)
+
+        # prepare info about frames at the beginning, full volumes and frames at the end
         # first good frame, start counting from 0 : 0, 1, 2, 3, ...
-        self.n_head = fgf
-        self.full_volumes, self.n_tail = divmod((self.n_frames - self.n_head), self.fpv)
-        # frames to slices :
-        self.frame_to_z = self.get_frames_to_z()
-        # frames to full volumes :
-        self.frame_to_vol = self.get_frames_to_volumes()
+        # n_head is the number of frames before the first frame of the first full volume
+        # n_tail is the number of frames after the last frame of the last full volume
+        self.n_head = int(fgf)
+        full_volumes, n_tail = divmod((self.n_frames - self.n_head), self.fpv)
+        self.full_volumes = int(full_volumes)
+        self.n_tail = int(n_tail)
+
+        # map frames to slices an full volumes:
+        self.frame_to_z = self.get_frames_to_z_mapping().tolist()
+        self.frame_to_vol = self.get_frames_to_volumes_mapping().tolist()
+
+    def get_frames_to_z_mapping(self):
+        z_per_frame_list = np.arange(self.fpv).astype(int)
+        # set at what z the imaging starts and ends
+        i_from = self.fpv - self.n_head
+        i_to = self.n_tail - self.fpv
+        # map frames to z
+        frame_to_z = np.tile(z_per_frame_list, self.full_volumes + 2)[i_from:i_to]
+        return frame_to_z
+
+    def get_frames_to_volumes_mapping(self):
+        """
+        maps frames to volumes
+        -1 for head ( not full volume at the beginning )
+        volume number for full volumes : 0, 1, ,2 3, ...
+        -2 for tail (not full volume at the end )
+        """
+        frame_to_vol = [-1] * self.n_head
+        for vol in np.arange(self.full_volumes).astype(int):
+            frame_to_vol.extend([vol] * self.fpv)
+        frame_to_vol.extend([-2] * self.n_tail)
+        return np.array(frame_to_vol)
 
     def __str__(self):
         description = ""
@@ -556,83 +676,10 @@ class VolumeManager:
         return self.__str__()
 
     @classmethod
-    def from_dir(cls, data_dir, fpv, fgf=0, file_names=None, frames_in_file=None):
-        file_manager = FileManager(data_dir, file_names=file_names, frames_in_file=frames_in_file)
+    def from_dir(cls, data_dir, fpv, fgf=0, file_names=None, frames_per_file=None):
+        file_manager = FileManager(data_dir, file_names=file_names, frames_per_file=frames_per_file)
         frame_manager = FrameManager(file_manager)
         return cls(fpv, frame_manager, fgf=fgf)
-
-    def get_frames_to_z(self):
-        z_per_frame_list = np.arange(self.fpv)
-        # set at what z the imaging starts and ends
-        i_from = self.fpv - self.n_head
-        i_to = self.n_tail - self.fpv
-        # map frames to z
-        frame_to_z = np.tile(z_per_frame_list, self.full_volumes + 2)[i_from:i_to]
-        return frame_to_z
-
-    def get_frames_to_volumes(self):
-        """
-        maps frames to volumes
-        -1 for head ( not full volume at the beginning )
-        volume number for full volumes : 0, 1, ,2 3, ...
-        -2 for tail (not full volume at the end )
-        """
-        frame_to_vol = [-1] * self.n_head
-        for vol in np.arange(self.full_volumes):
-            frame_to_vol.extend([vol] * self.fpv)
-        frame_to_vol.extend([-2] * self.n_tail)
-        return np.array(frame_to_vol)
-
-    def load_volumes(self, volumes, verbose=False, show_progress=True):
-        """
-        Loads specified volumes.
-        :param volumes: list of volumes indices to load.
-        :type volumes: list[int]
-
-        :param verbose: whether to print the file from which the frames are loaded on the screen.
-        :type verbose: bool
-
-        :param show_progress: whether to show the progress bar of how many frames have been loaded.
-        :type show_progress: bool
-
-        :return: 4D array of shape (number of volumes, zslices, height, width)
-        :rtype: numpy.ndarray
-        """
-        w, h = self.frame_manager.get_frame_size()
-        # convert volumes to frames: get all the frames corresponding to the requested volumes
-        which_frames = np.where(np.in1d(self.frame_to_vol, volumes))[0]
-        # load frames and shape them into volumes
-        frames_reshaped = self.frame_manager.load_frames(which_frames,
-                                                         report_files=verbose,
-                                                         show_progress=show_progress).reshape(
-            (len(volumes), self.fpv, w, h))
-        return frames_reshaped
-
-    def load_zslices(self, zpos, slices=None):
-        """
-        Loads specified zslices.
-        For example only the first 3 z slices at z 30 : zpos = 30, slices= [0,1,2];
-        all z slices at z 30 : zpos = 30, slices = None
-
-        :param zpos: z position, what z slice to load.
-        :type zpos: int
-
-        :param slices: which of the slices to load. If None loads all.
-        :type slices: int or list[int] or numpy.ndarray
-        # TODO : writing stuff like list[int] or numpy.ndarray seems wrong...how do I write it?
-
-        :return: 3D array of shape (number of zslices, height, width)
-        :rtype: numpy.ndarray
-        """
-        # convert z slices to frames
-        which_frames = np.where(np.in1d(self.frame_to_z, zpos))[0]
-        if slices:
-            which_frames = which_frames[slices]
-
-        frames = self.frame_manager.load_frames(which_frames)
-        # TODO : convert back to ordered z slices
-
-        return frames
 
 
 class Annotation:
@@ -640,164 +687,98 @@ class Annotation:
     Time annotation of the experiment.
     """
 
-    def __init__(self,
-                 frame_to_label_dict=None,
-                 frame_to_cycle_dict=None,
-                 cycles=None,
-                 n_frames=None):
+    def __init__(self, n_frames, labels, frame_to_label, info=None,
+                 cycle=None, frame_to_cycle=None):
         """
         Either frame_to_label_dict or n_frames need to be provided to infer the number of frames.
         If both are provided , they need to agree.
-        :param frame_to_label: dictionaly {annotation group : frame_to_label_list}
-        :param frame_to_cycle_dict: dictionaly {annotation group : frame_to_cycle_list}
-        :param cycles: list of cycles
+
+        :param labels: [Labels]
+        :param info: str, description of the annotation
+        :param frame_to_label: list[TimeLabels] what label it is for each frame
+        :param frame_to_cycle: list[int] what cycle it is for each frame
+        :param cycle: for annotation from cycles keeps the cycle
         :param n_frames: total number of frames, will be inferred from frame_to_label if not provided
         """
-        # 1. get total experiment length in frames
-        if frame_to_label_dict is not None:
-            self.n_frames = len(frame_to_label_dict.values()[0])
-            # check that all mappings in frame_to_label_dict are the same length
-            for key, value in frame_to_label_dict.items():
-                assert len(value) == self.n_frames, f"The number of frames in the new annotation for {key}: " \
-                                                    f" {len(value)}, " \
-                                                    f"and the number of frames in the existing annotations ," \
-                                                    f" {self.n_frames}, do not match."
-            # check that the n_frames provided ( if any ) and number of frames inferred are the same
-            if n_frames is not None:
-                assert n_frames == self.n_frames, f"The number of frames given as input, {n_frames}, " \
-                                                  f"and the number of frames in the provided annotations ," \
-                                                  f" {self.n_frames}, do not match."
-        elif n_frames is not None:
-            self.n_frames = n_frames
-        else:
-            raise ValueError("Either n_frames or frame_to_label_dict need to be provided. ")
+        # get total experiment length in frames, check that it is consistent
+        if frame_to_label is not None:
+            assert n_frames == len(frame_to_label), f"The number of frames in the frame_to_label," \
+                                                    f"{len(frame_to_label)}," \
+                                                    f"and the number of frames provided," \
+                                                    f"{n_frames}, do not match."
+        self.n_frames = n_frames
+        self.frame_to_label = frame_to_label
+        self.labels = labels
+        self.name = self.labels.group
+        self.info = info
 
-        if frame_to_cycle_dict is not None:
-            # check that all mappings in frame_to_label_dict are the same length
-            for key, value in frame_to_cycle_dict.items():
-                assert len(value) == self.n_frames, f"The number of frames in the frame_to_cycle mapping for {key}: " \
-                                                    f" {len(value)}, " \
-                                                    f"and the number of frames in the existing annotations ," \
-                                                    f" {self.n_frames}, do not match."
-        # 2. assign frame_to_label and frame_to_cycle
-        self.frame_to_label = frame_to_label_dict
-        self.frame_to_cycle = frame_to_cycle_dict
+        # None if the annotation os not from a cycle
+        if frame_to_cycle is not None:
+            # check that frame_to_cycle is int
+            assert all(isinstance(n, int) for n in frame_to_cycle), "frame_to_cycle should be a list of int"
+            assert cycle is not None, "You have to provide cycle " \
+                                      "if you are providing a frame_to_cycle for the Annotation"
+        if cycle is not None:
+            assert frame_to_cycle is not None, "You have to provide frame_to_cycle " \
+                                               "if you are providing a cycle for the Annotation"
+            assert n_frames == len(frame_to_cycle), f"The number of frames in the frame_to_cycle," \
+                                                    f"{len(frame_to_cycle)}," \
+                                                    f"and the number of frames provided," \
+                                                    f"{n_frames}, do not match."
+            self.cycle = cycle
+            self.frame_to_cycle = frame_to_cycle
 
-        # 3. add information from cycles to frame_to_label and frame_to_cycle
-        if cycles is not None:
-            frame_to_label = self.frame_to_label_from_cycles(cycles)
-            frame_to_cycle = self.frame_to_cycle_from_cycles(cycles)
+    @classmethod
+    def from_cycle(cls, n_frames, labels, cycle, info=None):
 
-            if self.frame_to_label is None:
-                self.frame_to_label = frame_to_label
-            else:
-                self.add_frame_to_label(frame_to_label)
-
-            if self.frame_to_cycle is None:
-                self.frame_to_cycle = frame_to_cycle
-            else:
-                self.add_frame_to_cycle(frame_to_cycle)
+        frame_to_label = cycle.fit_labels_to_frames(n_frames)
+        frame_to_cycle = cycle.fit_cycles_to_frames(n_frames)
+        return cls(n_frames, labels, frame_to_label, info=info,
+                   cycle=cycle, frame_to_cycle=frame_to_cycle)
 
     def __str__(self):
-        description = ""
+        description = f"Annotation type: {self.name}\n"
+        if self.info is not None:
+            description = description + f"{self.info}\n"
         description = description + f"Total frames : {self.n_frames}\n"
-        for cycle in self.cycles:
-            description = description + cycle.__str__()
         return description
 
     def __repr__(self):
         return self.__str__()
 
-    # adding to annotation methods _____________________________________________________________________________
-    def add_frame_to_cycle(self, frame_to_cycle):
-        """
-        Appends information about additional label groups to frame_to_cycle dictionary
-
-        :param frame_to_cycle: list of labels for every frame
-        :return: None
-        """
-        for key, value in frame_to_cycle.items():
-            assert key not in self.frame_to_cycle, f"{key} cycle group is already in the annotation." \
-                                                   f" If you are trying to add a new group, rename it. " \
-                                                   f"To rewrite an existing group, first delete it and then add."
-
-            assert len(value) == self.n_frames, f"The number of frames in the new annotation, {len(value)}, " \
-                                                f"and the number of frames in the existing annotations ," \
-                                                f" {self.n_frames}, do not match."
-
-        self.frame_to_cycle.update(frame_to_cycle)
-
-    def add_frame_to_label(self, frame_to_label):
-        """
-        Appends information about additional label groups to frame_to_label dictionary
-
-        :param frame_to_label: list of labels for every frame
-        :return: None
-        """
-        for key, value in frame_to_label.items():
-            assert key not in self.frame_to_label, f"{key} label group is already in the annotation." \
-                                                   f" If you are trying to add a new group, rename it. " \
-                                                   f"To rewrite an existing group, first delete it and then add."
-
-            assert len(value) == self.n_frames, f"The number of frames in the new annotation, {len(value)}, " \
-                                                f"and the number of frames in the existing annotations ," \
-                                                f" {self.n_frames}, do not match."
-
-        self.frame_to_label.update(frame_to_label)
-
-    # cycles related methods ________________________________________________________________________
-    def frame_to_label_from_cycles(self, cycles):
-        """
-        Maps frames to conditions for each label group.
-
-        :return: for each label group, a list of length equal to the total number of frames in all the files,
-        where each element corresponds to a frame and contains the condition presented during that frame.
-
-        :rtype: dict(str : list[TimeLabel])
-        """
-        d = {}
-        for cycle in cycles:
-            d[cycle.name] = cycle.fit_labels_to_frames(self.n_frames)
-        return d
-
-    def frame_to_cycle_from_cycles(self, cycles):
-        """
-        Maps frames to cycles for all cycle groups.
-        Gives you approximately this information :
-         " For cycle with cycle.name = " shape" , the first 10 labels correspond to cycle #1 ,
-          the next 10 frames to cycle #2 etc etc"
-
-        :return: dict{cycle name : cycle per frame list}
-        """
-        # TODO : add the cycle start
-        # frames before the cycle starts are labeled with -1
-        # cycle_per_frame_list = [-1] * self.cycle_start
-        d = {}
-        for cycle in cycles:
-            d[cycle.name] = cycle.fit_cycles_to_frames(self.n_frames)
-        return d
 
 class Experiment:
     """
-    Information about the experiment. Can contain cycles and more.
-    For now assumes there are always repeating cycles, but if you have only one repetition it will still work fine ;)
-    If you don't need to track the conditions and only need to track volumes/ z-slices,
+    Information about the experiment.
+    Will use all the information you provided to figure out what frames to give you based on your request.
     """
 
-    def __init__(self, frame_manager, volume_manager, annotation, cycles=None):
+    def __init__(self, db):
         """
         :param volume_manager: volume manager
         :param annotation: annotation
         :param cycles: cycles ( optional - if you want to keep cycles information )
         """
+        self.db = db
 
-        self.volume_manager = volume_manager
-        self.frame_manager = volume_manager.frame_manager
-        self.annotation = annotation
-        assert self.frame_manager.n_frames == self.annotation.n_frames, \
-            f"Number of frames in the frame manager, {self.frame_manager.n_frames}, " \
-            f"doesn't match the number of frames in the annotation , {self.annotation.n_frames}"
-        self.cycles = cycles
+    @classmethod
+    def create(cls, volume_manager, annotation, cycles=None):
+        """
+        Creates a database instance and initialises the experiment.
+        provide cycles if you have any cycles
+        """
+
+        frame_manager = volume_manager.frame_manager
+        file_manager = frame_manager.file_manager
+
+        assert frame_manager.n_frames == annotation.n_frames, \
+            f"Number of frames in the frame manager, {frame_manager.n_frames}, " \
+            f"doesn't match the number of frames in the annotation , {annotation.n_frames}"
+
+        db = DbManager.initialise_db()
+        db.create_tables()
+
+        db.populate_Options(file_manager, volume_manager)
 
     def choose_frames(self, labels_dict, between_group_logic="and"):
         """
@@ -918,16 +899,47 @@ class Experiment:
 
 class DbManager:
     """
-    Deals with the database methods
+    Database interface that abstracts the SQLite calls
     Code adopted from https://www.devdungeon.com/content/python-sqlite3-tutorial
     Maybe better stuff here : https://www.sqlitetutorial.net/sqlite-python/creating-tables/
+
+    Some thoughts on try-catch :
+    https://softwareengineering.stackexchange.com/questions/64180/good-use-of-try-catch-blocks
     """
 
     def __init__(self, db):
-        self.db_connection = db
+        self.connection = db
+        db.execute("PRAGMA foreign_keys = 1")
+
+    def list_tables(self):
+        """
+        Shows all the tables
+        """
+        cursor = self.connection.cursor()
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+        print(cursor.fetchall())
+        cursor.close()
+
+    def table_as_df(self, table_name):
+        """
+        Returns the whole table as a dataframe
+        table_name : name of the table you want to see
+        """
+
+        cursor = self.connection.cursor()
+        try:
+            query = cursor.execute(f"SELECT * From {table_name}")
+        except Exception as e:
+            print(f"Could not show {table_name} because {e}")
+            raise e
+        finally:
+            cols = [column[0] for column in query.description]
+            df = pd.DataFrame.from_records(data=query.fetchall(), columns=cols)
+            cursor.close()
+        return df
 
     def create_tables(self):
-        db_cursor = self.db_connection.cursor()
+        db_cursor = self.connection.cursor()
 
         sql_create_Options_table = """
             CREATE TABLE "Options" (
@@ -984,23 +996,23 @@ class DbManager:
         sql_create_AnnotationTypeLabels_table = """
             CREATE TABLE "AnnotationTypeLabels" (
             "Id"	INTEGER NOT NULL UNIQUE,
-            "AnnotationTypeId "	INTEGER NOT NULL,
+            "AnnotationTypeId"	INTEGER NOT NULL,
             "Name"	TEXT NOT NULL,
             "Description"	TEXT,
             PRIMARY KEY("Id" AUTOINCREMENT),
-            FOREIGN KEY("AnnotationTypeId ") REFERENCES "AnnotationTypes"("Id"),
-            UNIQUE("AnnotationTypeId ","Name")
+            FOREIGN KEY("AnnotationTypeId") REFERENCES "AnnotationTypes"("Id"),
+            UNIQUE("AnnotationTypeId","Name")
             )
             """
         db_cursor.execute(sql_create_AnnotationTypeLabels_table)
 
         sql_create_Annotations_table = """
             CREATE TABLE "Annotations" (
-            "FrameId"	INTEGER NOT NULL UNIQUE,
+            "FrameId"	INTEGER NOT NULL,
             "AnnotationTypeLabelId"	INTEGER NOT NULL,
             FOREIGN KEY("FrameId") REFERENCES "Frames"("Id"),
             FOREIGN KEY("AnnotationTypeLabelId") REFERENCES "AnnotationTypeLabels"("Id"),
-            PRIMARY KEY("FrameId" AUTOINCREMENT)
+            UNIQUE("FrameId","AnnotationTypeLabelId")
             )
             """
         db_cursor.execute(sql_create_Annotations_table)
@@ -1029,25 +1041,61 @@ class DbManager:
 
         db_cursor.close()
 
-    def populate_Options(self, d):
-        """
-        d: dictionary with key - value pairs
-        """
-        pass
+    def get_n_frames(self):
+        cursor = self.connection.cursor()
+        try:
+            cursor.execute(f"SELECT COUNT(*) FROM Frames")
+            n_frames = cursor.fetchone()[0]
+        except Exception as e:
+            print(f"Could not get total number of frames from Frames because {e}")
+            raise e
+        finally:
+            cursor.close()
+        return n_frames
 
-    def populate_Files(self, file_name, num_frames):
+    def populate_Options(self, file_manager, volume_manager):
+        """
+        Options: dictionary with key - value pairs
+        another way of dealing with Errors : ( more pretty ??? )
+        https://www.w3resource.com/python-exercises/sqlite/python-sqlite-exercise-6.php
+        """
+        row_data = [("data_dir", file_manager.data_dir.as_posix()),
+                    ("frames_per_volume", volume_manager.fpv),
+                    ("first_good_frame", volume_manager.fpv),
+                    ("num_tail_frames", volume_manager.n_tail),
+                    ("num_full_volumes", volume_manager.full_volumes)]
+
+        cursor = self.connection.cursor()
+        try:
+            cursor.executemany(
+                "INSERT INTO Options (Key, Value) VALUES (?, ?)",
+                row_data)
+        except Exception as e:
+            print(f"Could not write to Options because {e}")
+            raise e
+        finally:
+            cursor.close()
+
+    def populate_Files(self, file_manager):
         """
         file_name : list with filenames per file (str)
         num_frames : list with number of frames per file (int)
         """
-        pass
+        row_data = [(filename, frames) for
+                    filename, frames in zip(file_manager.file_names, file_manager.num_frames)]
 
-    def populate_AnnotationTypes(self, name, description):
-        """
-        """
-        pass
+        cursor = self.connection.cursor()
+        try:
+            cursor.executemany(
+                "INSERT INTO Files (FileName, NumFrames) VALUES (?, ?)",
+                row_data)
+        except Exception as e:
+            print(f"Could not write to Files because {e}")
+            raise e
+        finally:
+            cursor.close()
 
-    def populate_Frames(self, file_name, frame_in_file):
+    def populate_Frames(self, frame_manager):
         """
         Something like :
         insert into tab2 (id_customers, value)
@@ -1055,25 +1103,138 @@ class DbManager:
         but in SQLite
         https://www.tutorialspoint.com/sqlite/sqlite_insert_query.htm
         """
-        pass
+        # adding +1 since the frame_to_file is indexing files from 0 and sqlite gave files IDs from 1
+        row_data = [(frame_in_file, frame_to_file + 1) for
+                    frame_in_file, frame_to_file in zip(frame_manager.frame_in_file, frame_manager.frame_to_file)]
 
-    def populate_Cycles(self, name, structure):
+        cursor = self.connection.cursor()
+        try:
+            cursor.executemany(
+                "INSERT INTO Frames (FrameInFile, FileId) VALUES (?, ?)",
+                row_data)
+        except Exception as e:
+            print(f"Could not write to Frames because {e}")
+            raise e
+        finally:
+            cursor.close()
+
+    def populate_Volumes(self, volume_manager):
+
+        row_data = [(volume_id, slice_in_volume) for
+                    volume_id, slice_in_volume in zip(volume_manager.frame_to_vol, volume_manager.frame_to_z)]
+
+        cursor = self.connection.cursor()
+        try:
+            cursor.executemany(
+                "INSERT INTO Volumes (VolumeId, SliceInVolume) VALUES (?, ?)",
+                row_data)
+        except Exception as e:
+            print(f"Could not write to Volumes because {e}")
+            raise e
+        finally:
+            cursor.close()
+
+    def populate_AnnotationTypes(self, annotation):
         """
-        search for AnnotationTypeId by name
         """
-        pass
+        row_data = (annotation.name, annotation.info)
+        cursor = self.connection.cursor()
+        try:
+            cursor.execute(
+                "INSERT INTO AnnotationTypes (Name, Description) VALUES (?, ?)",
+                row_data)
+        except Exception as e:
+            print(f"Could not write to AnnotationTypes because {e}")
+            raise e
+        finally:
+            cursor.close()
 
-    def populate_AnnotationTypeLabels(self):
-        pass
+    def populate_AnnotationTypeLabels(self, annotation):
 
-    def populate_Annotations(self):
-        pass
+        row_data = [(label.group, label.name, label.description)
+                    for label in annotation.labels.states]
 
-    def populate_CycleIterations(self):
-        pass
+        cursor = self.connection.cursor()
+        try:
+            cursor.executemany(
+                "INSERT INTO AnnotationTypeLabels (AnnotationTypeId, Name, Description) " +
+                "VALUES((SELECT Id FROM AnnotationTypes WHERE Name = ?), ?, ?)",
+                row_data)
+        except Exception as e:
+            print(f"Could not write to AnnotationTypeLabels because {e}")
+            raise e
+        finally:
+            cursor.close()
 
-    def populate_Volumes(self):
-        pass
+    def populate_Annotations(self, annotation):
+        n_frames = self.get_n_frames()
+        assert n_frames == annotation.n_frames, f"Number of frames in the annotation, {annotation.n_frames}," \
+                                                f"doesn't match" \
+                                                f" the expected number of frames {n_frames}"
+        frames = range(n_frames)
+        row_data = [(frame + 1, label.name, label.group)
+                    for frame, label in zip(frames, annotation.frame_to_label)]
+        cursor = self.connection.cursor()
+        try:
+            cursor.executemany(
+                "INSERT INTO Annotations (FrameId, AnnotationTypeLabelId) " +
+                "VALUES(?, (SELECT Id FROM AnnotationTypeLabels "
+                "WHERE Name = ? " +
+                "AND AnnotationTypeId = (SELECT Id FROM AnnotationTypes " +
+                "WHERE Name = ?)))",
+                row_data)
+        except Exception as e:
+            print(f"Could not write group {annotation.name} to Annotations because {e}")
+            raise e
+        finally:
+            cursor.close()
+
+    def populate_Cycles(self, annotation):
+        """
+        """
+        row_data = (annotation.name, annotation.cycle.to_json())
+        cursor = self.connection.cursor()
+        try:
+            cursor.execute(
+                "INSERT INTO Cycles (AnnotationTypeId, Structure) " +
+                "VALUES((SELECT Id FROM AnnotationTypes WHERE Name = ?), ?)",
+                row_data)
+        except Exception as e:
+            print(f"Could not write to Cycles because {e}")
+            raise e
+        finally:
+            cursor.close()
+
+    def populate_CycleIterations(self, annotation):
+        n_frames = self.get_n_frames()
+        assert n_frames == annotation.n_frames, f"Number of frames in the annotation, {annotation.n_frames}," \
+                                                f"doesn't match" \
+                                                f" the expected number of frames {n_frames}"
+        # get cycle id by annotation type
+        cursor = self.connection.cursor()
+        cursor.execute(
+            "SELECT Id FROM Cycles " +
+            "WHERE AnnotationTypeId = (SELECT Id FROM AnnotationTypes " +
+            "WHERE Name = ?)", (annotation.name,))
+        cycle_id = cursor.fetchone()[0]
+        cursor.close()
+
+        # prepare rows
+        frames = range(n_frames)
+        row_data = [(frame + 1, cycle_id, iteration)
+                    for frame, iteration in zip(frames, annotation.frame_to_cycle)]
+
+        # insert into CycleIterations
+        cursor = self.connection.cursor()
+        try:
+            cursor.executemany(
+                "INSERT INTO CycleIterations (FrameId, CycleId, CycleIteration) " +
+                "VALUES(?, ?,?)", row_data)
+        except Exception as e:
+            print(f"Could not write group {annotation.name} to CycleIterations because {e}")
+            raise e
+        finally:
+            cursor.close()
 
     @staticmethod
     def save_db(file_name, memory_db):
@@ -1093,8 +1254,6 @@ class DbManager:
         """
         # For an in-memory only database:
         memory_db = connect(':memory:')
-        # ....
-        # TODO : fill out the database
         return cls(memory_db)
 
     @classmethod
@@ -1109,3 +1268,169 @@ class DbManager:
         disk_db.close()
         # Now use `memory_db` without modifying disk db
         return cls(memory_db)
+
+
+# not good practice tests :
+def test_file_manager():
+    print("\nMaking FileManager")
+    data_dir = r"D:\Code\repos\vodex\data\test\test_movie"
+    file_m = FileManager(data_dir)
+    print(file_m)
+
+
+def test_frame_manager():
+    print("\nMaking FrameManager")
+    data_dir = r"D:\Code\repos\vodex\data\test\test_movie"
+
+    print('from file_m')
+    file_m = FileManager(data_dir)
+    frame_m = FrameManager(file_m)
+    print(frame_m)
+
+    print('from dir')
+    frame_m = FrameManager.from_dir(data_dir)
+    print(frame_m)
+
+
+def test_volume_manager():
+    print("\nMaking VolumeManager")
+    data_dir = r"D:\Code\repos\vodex\data\test\test_movie"
+    fpv = 10
+
+    print('from frame_m')
+    frame_m = FrameManager.from_dir(data_dir)
+    volume_m = VolumeManager(fpv, frame_m)
+    print(volume_m)
+
+    print('from dir')
+    volume_m = VolumeManager.from_dir(data_dir, fpv)
+    print(volume_m)
+
+
+def test_cycle():
+    light_labels = Labels("light", ["on", "off"], group_info="Information about the light",
+                          state_info={"on": "the intensity of the background is high",
+                                      "off": "the intensity of the background is low"})
+    c_labels = Labels("c label", ['c1', 'c2', 'c3'], state_info={'c1': 'written c1', 'c2': 'written c1'})
+
+    # Now let's create two cycles
+    light_cycle = Cycle([light_labels.off, light_labels.on],
+                        [15, 20])
+    c_cycle = Cycle([c_labels.c1, c_labels.c2, c_labels.c3, c_labels.c2],
+                    [10, 10, 10, 10])
+
+    print(light_cycle)
+    print(c_cycle)
+
+    print("Cucles to JSON : ")
+    print(light_cycle.to_json())
+    print(c_cycle.to_json())
+
+
+def test_annotation():
+    print("\nMaking Annotation")
+
+    print('from cycle')
+    light_labels = Labels("light", ["on", "off"], group_info="Information about the light",
+                          state_info={"on": "the intensity of the background is high",
+                                      "off": "the intensity of the background is low"})
+    light_cycle = Cycle([light_labels.off, light_labels.on],
+                        [15, 20])
+    n_frames = 1000
+    annotation = Annotation.from_cycle(n_frames, light_labels, light_cycle, info={"light": "a cycle off-on"})
+    print(annotation)
+
+
+def test_db_manager():
+    print("\nMaking DB")
+    data_dir = r"D:\Code\repos\vodex\data\test\test_movie"
+    fpv = 10
+    volume_m = VolumeManager.from_dir(data_dir, fpv)
+
+    print("Creating empty tables")
+    db = DbManager.initialise_db()
+    db.create_tables()
+    print(db.list_tables())
+
+    print("Populating Options")
+    db.populate_Options(volume_m.file_manager, volume_m)
+    print(db.table_as_df("Options"))
+
+    print("Populating Files")
+    db.populate_Files(volume_m.file_manager)
+    print(db.table_as_df("Files"))
+
+    print("Populating Frames")
+    db.populate_Frames(volume_m.frame_manager)
+    print(db.table_as_df("Frames"))
+
+    print("Populating Volumes")
+    db.populate_Volumes(volume_m)
+    print(db.table_as_df("Volumes"))
+
+    # _____________________________________________________________
+    # ANNOTATION
+    # annotation from light
+    light_labels = Labels("light", ["on", "off"], group_info="Information about the light",
+                          state_info={"on": "the intensity of the background is high",
+                                      "off": "the intensity of the background is low"})
+    light_cycle = Cycle([light_labels.off, light_labels.on],
+                        [15, 20])
+    n_frames = 1000
+    a_light = Annotation.from_cycle(n_frames, light_labels, light_cycle, info="a cycle off-on")
+
+    # annotation from c-labels
+    c_labels = Labels("c label", ['c1', 'c2', 'c3'],
+                      state_info={'c1': 'written c1', 'c2': 'written c2'})
+    c_cycle = Cycle([c_labels.c1, c_labels.c2, c_labels.c3, c_labels.c2],
+                    [10, 10, 10, 10])
+    a_c = Annotation.from_cycle(n_frames, c_labels, c_cycle)
+
+    print("Populating AnnotationTypes")
+    print("ADDED a_light")
+    db.populate_AnnotationTypes(a_light)
+    print(db.table_as_df("AnnotationTypes"))
+    print("ADDED a_c")
+    db.populate_AnnotationTypes(a_c)
+    print(db.table_as_df("AnnotationTypes"))
+
+    print("Populating AnnotationTypeLabels")
+    print("ADDED a_light")
+    db.populate_AnnotationTypeLabels(a_light)
+    print(db.table_as_df("AnnotationTypeLabels"))
+    print("ADDED a_c")
+    db.populate_AnnotationTypeLabels(a_c)
+    print(db.table_as_df("AnnotationTypeLabels"))
+
+    print("Populating Annotations")
+    print("ADDED a_light")
+    db.populate_Annotations(a_light)
+    print(db.table_as_df("Annotations"))
+    print("ADDED a_c")
+    db.populate_Annotations(a_c)
+    print(db.table_as_df("Annotations"))
+
+    print("Populating Cycles")
+    print("ADDED light_cycle")
+    db.populate_Cycles(a_light)
+    print(db.table_as_df("Cycles"))
+    print("ADDED c_cycle")
+    db.populate_Cycles(a_c)
+    print(db.table_as_df("Cycles"))
+
+    print("Populating CycleIterations")
+    print("ADDED light_cycle")
+    db.populate_CycleIterations(a_light)
+    print(db.table_as_df("CycleIterations"))
+    print("ADDED c_cycle")
+    db.populate_CycleIterations(a_c)
+    print(db.table_as_df("CycleIterations"))
+
+
+if __name__ == '__main__':
+    test_file_manager()
+    test_frame_manager()
+    test_volume_manager()
+    test_cycle()
+    test_annotation()
+    test_db_manager()
