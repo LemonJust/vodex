@@ -13,39 +13,6 @@ from tqdm import tqdm
 from sqlite3 import connect
 
 
-# SAVING AS JSON :
-# TODO : Write custom JSONEncoder to make class JSON serializable (???) (or use object_hook)
-
-def to_json(objs, filename):
-    """
-    Writes an object, or list of objects as json file.
-    The objects should have method to_dict()
-    """
-    if isinstance(objs, list):
-        j = json.dumps([obj.to_dict() for obj in objs])
-    else:
-        j = json.dumps(objs.to_dict())
-
-    with open(filename, 'w') as json_file:
-        json_file.write(j)
-
-
-def from_json(cls, filename):
-    """
-    Loads an object, or list of objects of class cls from json file.
-    The objects should have method from_dict()
-    """
-    with open(filename) as json_file:
-        j = json.load(json_file)
-
-    if isinstance(j, list):
-        objs = [cls.from_dict(d) for d in j]
-    else:
-        objs = cls.from_dict(j)
-
-    return objs
-
-
 class TiffLoader:
     """
     Loads tiff images
@@ -423,6 +390,7 @@ class Labels:
         states: list[str], the state names
         state_info: {state name : description}
         """
+
         self.group = group
         self.group_info = group_info
         self.state_names = state_names
@@ -913,7 +881,7 @@ class DbManager:
 
     def list_tables(self):
         """
-        Shows all the tables
+        Shows all the tables in the database
         """
         cursor = self.connection.cursor()
         cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
@@ -929,117 +897,14 @@ class DbManager:
         cursor = self.connection.cursor()
         try:
             query = cursor.execute(f"SELECT * From {table_name}")
+            cols = [column[0] for column in query.description]
+            df = pd.DataFrame.from_records(data=query.fetchall(), columns=cols)
         except Exception as e:
             print(f"Could not show {table_name} because {e}")
             raise e
         finally:
-            cols = [column[0] for column in query.description]
-            df = pd.DataFrame.from_records(data=query.fetchall(), columns=cols)
             cursor.close()
         return df
-
-    def create_tables(self):
-        db_cursor = self.connection.cursor()
-
-        sql_create_Options_table = """
-            CREATE TABLE "Options" (
-            "Key"	TEXT NOT NULL UNIQUE,
-            "Value"	TEXT NOT NULL,
-            "Description"	TEXT,
-            PRIMARY KEY("Key")
-            )
-            """
-        db_cursor.execute(sql_create_Options_table)
-
-        sql_create_Files_table = """
-            CREATE TABLE "Files" (
-            "Id"	INTEGER NOT NULL UNIQUE,
-            "FileName"	TEXT NOT NULL UNIQUE,
-            "NumFrames"	INTEGER NOT NULL,
-            PRIMARY KEY("Id" AUTOINCREMENT)
-            )
-            """
-        db_cursor.execute(sql_create_Files_table)
-
-        sql_create_AnnotationTypes_table = """
-            CREATE TABLE "AnnotationTypes" (
-            "Id"	INTEGER NOT NULL UNIQUE,
-            "Name"	TEXT NOT NULL UNIQUE,
-            "Description"	TEXT,
-            PRIMARY KEY("Id" AUTOINCREMENT)
-            )
-            """
-        db_cursor.execute(sql_create_AnnotationTypes_table)
-
-        sql_create_Frames_table = """
-            CREATE TABLE "Frames" (
-            "Id"	INTEGER NOT NULL UNIQUE,
-            "FrameInFile"	INTEGER NOT NULL,
-            "FileId"	INTEGER NOT NULL,
-            PRIMARY KEY("Id" AUTOINCREMENT),
-            FOREIGN KEY("FileId") REFERENCES "Files"("Id")
-            )
-            """
-        db_cursor.execute(sql_create_Frames_table)
-
-        sql_create_Cycles_table = """
-            CREATE TABLE "Cycles" (
-            "Id"	INTEGER NOT NULL UNIQUE,
-            "AnnotationTypeId"	INTEGER NOT NULL UNIQUE,
-            "Structure"	TEXT NOT NULL,
-            FOREIGN KEY("AnnotationTypeId") REFERENCES "AnnotationTypes"("Id"),
-            PRIMARY KEY("Id" AUTOINCREMENT)
-            )
-            """
-        db_cursor.execute(sql_create_Cycles_table)
-
-        sql_create_AnnotationTypeLabels_table = """
-            CREATE TABLE "AnnotationTypeLabels" (
-            "Id"	INTEGER NOT NULL UNIQUE,
-            "AnnotationTypeId"	INTEGER NOT NULL,
-            "Name"	TEXT NOT NULL,
-            "Description"	TEXT,
-            PRIMARY KEY("Id" AUTOINCREMENT),
-            FOREIGN KEY("AnnotationTypeId") REFERENCES "AnnotationTypes"("Id"),
-            UNIQUE("AnnotationTypeId","Name")
-            )
-            """
-        db_cursor.execute(sql_create_AnnotationTypeLabels_table)
-
-        sql_create_Annotations_table = """
-            CREATE TABLE "Annotations" (
-            "FrameId"	INTEGER NOT NULL,
-            "AnnotationTypeLabelId"	INTEGER NOT NULL,
-            FOREIGN KEY("FrameId") REFERENCES "Frames"("Id"),
-            FOREIGN KEY("AnnotationTypeLabelId") REFERENCES "AnnotationTypeLabels"("Id"),
-            UNIQUE("FrameId","AnnotationTypeLabelId")
-            )
-            """
-        db_cursor.execute(sql_create_Annotations_table)
-
-        sql_create_CycleIterations_table = """
-            CREATE TABLE "CycleIterations" (
-            "FrameId"	INTEGER NOT NULL,
-            "CycleId"	INTEGER NOT NULL,
-            "CycleIteration"	INTEGER NOT NULL,
-            FOREIGN KEY("CycleId") REFERENCES "Cycles"("Id"),
-            FOREIGN KEY("FrameId") REFERENCES "Frames"("Id")
-            )
-            """
-        db_cursor.execute(sql_create_CycleIterations_table)
-
-        sql_create_Volumes_table = """
-            CREATE TABLE "Volumes" (
-            "FrameId"	INTEGER NOT NULL UNIQUE,
-            "VolumeId"	INTEGER NOT NULL,
-            "SliceInVolume"	INTEGER NOT NULL,
-            PRIMARY KEY("FrameId" AUTOINCREMENT),
-            FOREIGN KEY("FrameId") REFERENCES "Frames"("Id")
-            )
-            """
-        db_cursor.execute(sql_create_Volumes_table)
-
-        db_cursor.close()
 
     def get_n_frames(self):
         cursor = self.connection.cursor()
@@ -1053,7 +918,188 @@ class DbManager:
             cursor.close()
         return n_frames
 
-    def populate_Options(self, file_manager, volume_manager):
+    def save(self, file_name):
+        """
+        Backup a database to a file.
+        Will CLOSE connection to the database in memory!
+        file_name : "databasename.db"
+        """
+
+        def progress(status, remaining, total):
+            print(f'Copied {total - remaining} of {total} pages...')
+
+        backup_db = connect(file_name)
+        with backup_db:
+            self.connection.backup(backup_db, progress=progress)
+        self.connection.close()
+        backup_db.close()
+
+    @classmethod
+    def empty(cls):
+        """
+        Creates an empty DB to the experiment in memory
+        """
+        # For an in-memory only database:
+        memory_db = connect(':memory:')
+        return cls(memory_db)
+
+    @classmethod
+    def load(cls, file_name):
+        """
+        Load the contents of a database file on disk to a
+        transient copy in memory without modifying the file
+        """
+        disk_db = connect(file_name)
+        memory_db = connect(':memory:')
+        disk_db.backup(memory_db)
+        disk_db.close()
+        # Now use `memory_db` without modifying disk db
+        return cls(memory_db)
+
+    def populate(self, files=None, frames=None, volumes=None, annotations=None):
+        """
+        Creates the tables if they don't exist and fills the provided data.
+
+        :param files: information about the files : number of files, their location
+        :type files: FileManager
+        :param frames: mapping of frames to files
+        :type frames: FrameManager
+        :param volumes: mapping of frames to volumes, and to slices in volumes, frames per volume
+        :type volumes: VolumeManager
+        :param annotations: mapping of frames to labels, list of annotations
+        :type annotations: [Annotation]
+        :return: None
+        """
+        # TODO : add warnings when you are trying to write the same data again
+
+        # will only create if they don't exist
+        self._create_tables()
+        # TODO : write cases for files and frames not None
+
+        if volumes is not None:
+            self._populate_Options(volumes.file_manager, volumes)
+            self._populate_Files(volumes.file_manager)
+            self._populate_Frames(volumes.frame_manager)
+            self._populate_Volumes(volumes)
+
+        if annotations is not None:
+            for annotation in annotations:
+                self._populate_AnnotationTypes(annotation)
+                self._populate_AnnotationTypeLabels(annotation)
+                self._populate_Annotations(annotation)
+                if annotation.cycle is not None:
+                    self._populate_Cycles(annotation)
+                    self._populate_CycleIterations(annotation)
+
+    def _create_tables(self):
+
+        #TODO : change UNIQUE(a, b)
+        # into primary key over both columns a and b where appropriate
+
+        db_cursor = self.connection.cursor()
+
+        sql_create_Options_table = """
+            CREATE TABLE IF NOT EXISTS "Options" (
+            "Key"	TEXT NOT NULL UNIQUE,
+            "Value"	TEXT NOT NULL,
+            "Description"	TEXT,
+            PRIMARY KEY("Key")
+            )
+            """
+        db_cursor.execute(sql_create_Options_table)
+
+        sql_create_Files_table = """
+            CREATE TABLE IF NOT EXISTS "Files" (
+            "Id"	INTEGER NOT NULL UNIQUE,
+            "FileName"	TEXT NOT NULL UNIQUE,
+            "NumFrames"	INTEGER NOT NULL,
+            PRIMARY KEY("Id" AUTOINCREMENT)
+            )
+            """
+        db_cursor.execute(sql_create_Files_table)
+
+        sql_create_AnnotationTypes_table = """
+            CREATE TABLE IF NOT EXISTS "AnnotationTypes" (
+            "Id"	INTEGER NOT NULL UNIQUE,
+            "Name"	TEXT NOT NULL UNIQUE,
+            "Description"	TEXT,
+            PRIMARY KEY("Id" AUTOINCREMENT)
+            )
+            """
+        db_cursor.execute(sql_create_AnnotationTypes_table)
+
+        sql_create_Frames_table = """
+            CREATE TABLE IF NOT EXISTS "Frames" (
+            "Id"	INTEGER NOT NULL UNIQUE,
+            "FrameInFile"	INTEGER NOT NULL,
+            "FileId"	INTEGER NOT NULL,
+            PRIMARY KEY("Id" AUTOINCREMENT),
+            FOREIGN KEY("FileId") REFERENCES "Files"("Id")
+            )
+            """
+        db_cursor.execute(sql_create_Frames_table)
+
+        sql_create_Cycles_table = """
+            CREATE TABLE IF NOT EXISTS "Cycles" (
+            "Id"	INTEGER NOT NULL UNIQUE,
+            "AnnotationTypeId"	INTEGER NOT NULL UNIQUE,
+            "Structure"	TEXT NOT NULL,
+            FOREIGN KEY("AnnotationTypeId") REFERENCES "AnnotationTypes"("Id"),
+            PRIMARY KEY("Id" AUTOINCREMENT)
+            )
+            """
+        db_cursor.execute(sql_create_Cycles_table)
+
+        sql_create_AnnotationTypeLabels_table = """
+            CREATE TABLE IF NOT EXISTS "AnnotationTypeLabels" (
+            "Id"	INTEGER NOT NULL UNIQUE,
+            "AnnotationTypeId"	INTEGER NOT NULL,
+            "Name"	TEXT NOT NULL,
+            "Description"	TEXT,
+            PRIMARY KEY("Id" AUTOINCREMENT),
+            FOREIGN KEY("AnnotationTypeId") REFERENCES "AnnotationTypes"("Id"),
+            UNIQUE("AnnotationTypeId","Name")
+            )
+            """
+        db_cursor.execute(sql_create_AnnotationTypeLabels_table)
+
+        sql_create_Annotations_table = """
+            CREATE TABLE IF NOT EXISTS "Annotations" (
+            "FrameId"	INTEGER NOT NULL,
+            "AnnotationTypeLabelId"	INTEGER NOT NULL,
+            FOREIGN KEY("FrameId") REFERENCES "Frames"("Id"),
+            FOREIGN KEY("AnnotationTypeLabelId") REFERENCES "AnnotationTypeLabels"("Id"),
+            UNIQUE("FrameId","AnnotationTypeLabelId")
+            )
+            """
+        db_cursor.execute(sql_create_Annotations_table)
+
+        sql_create_CycleIterations_table = """
+            CREATE TABLE IF NOT EXISTS "CycleIterations" (
+            "FrameId"	INTEGER NOT NULL,
+            "CycleId"	INTEGER NOT NULL,
+            "CycleIteration"	INTEGER NOT NULL,
+            FOREIGN KEY("CycleId") REFERENCES "Cycles"("Id"),
+            FOREIGN KEY("FrameId") REFERENCES "Frames"("Id")
+            )
+            """
+        db_cursor.execute(sql_create_CycleIterations_table)
+
+        sql_create_Volumes_table = """
+            CREATE TABLE IF NOT EXISTS "Volumes" (
+            "FrameId"	INTEGER NOT NULL UNIQUE,
+            "VolumeId"	INTEGER NOT NULL,
+            "SliceInVolume"	INTEGER NOT NULL,
+            PRIMARY KEY("FrameId" AUTOINCREMENT),
+            FOREIGN KEY("FrameId") REFERENCES "Frames"("Id")
+            UNIQUE("VolumeId","SliceInVolume")
+            )
+            """
+        db_cursor.execute(sql_create_Volumes_table)
+
+        db_cursor.close()
+
+    def _populate_Options(self, file_manager, volume_manager):
         """
         Options: dictionary with key - value pairs
         another way of dealing with Errors : ( more pretty ??? )
@@ -1070,13 +1116,14 @@ class DbManager:
             cursor.executemany(
                 "INSERT INTO Options (Key, Value) VALUES (?, ?)",
                 row_data)
+            self.connection.commit()
         except Exception as e:
             print(f"Could not write to Options because {e}")
             raise e
         finally:
             cursor.close()
 
-    def populate_Files(self, file_manager):
+    def _populate_Files(self, file_manager):
         """
         file_name : list with filenames per file (str)
         num_frames : list with number of frames per file (int)
@@ -1089,13 +1136,14 @@ class DbManager:
             cursor.executemany(
                 "INSERT INTO Files (FileName, NumFrames) VALUES (?, ?)",
                 row_data)
+            self.connection.commit()
         except Exception as e:
             print(f"Could not write to Files because {e}")
             raise e
         finally:
             cursor.close()
 
-    def populate_Frames(self, frame_manager):
+    def _populate_Frames(self, frame_manager):
         """
         Something like :
         insert into tab2 (id_customers, value)
@@ -1112,13 +1160,14 @@ class DbManager:
             cursor.executemany(
                 "INSERT INTO Frames (FrameInFile, FileId) VALUES (?, ?)",
                 row_data)
+            self.connection.commit()
         except Exception as e:
             print(f"Could not write to Frames because {e}")
             raise e
         finally:
             cursor.close()
 
-    def populate_Volumes(self, volume_manager):
+    def _populate_Volumes(self, volume_manager):
 
         row_data = [(volume_id, slice_in_volume) for
                     volume_id, slice_in_volume in zip(volume_manager.frame_to_vol, volume_manager.frame_to_z)]
@@ -1128,13 +1177,14 @@ class DbManager:
             cursor.executemany(
                 "INSERT INTO Volumes (VolumeId, SliceInVolume) VALUES (?, ?)",
                 row_data)
+            self.connection.commit()
         except Exception as e:
             print(f"Could not write to Volumes because {e}")
             raise e
         finally:
             cursor.close()
 
-    def populate_AnnotationTypes(self, annotation):
+    def _populate_AnnotationTypes(self, annotation):
         """
         """
         row_data = (annotation.name, annotation.info)
@@ -1143,13 +1193,14 @@ class DbManager:
             cursor.execute(
                 "INSERT INTO AnnotationTypes (Name, Description) VALUES (?, ?)",
                 row_data)
+            self.connection.commit()
         except Exception as e:
             print(f"Could not write to AnnotationTypes because {e}")
             raise e
         finally:
             cursor.close()
 
-    def populate_AnnotationTypeLabels(self, annotation):
+    def _populate_AnnotationTypeLabels(self, annotation):
 
         row_data = [(label.group, label.name, label.description)
                     for label in annotation.labels.states]
@@ -1160,13 +1211,14 @@ class DbManager:
                 "INSERT INTO AnnotationTypeLabels (AnnotationTypeId, Name, Description) " +
                 "VALUES((SELECT Id FROM AnnotationTypes WHERE Name = ?), ?, ?)",
                 row_data)
+            self.connection.commit()
         except Exception as e:
             print(f"Could not write to AnnotationTypeLabels because {e}")
             raise e
         finally:
             cursor.close()
 
-    def populate_Annotations(self, annotation):
+    def _populate_Annotations(self, annotation):
         n_frames = self.get_n_frames()
         assert n_frames == annotation.n_frames, f"Number of frames in the annotation, {annotation.n_frames}," \
                                                 f"doesn't match" \
@@ -1183,13 +1235,14 @@ class DbManager:
                 "AND AnnotationTypeId = (SELECT Id FROM AnnotationTypes " +
                 "WHERE Name = ?)))",
                 row_data)
+            self.connection.commit()
         except Exception as e:
             print(f"Could not write group {annotation.name} to Annotations because {e}")
             raise e
         finally:
             cursor.close()
 
-    def populate_Cycles(self, annotation):
+    def _populate_Cycles(self, annotation):
         """
         """
         row_data = (annotation.name, annotation.cycle.to_json())
@@ -1199,13 +1252,14 @@ class DbManager:
                 "INSERT INTO Cycles (AnnotationTypeId, Structure) " +
                 "VALUES((SELECT Id FROM AnnotationTypes WHERE Name = ?), ?)",
                 row_data)
+            self.connection.commit()
         except Exception as e:
             print(f"Could not write to Cycles because {e}")
             raise e
         finally:
             cursor.close()
 
-    def populate_CycleIterations(self, annotation):
+    def _populate_CycleIterations(self, annotation):
         n_frames = self.get_n_frames()
         assert n_frames == annotation.n_frames, f"Number of frames in the annotation, {annotation.n_frames}," \
                                                 f"doesn't match" \
@@ -1230,207 +1284,204 @@ class DbManager:
             cursor.executemany(
                 "INSERT INTO CycleIterations (FrameId, CycleId, CycleIteration) " +
                 "VALUES(?, ?,?)", row_data)
+            self.connection.commit()
         except Exception as e:
             print(f"Could not write group {annotation.name} to CycleIterations because {e}")
             raise e
         finally:
             cursor.close()
 
+
+class BadTester:
+    data_dir = r"D:\Code\repos\vodex\data\test\test_movie"
+    fpv = 10
+
+    # labels
+    shape = Labels("shape", ["c", "s"],
+                   state_info={"c": "circle on the screen", "s": "square on the screen"})
+    light = Labels("light", ["on", "off"], group_info="Information about the light",
+                   state_info={"on": "the intensity of the background is high",
+                               "off": "the intensity of the background is low"})
+    c_num = Labels("c label", ['c1', 'c2', 'c3'], state_info={'c1': 'written c1', 'c2': 'written c1'})
+    n_frames = 1000
+
+    # not good practice tests :
     @staticmethod
-    def save_db(file_name, memory_db):
+    def test_file_manager():
+        print("\nMaking FileManager")
+        file_m = FileManager(BadTester.data_dir)
+        print(file_m)
+
+    @staticmethod
+    def test_frame_manager():
+        print("\nMaking FrameManager")
+
+        print('from file_m')
+        file_m = FileManager(BadTester.data_dir)
+        frame_m = FrameManager(file_m)
+        print(frame_m)
+
+        print('from dir')
+        frame_m = FrameManager.from_dir(BadTester.data_dir)
+        print(frame_m)
+
+    @staticmethod
+    def test_volume_manager():
+        print("\nMaking VolumeManager")
+
+        print('from frame_m')
+        frame_m = FrameManager.from_dir(BadTester.data_dir)
+        volume_m = VolumeManager(BadTester.fpv, frame_m)
+        print(volume_m)
+
+        print('from dir')
+        volume_m = VolumeManager.from_dir(BadTester.data_dir, BadTester.fpv)
+        print(volume_m)
+
+    @staticmethod
+    def test_cycle():
+        # Now let's create two cycles
+        light_cycle = Cycle([BadTester.light.off, BadTester.light.on],
+                            [15, 20])
+        c_cycle = Cycle([BadTester.c_num.c1, BadTester.c_num.c2, BadTester.c_num.c3, BadTester.c_num.c2],
+                        [10, 10, 10, 10])
+
+        print(light_cycle)
+        print(c_cycle)
+
+        print("Cycles to JSON : ")
+        print(light_cycle.to_json())
+        print(c_cycle.to_json())
+
+    @staticmethod
+    def test_annotation():
+        print("\nMaking Annotation")
+
+        print('from cycle')
+        light_cycle = Cycle([BadTester.light.off, BadTester.light.on],
+                            [15, 20])
+        annotation = Annotation.from_cycle(BadTester.n_frames, BadTester.light,
+                                           light_cycle, info={"light": "a cycle off-on"})
+        print(annotation)
+
+    @staticmethod
+    def test_db_manager_population():
+        print("\nMaking DB")
+        volume_m = VolumeManager.from_dir(BadTester.data_dir, BadTester.fpv)
+
+        print("Creating empty tables")
+        db = DbManager.empty()
+        db._create_tables()
+        print(db.list_tables())
+
+        print("Populating Options")
+        db._populate_Options(volume_m.file_manager, volume_m)
+        print(db.table_as_df("Options"))
+
+        print("Populating Files")
+        db._populate_Files(volume_m.file_manager)
+        print(db.table_as_df("Files"))
+
+        print("Populating Frames")
+        db._populate_Frames(volume_m.frame_manager)
+        print(db.table_as_df("Frames"))
+
+        print("Populating Volumes")
+        db._populate_Volumes(volume_m)
+        print(db.table_as_df("Volumes"))
+
+        # ANNOTATION _____________________________________________________________
+        #  from light
+        light_cycle = Cycle([BadTester.light.off, BadTester.light.on],
+                            [15, 20])
+        a_light = Annotation.from_cycle(BadTester.n_frames, BadTester.light, light_cycle, info="a cycle off-on")
+
+        # from c-labels
+        c_cycle = Cycle([BadTester.c_num.c1, BadTester.c_num.c2, BadTester.c_num.c3, BadTester.c_num.c2],
+                        [10, 10, 10, 10])
+        a_c = Annotation.from_cycle(BadTester.n_frames, BadTester.c_num, c_cycle)
+
+        print("Populating AnnotationTypes")
+        print("ADDED a_light")
+        db._populate_AnnotationTypes(a_light)
+        print(db.table_as_df("AnnotationTypes"))
+        print("ADDED a_c")
+        db._populate_AnnotationTypes(a_c)
+        print(db.table_as_df("AnnotationTypes"))
+
+        print("Populating AnnotationTypeLabels")
+        print("ADDED a_light")
+        db._populate_AnnotationTypeLabels(a_light)
+        print(db.table_as_df("AnnotationTypeLabels"))
+        print("ADDED a_c")
+        db._populate_AnnotationTypeLabels(a_c)
+        print(db.table_as_df("AnnotationTypeLabels"))
+
+        print("Populating Annotations")
+        print("ADDED a_light")
+        db._populate_Annotations(a_light)
+        print(db.table_as_df("Annotations"))
+        print("ADDED a_c")
+        db._populate_Annotations(a_c)
+        print(db.table_as_df("Annotations"))
+
+        print("Populating Cycles")
+        print("ADDED light_cycle")
+        db._populate_Cycles(a_light)
+        print(db.table_as_df("Cycles"))
+        print("ADDED c_cycle")
+        db._populate_Cycles(a_c)
+        print(db.table_as_df("Cycles"))
+
+        print("Populating CycleIterations")
+        print("ADDED light_cycle")
+        db._populate_CycleIterations(a_light)
+        print(db.table_as_df("CycleIterations"))
+        print("ADDED c_cycle")
+        db._populate_CycleIterations(a_c)
+        print(db.table_as_df("CycleIterations"))
+
+        print("Saved to disc")
+        db.save(r"D:\Code\repos\vodex\data\test\database.db")
+
+    @staticmethod
+    def test_db_manager_load():
+        print("Loading from disc")
+        db = DbManager.load(r"D:\Code\repos\vodex\data\test\database.db")
+        print(db.table_as_df("CycleIterations"))
+
+    @staticmethod
+    def test_creating_the_db():
         """
-        Backup a memory database to a file
-        file_name : "databasename.db"
+        Tests if the frames returned correspond to the conditions.
         """
-        backup_db = connect(file_name)
-        memory_db.backup(backup_db)
-        memory_db.close()
-        backup_db.close()
+        volume_m = VolumeManager.from_dir(BadTester.data_dir, BadTester.fpv)
 
-    @classmethod
-    def initialise_db(cls):
-        """
-        Creates an empty DB to the experiment in memory
-        """
-        # For an in-memory only database:
-        memory_db = connect(':memory:')
-        return cls(memory_db)
+        # annotation
+        shape_cycle = Cycle([BadTester.shape.c, BadTester.shape.s], [15, 15])
+        light_cycle = Cycle([BadTester.light.off, BadTester.light.on], [15, 20])
+        c_cycle = Cycle([BadTester.c_num.c1, BadTester.c_num.c2,
+                         BadTester.c_num.c3, BadTester.c_num.c2], [10, 10, 10, 10])
 
-    @classmethod
-    def load_db(cls, file_name):
-        """
-        Load the contents of a database file on disk to a
-        transient copy in memory without modifying the file
-        """
-        disk_db = connect(file_name)
-        memory_db = connect(':memory:')
-        disk_db.backup(memory_db)
-        disk_db.close()
-        # Now use `memory_db` without modifying disk db
-        return cls(memory_db)
+        shape_annotation = Annotation.from_cycle(BadTester.n_frames, BadTester.shape, shape_cycle)
+        light_annotation = Annotation.from_cycle(BadTester.n_frames, BadTester.light, light_cycle,
+                                                 info="a cycle off-on")
+        c_annotation = Annotation.from_cycle(BadTester.n_frames, BadTester.c_num, c_cycle)
 
-
-# not good practice tests :
-def test_file_manager():
-    print("\nMaking FileManager")
-    data_dir = r"D:\Code\repos\vodex\data\test\test_movie"
-    file_m = FileManager(data_dir)
-    print(file_m)
-
-
-def test_frame_manager():
-    print("\nMaking FrameManager")
-    data_dir = r"D:\Code\repos\vodex\data\test\test_movie"
-
-    print('from file_m')
-    file_m = FileManager(data_dir)
-    frame_m = FrameManager(file_m)
-    print(frame_m)
-
-    print('from dir')
-    frame_m = FrameManager.from_dir(data_dir)
-    print(frame_m)
-
-
-def test_volume_manager():
-    print("\nMaking VolumeManager")
-    data_dir = r"D:\Code\repos\vodex\data\test\test_movie"
-    fpv = 10
-
-    print('from frame_m')
-    frame_m = FrameManager.from_dir(data_dir)
-    volume_m = VolumeManager(fpv, frame_m)
-    print(volume_m)
-
-    print('from dir')
-    volume_m = VolumeManager.from_dir(data_dir, fpv)
-    print(volume_m)
-
-
-def test_cycle():
-    light_labels = Labels("light", ["on", "off"], group_info="Information about the light",
-                          state_info={"on": "the intensity of the background is high",
-                                      "off": "the intensity of the background is low"})
-    c_labels = Labels("c label", ['c1', 'c2', 'c3'], state_info={'c1': 'written c1', 'c2': 'written c1'})
-
-    # Now let's create two cycles
-    light_cycle = Cycle([light_labels.off, light_labels.on],
-                        [15, 20])
-    c_cycle = Cycle([c_labels.c1, c_labels.c2, c_labels.c3, c_labels.c2],
-                    [10, 10, 10, 10])
-
-    print(light_cycle)
-    print(c_cycle)
-
-    print("Cucles to JSON : ")
-    print(light_cycle.to_json())
-    print(c_cycle.to_json())
-
-
-def test_annotation():
-    print("\nMaking Annotation")
-
-    print('from cycle')
-    light_labels = Labels("light", ["on", "off"], group_info="Information about the light",
-                          state_info={"on": "the intensity of the background is high",
-                                      "off": "the intensity of the background is low"})
-    light_cycle = Cycle([light_labels.off, light_labels.on],
-                        [15, 20])
-    n_frames = 1000
-    annotation = Annotation.from_cycle(n_frames, light_labels, light_cycle, info={"light": "a cycle off-on"})
-    print(annotation)
-
-
-def test_db_manager():
-    print("\nMaking DB")
-    data_dir = r"D:\Code\repos\vodex\data\test\test_movie"
-    fpv = 10
-    volume_m = VolumeManager.from_dir(data_dir, fpv)
-
-    print("Creating empty tables")
-    db = DbManager.initialise_db()
-    db.create_tables()
-    print(db.list_tables())
-
-    print("Populating Options")
-    db.populate_Options(volume_m.file_manager, volume_m)
-    print(db.table_as_df("Options"))
-
-    print("Populating Files")
-    db.populate_Files(volume_m.file_manager)
-    print(db.table_as_df("Files"))
-
-    print("Populating Frames")
-    db.populate_Frames(volume_m.frame_manager)
-    print(db.table_as_df("Frames"))
-
-    print("Populating Volumes")
-    db.populate_Volumes(volume_m)
-    print(db.table_as_df("Volumes"))
-
-    # _____________________________________________________________
-    # ANNOTATION
-    # annotation from light
-    light_labels = Labels("light", ["on", "off"], group_info="Information about the light",
-                          state_info={"on": "the intensity of the background is high",
-                                      "off": "the intensity of the background is low"})
-    light_cycle = Cycle([light_labels.off, light_labels.on],
-                        [15, 20])
-    n_frames = 1000
-    a_light = Annotation.from_cycle(n_frames, light_labels, light_cycle, info="a cycle off-on")
-
-    # annotation from c-labels
-    c_labels = Labels("c label", ['c1', 'c2', 'c3'],
-                      state_info={'c1': 'written c1', 'c2': 'written c2'})
-    c_cycle = Cycle([c_labels.c1, c_labels.c2, c_labels.c3, c_labels.c2],
-                    [10, 10, 10, 10])
-    a_c = Annotation.from_cycle(n_frames, c_labels, c_cycle)
-
-    print("Populating AnnotationTypes")
-    print("ADDED a_light")
-    db.populate_AnnotationTypes(a_light)
-    print(db.table_as_df("AnnotationTypes"))
-    print("ADDED a_c")
-    db.populate_AnnotationTypes(a_c)
-    print(db.table_as_df("AnnotationTypes"))
-
-    print("Populating AnnotationTypeLabels")
-    print("ADDED a_light")
-    db.populate_AnnotationTypeLabels(a_light)
-    print(db.table_as_df("AnnotationTypeLabels"))
-    print("ADDED a_c")
-    db.populate_AnnotationTypeLabels(a_c)
-    print(db.table_as_df("AnnotationTypeLabels"))
-
-    print("Populating Annotations")
-    print("ADDED a_light")
-    db.populate_Annotations(a_light)
-    print(db.table_as_df("Annotations"))
-    print("ADDED a_c")
-    db.populate_Annotations(a_c)
-    print(db.table_as_df("Annotations"))
-
-    print("Populating Cycles")
-    print("ADDED light_cycle")
-    db.populate_Cycles(a_light)
-    print(db.table_as_df("Cycles"))
-    print("ADDED c_cycle")
-    db.populate_Cycles(a_c)
-    print(db.table_as_df("Cycles"))
-
-    print("Populating CycleIterations")
-    print("ADDED light_cycle")
-    db.populate_CycleIterations(a_light)
-    print(db.table_as_df("CycleIterations"))
-    print("ADDED c_cycle")
-    db.populate_CycleIterations(a_c)
-    print(db.table_as_df("CycleIterations"))
+        db = DbManager.empty()
+        db.populate(volumes=volume_m, annotations=[shape_annotation, light_annotation, c_annotation])
+        db.save(r'D:\Code\repos\vodex\data\test\test_experiment.db')
 
 
 if __name__ == '__main__':
-    test_file_manager()
-    test_frame_manager()
-    test_volume_manager()
-    test_cycle()
-    test_annotation()
-    test_db_manager()
+    # BadTester.test_file_manager()
+    # BadTester.test_frame_manager()
+    # BadTester.test_volume_manager()
+    # BadTester.test_cycle()
+    # BadTester.test_annotation()
+
+    # BadTester.test_db_manager_population()
+    # BadTester.test_db_manager_load()
+
+    BadTester.test_creating_the_db()
+
