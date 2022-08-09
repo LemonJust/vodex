@@ -7,4 +7,4 @@ Need help?
 Need further help
 ^^^^^^^^^^^^^^^^^
 
-Please join our channel and all 
+K, I changed it, now what? 
