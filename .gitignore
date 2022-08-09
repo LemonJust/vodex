@@ -6,3 +6,5 @@ vodex.egg-info/
 vodex/__pycache__/
 
 .idea/
+
+data/test/construction_blocks/
