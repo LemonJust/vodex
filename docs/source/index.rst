@@ -19,6 +19,7 @@ Guide
 
    license
    help
+   usage
 
 
 
