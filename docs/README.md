@@ -1,26 +1,21 @@
-# vodex : Volumetric Data and Experiment manager
-Vodex is a Python library for dealing with volumetric movies , written as a sequence of slices and split across multiple tif files.
-It will keep track of full volumes / particular z-slices, making it easy to do requests like " give me all z slices # 23 in the whole movie" , or " give me volumes # 6, 85 and 54 ", regardless of whether these volumes are split between multiple tif files, or not. It can also link particular experimental conditions to certain volumes/slices, making it easy to request something like " give me all full volumes when I was shining the green light " or " give me all slices # 16 after we have administered the drug ".
-<p align="center">
-  <img src="img/cover.JPG" alt="cover" width="600"/>
-</p>
+# Welcome!
 
-## Installation
+## Welcome to MyAPI
 
-Use the package manager [pip](https://pip.pypa.io/en/stable/) to install vodex.
+Welcome to MyAPI! Here you'll find all the documentation you need to get up and running with the MyAPI API.
 
-```bash
-pip install vodex
-```
+## Want to jump right in?
 
-## Usage
+Feeling like an eager beaver? Jump in to the quick start docs and get making your first request:
 
-Please see notebooks/examples on [github](https://github.com/LemonJust/vodex).
+{% content-ref url="quick-start.md" %}
+[quick-start.md](quick-start.md)
+{% endcontent-ref %}
 
-## Contributing
-Pull requests are welcome, but for now it's only me working on this project, so it might take me some time. For major changes, please open an issue first to discuss what you would like to change.
+## Want to deep dive?
 
-Please make sure to update tests as appropriate.
+Dive a little deeper and start exploring our API reference to get an idea of everything that's possible with the API:
 
-## License
-[MIT](https://choosealicense.com/licenses/mit/)
+{% content-ref url="reference/api-reference/" %}
+[api-reference](reference/api-reference/)
+{% endcontent-ref %}
