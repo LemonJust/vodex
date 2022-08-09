@@ -1,8 +1,8 @@
 # Welcome!
 
-## Welcome to VoDEx
+## Welcome to MyAPI
 
-Welcome to VoDEx! Here you'll find all the documentation you need to get up and running.
+Welcome to MyAPI! Here you'll find all the documentation you need to get up and running with the MyAPI API.
 
 ## Want to jump right in?
 
