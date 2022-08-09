@@ -8,3 +8,5 @@ vodex/__pycache__/
 .idea/
 
 data/test/construction_blocks/
+
+notebooks/.ipynb_checkpoints/
