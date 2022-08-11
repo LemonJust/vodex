@@ -4,6 +4,7 @@ Classes to specify the experimental conditions and load necessary data.
 from tifffile import TiffFile
 import json
 import numpy as np
+import pandas as pd
 from pathlib import Path
 from tqdm import tqdm
 from sqlite3 import connect
@@ -151,14 +152,12 @@ class ImageLoader:
 
     def __eq__(self, other):
         if isinstance(other, ImageLoader):
-            # comparing by name
-            same_supported_extension = self.supported_extension == other.supported_extension
-            same_file_extension = self.file_extension == other.file_extension
-            same_loader = self.loader == other.loader
-
-            return np.all([same_supported_extension,
-                           same_file_extension,
-                           same_loader])
+            is_same = [
+                self.supported_extension == other.supported_extension,
+                self.file_extension == other.file_extension,
+                self.loader == other.loader
+            ]
+            return np.all(is_same)
         else:
             print(f"__eq__ is Not Implemented for {ImageLoader} and {type(other)}")
             return NotImplemented
@@ -278,18 +277,15 @@ class FileManager:
 
     def __eq__(self, other):
         if isinstance(other, FileManager):
-            # comparing by name
-            same_data_dir = self.data_dir == other.data_dir
-            same_file_names = self.file_names == other.file_names
-            same_loader = self.loader == other.loader
-            same_num_frames = self.num_frames == other.num_frames
-            same_n_files = self.n_files == other.n_files
+            is_same = [
+                self.data_dir == other.data_dir,
+                self.file_names == other.file_names,
+                self.loader == other.loader,
+                self.num_frames == other.num_frames,
+                self.n_files == other.n_files
+            ]
 
-            return np.all([same_data_dir,
-                           same_file_names,
-                           same_loader,
-                           same_num_frames,
-                           same_n_files])
+            return np.all(is_same)
         else:
             print(f"__eq__ is Not Implemented for {FileManager} and {type(other)}")
             return NotImplemented
@@ -405,16 +401,6 @@ class TimeLabel:
         return hash((self.name, self.description))
 
     def __eq__(self, other):
-        """
-        Compares the timelabel to another timelabel.
-        The names need to match ( compared as strings ).
-        When the timelabel has a group , both timelabels need to have a group
-        and both names and group need to match.
-
-        :param other: TimeLabel or string to compare to
-        :return: True or False , whether the two Timelabels are the same
-        """
-        # comparing to other TimeLabel
         if isinstance(other, TimeLabel):
             # comparing by name
             same_name = self.name == other.name
@@ -477,6 +463,20 @@ class Labels:
                 setattr(self, state_name, state)
             self.states.append(state)
 
+    def __eq__(self, other):
+        if isinstance(other, Labels):
+            is_same = [
+                self.group == other.group,
+                self.group_info == other.group_info,
+                self.state_names == other.state_names,
+                self.states == other.states
+            ]
+
+            return np.all(is_same)
+        else:
+            print(f"__eq__ is Not Implemented for {Labels} and {type(other)}")
+            return NotImplemented
+
     def __str__(self):
         description = f"Label group : {self.group}\n"
         description = description + f"States:\n"
@@ -521,18 +521,15 @@ class Cycle:
 
     def __eq__(self, other):
         if isinstance(other, Cycle):
-            # comparing by name
-            same_name = self.name == other.name
-            same_label_order = self.label_order == other.label_order
-            same_timing = self.timing == other.timing
-            same_full_length = self.full_length == other.full_length
-            same_per_frame_list = self.per_frame_list == other.per_frame_list
+            is_same = [
+                self.name == other.name,
+                self.label_order == other.label_order,
+                self.timing == other.timing,
+                self.full_length == other.full_length,
+                self.per_frame_list == other.per_frame_list
+            ]
 
-            return np.all([same_name,
-                           same_label_order,
-                           same_timing,
-                           same_full_length,
-                           same_per_frame_list])
+            return np.all(is_same)
         else:
             print(f"__eq__ is Not Implemented for {Cycle} and {type(other)}")
             return NotImplemented
@@ -633,14 +630,13 @@ class FrameManager:
 
     def __eq__(self, other):
         if isinstance(other, FrameManager):
-            # comparing by name
-            same_file_manager = self.file_manager == other.file_manager
-            same_frame_to_file = self.frame_to_file == other.frame_to_file
-            same_frame_in_file = self.frame_in_file == other.frame_in_file
+            is_same = [
+                self.file_manager == other.file_manager,
+                self.frame_to_file == other.frame_to_file,
+                self.frame_in_file == other.frame_in_file
+            ]
 
-            return np.all([same_file_manager,
-                           same_frame_to_file,
-                           same_frame_in_file])
+            return np.all(is_same)
         else:
             print(f"__eq__ is Not Implemented for {FrameManager} and {type(other)}")
             return NotImplemented
@@ -698,6 +694,8 @@ class VolumeManager:
     """
 
     def __init__(self, fpv, frame_manager, fgf=0):
+        # maybe I should do type checking automatically, something like here:
+        # https://stackoverflow.com/questions/9305751/how-to-force-ensure-class-attributes-are-a-specific-type
         assert isinstance(fpv, int) or (isinstance(fpv, float) and fpv.is_integer()), "fpv must be an integer"
         assert isinstance(fgf, int) or (isinstance(fgf, float) and fgf.is_integer()), "fgf must be an integer"
 
@@ -722,6 +720,25 @@ class VolumeManager:
         self.frame_to_z = self.get_frames_to_z_mapping()
         self.frame_to_vol = self.get_frames_to_volumes_mapping()
 
+    def __eq__(self, other):
+        if isinstance(other, VolumeManager):
+            is_same = [
+                self.fpv == other.fpv,
+                self.frame_manager == other.frame_manager,
+                self.file_manager == other.file_manager,
+                self.n_frames == other.n_frames,
+                self.n_head == other.n_head,
+                self.full_volumes == other.full_volumes,
+                self.n_tail == other.n_tail,
+                self.frame_to_z == other.frame_to_z,
+                self.frame_to_vol == other.frame_to_vol
+            ]
+
+            return np.all(is_same)
+        else:
+            print(f"__eq__ is Not Implemented for {VolumeManager} and {type(other)}")
+            return NotImplemented
+
     def get_frames_to_z_mapping(self):
         z_per_frame_list = np.arange(self.fpv).astype(int)
         # set at what z the imaging starts and ends
@@ -740,8 +757,8 @@ class VolumeManager:
         """
         # TODO : make sure n_head is not larger than full volume?
         frame_to_vol = [-1] * self.n_head
-        for vol in np.arange(self.full_volumes).astype(int):
-            frame_to_vol.extend([vol] * self.fpv)
+        for vol in np.arange(self.full_volumes):
+            frame_to_vol.extend([int(vol)] * self.fpv)
         frame_to_vol.extend([-2] * self.n_tail)
         return frame_to_vol
 
@@ -811,30 +828,21 @@ class Annotation:
             self.frame_to_cycle = frame_to_cycle
 
     def __eq__(self, other):
-        # TODO : make it better, this looks scary
         if isinstance(other, Annotation):
-            # comparing by name
-            same_n_frames = self.n_frames == other.n_frames
-            same_frame_to_label = self.frame_to_label == other.frame_to_label
-            same_labels = self.labels == other.labels
-            same_name = self.name == other.name
-            same_info = self.info == other.info
+            is_same = [
+                self.n_frames == other.n_frames,
+                self.frame_to_label == other.frame_to_label,
+                self.labels == other.labels,
+                self.name == other.name,
+                self.info == other.info
+            ]
             if self.cycle is not None:
                 if other.cycle is None:
                     return False
                 else:
-                    same_cycle = self.cycle == other.cycle
-                    same_frame_to_cycle = self.frame_to_cycle == other.frame_to_cycle
-                    return np.all([same_n_frames,
-                                   same_frame_to_label,
-                                   same_labels,
-                                   same_name,
-                                   same_cycle,
-                                   same_frame_to_cycle])
-            return np.all([same_n_frames,
-                           same_frame_to_label,
-                           same_labels,
-                           same_name])
+                    is_same.extend([self.cycle == other.cycle,
+                                    self.frame_to_cycle == other.frame_to_cycle])
+            return np.all(is_same)
         else:
             print(f"__eq__ is Not Implemented for {Annotation} and {type(other)}")
             return NotImplemented
@@ -846,6 +854,13 @@ class Annotation:
         frame_to_cycle = cycle.fit_cycles_to_frames(n_frames)
         return cls(n_frames, labels, frame_to_label, info=info,
                    cycle=cycle, frame_to_cycle=frame_to_cycle)
+
+    @classmethod
+    def from_timing(cls, n_frames, labels, label_order, timing, info=None):
+        assert n_frames == sum(timing), "number of frames and total timing should be the same"
+        # make a fake cycle the length of the whole recording
+        frame_to_label = Cycle(label_order, timing).per_frame_list
+        return cls(n_frames, labels, frame_to_label, info=info)
 
     def __str__(self):
         description = f"Annotation type: {self.name}\n"
@@ -1078,7 +1093,7 @@ class DbManager:
         backup_db.close()
 
     @classmethod
-    def empty(cls):
+    def create(cls):
         """
         Creates an empty DB to the experiment in memory
         """
@@ -1133,6 +1148,317 @@ class DbManager:
                 if annotation.cycle is not None:
                     self._populate_Cycles(annotation)
                     self._populate_CycleIterations(annotation)
+
+    # def get_frames_per_volumes(self, frames, slices):
+    #     """
+    #     Chooses the frames from specified frames, that also correspond to full volumes.
+    #
+    #     The order of the frames is not preserved!
+    #     The result will correspond to frames sorted in increasing order !
+    #
+    #     :param frames: a list of frame IDs
+    #     :type frames: [int]
+    #     :param slices: a list of slice IDs, order will not be preserved: will be sorted in increasing order
+    #     :type slices: [int]
+    #     :return: frames IDs from frames. corresponding to slices
+    #     :rtype: [int]
+    #     """
+    #     # create list of frame Ids
+    #     frame_ids = tuple(frames)
+    #     slice_ids = tuple(slices)
+    #     n_frames = len(frame_ids)
+    #     n_slices = len(slices)
+    #
+    #     # get the volumes
+    #     cursor = self.connection.cursor()
+    #     try:
+    #         cursor.execute(
+    #         #     f"""SELECT FrameId FROM Volumes
+    #         #         WHERE FrameId in ({', '.join(['?'] * n_frames)})
+    #         #         AND SliceInVolume IN ({', '.join(['?'] * n_slices)})
+    #         #         AND VolumeId IN
+    #         #             (
+    #         #             SELECT VolumeId FROM
+    #         #                 (
+    #         #                 SELECT VolumeId, count(VolumeId) as N
+    #         #                 FROM Volumes
+    #         #                 WHERE FrameId IN ({', '.join(['?'] * n_frames)})
+    #         #                 AND SliceInVolume IN ({', '.join(['?'] * n_slices)})
+    #         #                 GROUP BY VolumeId
+    #         #                 )
+    #         #             WHERE N = ?
+    #         #             )""", frame_ids + slice_ids + frame_ids + slice_ids + (n_slices,)
+    #         # )
+    #
+    #         frame_ids = cursor.fetchall()
+    #     except Exception as e:
+    #         print(f"Could not get_frames_per_slices because {e}")
+    #         raise e
+    #     finally:
+    #         cursor.close()
+    #     frame_ids = [frame[0] for frame in frame_ids]
+    #     return frame_ids
+
+    def get_frames_per_slices(self, frames, slices):
+        """
+        Chooses the frames from specified frames, that also correspond to the same slices (continuously)
+        in different volumes.
+        For example, if slices = [2,3,4] it will choose such frames from "given frames" that also correspond
+        to a chunk from slice 2 to slice 4 in all the volumes.
+        If there is a frame that corresponds to a slice "2" in a volume,
+        but no frames corresponding to the slices "3" and "4" in the SAME volume, such frame will not be picked.
+
+        The order of the frames is not preserved!
+        The result will correspond to frames sorted in increasing order !
+
+        :param frames: a list of frame IDs
+        :type frames: [int]
+        :param slices: a list of slice IDs, order will not be preserved: will be sorted in increasing order
+        :type slices: [int]
+        :return: frames IDs from frames. corresponding to slices
+        :rtype: [int]
+        """
+        # create list of frame Ids
+        frame_ids = tuple(frames)
+        slice_ids = tuple(slices)
+        n_frames = len(frame_ids)
+        n_slices = len(slices)
+
+        # get the volumes
+        cursor = self.connection.cursor()
+        try:
+            cursor.execute(
+                f"""SELECT FrameId FROM Volumes
+                    WHERE FrameId in ({', '.join(['?'] * n_frames)})
+                    AND SliceInVolume IN ({', '.join(['?'] * n_slices)})
+                    AND VolumeId IN
+                        (
+                        SELECT VolumeId FROM
+                            (
+                            SELECT VolumeId, count(VolumeId) as N 
+                            FROM Volumes 
+                            WHERE FrameId IN ({', '.join(['?'] * n_frames)})
+                            AND SliceInVolume IN ({', '.join(['?'] * n_slices)})
+                            GROUP BY VolumeId
+                            )
+                        WHERE N = ?
+                        )""", frame_ids + slice_ids + frame_ids + slice_ids + (n_slices,)
+            )
+
+            frame_ids = cursor.fetchall()
+        except Exception as e:
+            print(f"Could not get_frames_per_slices because {e}")
+            raise e
+        finally:
+            cursor.close()
+        frame_ids = [frame[0] for frame in frame_ids]
+        return frame_ids
+
+    def _get_SliceInVolume_from_Volumes(self, frames):
+        """
+        Chooses the slices that correspond to the specified frames.
+        The order of the frames is not preserved!
+        the volume correspond to frames sorted in increasing order !
+
+        :param frames: a list of frame IDs
+        :type frames: [int]
+        :return: volume IDs
+        :rtype: [int]
+        """
+        # create list of frame Ids
+        frame_ids = tuple(frames)
+        n_frames = len(frame_ids)
+
+        # get the volumes
+        cursor = self.connection.cursor()
+        try:
+            # create a parameterised query with variable number of parameters
+            cursor.execute(
+                f"""SELECT SliceInVolume FROM Volumes 
+                    WHERE FrameId IN ({', '.join(['?'] * n_frames)})""", frame_ids)
+            slice_ids = cursor.fetchall()
+        except Exception as e:
+            print(f"Could not _get_SliceInVolume_from_Volumes because {e}")
+            raise e
+        finally:
+            cursor.close()
+        slice_ids = [slice_id[0] for slice_id in slice_ids]
+        return slice_ids
+
+    def _get_VolumeId_from_Volumes(self, frames):
+        """
+        Chooses the volumes that correspond to the specified frames.
+        The order is not preserved!
+        the volume correspond to sorted frames in increasing order !
+
+        :param frames: a list of frame IDs
+        :type frames: [int]
+        :return: volume IDs
+        :rtype: [int]
+        """
+        # create list of frame Ids
+        frame_ids = tuple(frames)
+        n_frames = len(frame_ids)
+
+        # get the volumes
+        cursor = self.connection.cursor()
+        try:
+            # create a parameterised query with variable number of parameters
+            cursor.execute(
+                f"""SELECT VolumeId FROM Volumes 
+                    WHERE FrameId IN ({', '.join(['?'] * n_frames)})""", frame_ids)
+            volume_ids = cursor.fetchall()
+        except Exception as e:
+            print(f"Could not _get_VolumeId_from_Volumes because {e}")
+            raise e
+        finally:
+            cursor.close()
+        volume_ids = [volume[0] for volume in volume_ids]
+        return volume_ids
+
+    def get_FrameId_from_Volumes(self, volume_ids=None, slice_ids=None):
+        """
+        Chooses the frames that correspond to the specified volumes.
+        The order is not preserved!
+        the volume correspond to sorted volumes in increasing order !
+
+        :param volume_ids: a list of volume IDs
+        :type volume_ids: [int]
+        :param slice_ids: a list of slice IDs
+        :type slice_ids: [int]
+        :return: frame IDs
+        :rtype: [int]
+        """
+        assert (volume_ids is None) != (slice_ids is None), \
+            "volume_ids or slice_ids need to be not None, but not both"
+        ids = volume_ids if volume_ids is not None else slice_ids
+        column = "VolumeId" if volume_ids is not None else "SliceInVolume"
+
+        # get the frames
+        cursor = self.connection.cursor()
+        try:
+            # create a parameterised query with variable number of parameters
+            cursor.execute(
+                f"""SELECT FrameId FROM Volumes 
+                    WHERE {column} IN ({', '.join(['?'] * len(ids))})""", tuple(ids))
+            frame_ids = cursor.fetchall()
+        except Exception as e:
+            print(f"Could not _get_FrameId_from_Volumes because {e}")
+            raise e
+        finally:
+            cursor.close()
+        # TODO : get rid of list of tuples?
+        #  https://www.reddit.com/r/Python/comments/2iiqri/quick_question_why_are_sqlite_fields_returned_as/
+        frame_ids = [frame[0] for frame in frame_ids]
+        return frame_ids
+
+    def _get_AnnotationLabelId(self, label_info):
+        """
+        Returns the AnnotationLabels.Id for a label , searching by its name and group name.
+        :param label_condition: (group, name), where group is the AnnotationType.Name
+                            and name is AnnotationTypeLabels.Name
+        :type label_condition: tuple
+        :return: AnnotationLabels.Id
+        :rtype: int
+        """
+        cursor = self.connection.cursor()
+        try:
+            # create a parameterised query with variable number of parameters
+            cursor.execute(
+                f"""SELECT Id FROM AnnotationTypeLabels 
+                    WHERE AnnotationTypeId = (SELECT Id from AnnotationTypes WHERE Name = ?)
+                    and Name = ?""", label_info)
+            label_id = cursor.fetchone()
+            assert label_id is not None, f"Could not find a label from group {label_info[0]} " \
+                                         f"with name {label_info[1]}. " \
+                                         f"Are you sure it's been added into the database? "
+        except Exception as e:
+            print(f"Could not _get_AnnotationLabelId because {e}")
+            raise e
+        finally:
+            cursor.close()
+        return label_id[0]
+
+    def get_and_FrameId_from_Annotations(self, conditions):
+        """
+        Chooses the frames that correspond to the specified conditions on annotation. Using "and" logic. Example : if
+        you ask for frames corresponding to condition 1 and condition 2 , it will return such frames that both
+        condition 1 and condition 2 are True AT THE SAME TIME
+
+        :param conditions: a list of conditions on the annotation labels
+        in a form [(group, name),(group, name), ...] where group is a string for the annotation type
+        and name is the name of the label of that annotation type. For example [('light', 'on'), ('shape','c')]
+        :type conditions: [tuple]
+        :return: list of frame Ids that satisfy all the conditions, if there are no such frames, an empty list
+        :rtype: list
+        """
+        # create list of label Ids
+        labels_ids = []
+        for label_info in conditions:
+            labels_ids.append(self._get_AnnotationLabelId(label_info))
+        labels_ids = tuple(labels_ids)
+        n_labels = len(labels_ids)
+
+        # get the frames
+        cursor = self.connection.cursor()
+        try:
+            # create a parameterised query with variable number of parameters
+            cursor.execute(
+                f"""SELECT FrameId FROM 
+                    (SELECT FrameId, count(FrameId) as N 
+                    FROM Annotations 
+                    WHERE AnnotationTypeLabelId IN ({', '.join(['?'] * n_labels)})
+                    GROUP BY FrameId)
+                    WHERE N = {n_labels}""", labels_ids)
+            frame_ids = cursor.fetchall()
+        except Exception as e:
+            print(f"Could not _get_and_FrameId_from_Annotations because {e}")
+            raise e
+        finally:
+            cursor.close()
+        # TODO : get rid of list of tuples?
+        #  https://www.reddit.com/r/Python/comments/2iiqri/quick_question_why_are_sqlite_fields_returned_as/
+        frame_ids = [frame[0] for frame in frame_ids]
+        return frame_ids
+
+    def get_or_FrameId_from_Annotations(self, conditions):
+        """
+        Chooses the frames that correspond to the specified conditions on annotation. Using "or" logic. Example : if
+        you ask for frames corresponding to condition 1 and condition 2 , it will return such frames that either
+        condition 1 is true OR condition 2 is True OR both are true.
+
+        :param conditions: a list of conditions on the annotation labels
+        in a form [(group, name),(group, name), ...] where group is a string for the annotation type
+        and name is the name of the label of that annotation type. For example [('light', 'on'), ('shape','c')]
+        :type conditions: [tuple]
+        :return:
+        :rtype:
+        """
+        # create list of label Ids
+        labels_ids = []
+        for label_info in conditions:
+            labels_ids.append(self._get_AnnotationLabelId(label_info))
+        labels_ids = tuple(labels_ids)
+        n_labels = len(labels_ids)
+
+        # get the frames
+        cursor = self.connection.cursor()
+        try:
+            # create a parameterised query with variable number of parameters
+            cursor.execute(
+                f"""SELECT FrameId FROM Annotations 
+                    WHERE AnnotationTypeLabelId IN ({', '.join(['?'] * n_labels)})
+                    GROUP BY FrameId""", labels_ids)
+            frame_ids = cursor.fetchall()
+        except Exception as e:
+            print(f"Could not _get_or_FrameId_from_Annotations because {e}")
+            raise e
+        finally:
+            cursor.close()
+        # TODO : get rid of list of tuples?
+        #  https://www.reddit.com/r/Python/comments/2iiqri/quick_question_why_are_sqlite_fields_returned_as/
+        frame_ids = [frame[0] for frame in frame_ids]
+        return frame_ids
 
     def _create_tables(self):
 
@@ -1250,7 +1576,7 @@ class DbManager:
         """
         row_data = [("data_dir", file_manager.data_dir.as_posix()),
                     ("frames_per_volume", volume_manager.fpv),
-                    ("first_good_frame", volume_manager.fpv),
+                    ("num_head_frames", volume_manager.n_head),
                     ("num_tail_frames", volume_manager.n_tail),
                     ("num_full_volumes", volume_manager.full_volumes)]
 
@@ -1433,49 +1759,3 @@ class DbManager:
             raise e
         finally:
             cursor.close()
-
-
-def test_creating_the_db():
-    """
-    Tests if the frames returned correspond to the conditions.
-    """
-    data_dir = r"D:\Code\repos\vodex\data\test\test_movie"
-    fpv = 10
-
-    # labels
-    shape = Labels("shape", ["c", "s"],
-                   state_info={"c": "circle on the screen", "s": "square on the screen"})
-    light = Labels("light", ["on", "off"], group_info="Information about the light",
-                   state_info={"on": "the intensity of the background is high",
-                               "off": "the intensity of the background is low"})
-    c_num = Labels("c label", ['c1', 'c2', 'c3'], state_info={'c1': 'written c1', 'c2': 'written c1'})
-    n_frames = 1000
-
-    volume_m = VolumeManager.from_dir(data_dir, fpv)
-    # annotation
-    shape_cycle = Cycle([shape.c, shape.s], [15, 15])
-    light_cycle = Cycle([light.off, light.on], [15, 20])
-    c_cycle = Cycle([c_num.c1, c_num.c2,
-                     c_num.c3, c_num.c2], [10, 10, 10, 10])
-
-    shape_annotation = Annotation.from_cycle(n_frames, shape, shape_cycle)
-    light_annotation = Annotation.from_cycle(n_frames, er.light, light_cycle,
-                                             info="a cycle off-on")
-    c_annotation = Annotation.from_cycle(n_frames, c_num, c_cycle)
-
-    db = DbManager.empty()
-    db.populate(volumes=volume_m, annotations=[shape_annotation, light_annotation, c_annotation])
-    db.save(r'D:\Code\repos\vodex\data\test\test_experiment2.db')
-
-
-if __name__ == '__main__':
-    # BadTester.test_file_manager()
-    # BadTester.test_frame_manager()
-    # BadTester.test_volume_manager()
-    # BadTester.test_cycle()
-    # BadTester.test_annotation()
-
-    # BadTester.test_db_manager_population()
-    # BadTester.test_db_manager_load()
-
-    test_creating_the_db()
