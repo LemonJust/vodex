@@ -522,6 +522,16 @@ class TestAnnotation(unittest.TestCase):
         self.assertEqual(a2.cycle, self.shape_cycle)
         self.assertEqual(a2.frame_to_cycle, self.frame_to_cycle)
 
+    def test_from_timing(self):
+        a1 = Annotation(42, self.shape, self.shape_frame_to_label)
+        a2 = Annotation.from_timing(42, self.shape,
+                                    [self.shape.c, self.shape.s, self.shape.c, self.shape.s, self.shape.c],
+                                    [5, 10, 10, 10, 7])
+        a3 = Annotation.from_cycle(42, self.shape, self.shape_cycle)
+
+        self.assertEqual(a1, a2)
+        self.assertNotEqual(a2, a3)
+
     # def test_state(self):
     #     pass
 
@@ -532,81 +542,187 @@ class TestAnnotation(unittest.TestCase):
     #     pass
 
 
-class TestExperiment(unittest.TestCase):
-
-    def test_state(self):
-        pass
-
-    def test_create(self):
-        pass
-
-    def test_choose_frames(self):
-        pass
-
-    def test_choose_volumes(self):
-        pass
-#
-
-#
-# class TestDbManager(unittest.TestCase):
+# class TestExperiment(unittest.TestCase):
 #
 #     def test_state(self):
 #         pass
 #
-#     def list_tables(self):
+#     def test_create(self):
 #         pass
 #
-#     def table_as_df(self):
+#     def test_choose_frames(self):
 #         pass
 #
-#     def get_n_frames(self):
+#     def test_choose_volumes(self):
 #         pass
 #
-#     def save(self):
-#         pass
-#
-#     def empty(self):
-#         pass
-#
-#     def load(self):
-#         pass
-#
-#     def populate(self):
-#         pass
-#
-#     def _create_tables(self):
-#         pass
-#
-#     def _populate_Options(self):
-#         pass
-#
-#     def _populate_Files(self):
-#         pass
-#
-#     def _populate_Frames(self):
-#         pass
-#
-#     def _populate_Volumes(self):
-#         pass
-#
-#     def _populate_AnnotationTypes(self):
-#         pass
-#
-#     def _populate_AnnotationTypeLabels(self):
-#         pass
-#
-#     def _populate_Annotations(self):
-#         """
-#         select * from tableA
-#         minus
-#         select * from tableB
-#         """
-#
-#     def _populate_Cycles(self):
-#         pass
-#
-#     def _populate_CycleIterations(self):
-#         pass
+
+
+class TestDbManager(unittest.TestCase):
+    data_dir_split = Path(TEST_DATA, "test_movie")
+
+    shape = Labels("shape", ["c", "s"],
+                   state_info={"c": "circle on the screen", "s": "square on the screen"})
+    light = Labels("light", ["on", "off"], group_info="Information about the light",
+                   state_info={"on": "the intensity of the background is high",
+                               "off": "the intensity of the background is low"})
+    cnum = Labels("c label", ['c1', 'c2', 'c3'], state_info={'c1': 'written c1', 'c2': 'written c1'})
+
+    shape_cycle = Cycle([shape.c, shape.s, shape.c], [5, 10, 5])
+    cnum_cycle = Cycle([cnum.c1, cnum.c2, cnum.c3], [10, 10, 10])
+    light_order = [light.off, light.on, light.off]
+    light_timing = [10, 20, 12]
+
+    shape_an = Annotation.from_cycle(42, shape, shape_cycle)
+    cnum_an = Annotation.from_cycle(42, cnum, cnum_cycle)
+    light_an = Annotation.from_timing(42, light, light_order, light_timing)
+
+    def test_table_as_df(self):
+        # not sure how to test this
+        db = DbManager.load(Path(TEST_DATA, "test.db"))
+        df = db.table_as_df("AnnotationTypeLabels")
+        db.connection.close()
+
+    def test__get_FrameId_from_Volumes_from_volumes(self):
+        frames_vol01 = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+        frames_vol0 = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+
+        db = DbManager.load(Path(TEST_DATA, "test.db"))
+
+        frame_ids = db._get_FrameId_from_Volumes(volume_ids=[0])
+        self.assertEqual(frame_ids, frames_vol0)
+
+        frame_ids = db._get_FrameId_from_Volumes(volume_ids=[0, 1])
+        self.assertEqual(frame_ids, frames_vol01)
+
+        # duplicating doesn't change the frames
+        frame_ids = db._get_FrameId_from_Volumes(volume_ids=[0, 1, 1])
+        self.assertEqual(frame_ids, frames_vol01)
+
+        db.connection.close()
+
+    def test__get_FrameId_from_Volumes_from_slices(self):
+        frames_sl01 = [1, 2, 11, 12, 21, 22, 31, 32, 41, 42]
+        frames_sl0 = [1, 11, 21, 31, 41]
+
+        db = DbManager.load(Path(TEST_DATA, "test.db"))
+
+        frame_ids = db._get_FrameId_from_Volumes(slice_ids=[0])
+        self.assertEqual(frame_ids, frames_sl0)
+
+        frame_ids = db._get_FrameId_from_Volumes(slice_ids=[0, 1])
+        self.assertEqual(frame_ids, frames_sl01)
+
+        # duplicating doesn't change the frames
+        frame_ids = db._get_FrameId_from_Volumes(slice_ids=[0, 1, 1])
+        self.assertEqual(frame_ids, frames_sl01)
+
+        db.connection.close()
+
+    def test__get_AnnotationLabelId(self):
+        db = DbManager.load(Path(TEST_DATA, "test.db"))
+
+        label_id = db._get_AnnotationLabelId(("shape", "c"))
+        self.assertEqual(label_id, 1)
+
+        db.connection.close()
+
+    def test__get_and_FrameId_from_Annotations(self):
+        frames_cond1 = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40]
+        frames_cond2 = [6, 7, 8, 9, 10, 31, 32, 33, 34, 35]
+
+        cond1 = [("c label", "c1")]
+        cond2 = [("c label", "c1"), ("shape", "s")]
+
+        db = DbManager.load(Path(TEST_DATA, "test.db"))
+
+        frame_ids = db._get_and_FrameId_from_Annotations(cond1)
+        self.assertEqual(frame_ids, frames_cond1)
+
+        frame_ids = db._get_and_FrameId_from_Annotations(cond2)
+        self.assertEqual(frame_ids, frames_cond2)
+
+        db.connection.close()
+
+    def test__get_or_FrameId_from_Annotations(self):
+        frames_cond1 = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40]
+        frames_cond2 = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
+                        26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40]
+
+        cond1 = [("c label", "c1")]
+        cond2 = [("c label", "c1"), ("shape", "s")]
+
+        db = DbManager.load(Path(TEST_DATA, "test.db"))
+
+        frame_ids = db._get_or_FrameId_from_Annotations(cond1)
+        self.assertEqual(frame_ids, frames_cond1)
+
+        frame_ids = db._get_or_FrameId_from_Annotations(cond2)
+        self.assertEqual(frame_ids, frames_cond2)
+
+        db.connection.close()
+
+    def test__get_VolumeId_from_Volumes(self):
+        frames1 = [1, 2, 3, 11, 12, 13]
+        frames2 = [11, 12, 13, 1, 2, 3]
+
+        volumes1 = [0, 0, 0, 1, 1, 1]
+        volumes2 = [1, 1, 1, 0, 0, 0]
+
+        db = DbManager.load(Path(TEST_DATA, "test.db"))
+
+        volume_ids = db._get_VolumeId_from_Volumes(frames1)
+        self.assertEqual(volume_ids, volumes1)
+
+        # does not preserve order
+        volume_ids = db._get_VolumeId_from_Volumes(frames2)
+        self.assertNotEqual(volume_ids, volumes2)
+
+        db.connection.close()
+
+    def test_get_frames_per_slices(self):
+        frames1 = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+                   11, 12,
+                   21, 22, 23]
+
+        frames2 = [2, 6, 12, 16, 17, 22, 26, 27]
+
+        db = DbManager.load(Path(TEST_DATA, "test.db"))
+
+        chosen_frames = db.get_frames_per_slices(frames1, [0, 1, 2])
+        self.assertEqual(chosen_frames, [1, 2, 3, 21, 22, 23])
+
+        chosen_frames = db.get_frames_per_slices(frames2, [1, 5, 6])
+        self.assertEqual(chosen_frames, [12, 16, 17, 22, 26, 27])
+
+        chosen_frames = db.get_frames_per_slices(frames2, [5, 1, 6])
+        self.assertEqual(chosen_frames, [12, 16, 17, 22, 26, 27])
+
+        db.connection.close()
+
+    def test_save(self):
+        # not sure how to test this
+        pass
+
+    def test_create(self):
+        # not sure how to test this
+        db = DbManager.create()
+        db.connection.close()
+
+    def test_load(self):
+        # not sure how to test this
+        db = DbManager.load(Path(TEST_DATA, "test.db"))
+        db.connection.close()
+
+    def test_populate(self):
+        # TODO: test that lists for the db are true int all the time !!!!
+        volume_m = VolumeManager.from_dir(self.data_dir_split, 10, fgf=0)
+        db = DbManager.create()
+        db.populate(volumes=volume_m, annotations=[self.shape_an, self.cnum_an, self.light_an])
+        db.save(Path(TEST_DATA, "test.db"))
+        db.connection.close()
+
 
 if __name__ == "__main__":
+    # TODO: test that lists for the db are true int all the time !!!!
     unittest.main()
