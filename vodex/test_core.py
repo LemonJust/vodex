@@ -1,16 +1,13 @@
 from core import *
-# import nose2 as nose
-# from nose2.tools import params
+
 import unittest
 
 import tifffile as tif
 import json
 import numpy as np
-import pandas as pd
+
 from pathlib import Path
 import matplotlib.pyplot as plt
-from tqdm import tqdm
-from sqlite3 import connect
 
 TEST_DATA = r"D:\Code\repos\vodex\data\test"
 
@@ -33,10 +30,6 @@ class TestTiffLoader(unittest.TestCase):
     split_movies = [Path(TEST_DATA, "test_movie", mov) for mov in
                     ["mov0.tif", "mov1.tif", "mov2.tif"]]
     frames_1_2_41_42 = tif.imread(Path(TEST_DATA, "frames_1_2_41_42.tif"))
-
-    # def test_state(self):
-    #     loader = TiffLoader(self.full_movie)
-    #     self.assertEqual(loader.frame_size, (200, 200))
 
     def test_eq(self):
         loader1 = TiffLoader(self.full_movie)
@@ -67,8 +60,6 @@ class TestTiffLoader(unittest.TestCase):
         print("Must show 'Loading from file' and one file:")
         f_img = loader.load_frames(frames, [self.full_movie] * 4, show_file_names=True)
         self.assertEqual(f_img.shape, (4, 200, 200))
-        # checking the exact frames
-        # plot_4_frames(f_img, "TiffLoader\ntest_load_frames_one_file")
         self.assertTrue(np.all(np.equal(f_img, self.frames_1_2_41_42)))
 
     def test_load_frames_many_files(self):
@@ -82,8 +73,6 @@ class TestTiffLoader(unittest.TestCase):
         print("Must show 'Loading from file' and two files:")
         f_img = loader.load_frames(frames, files, show_file_names=True)
         self.assertEqual(f_img.shape, (4, 200, 200))
-        # checking the exact frames
-        # plot_4_frames(f_img, "TiffLoader\ntest_load_frames_many_files")
         self.assertTrue(np.all(np.equal(f_img, self.frames_1_2_41_42)))
 
 
@@ -131,9 +120,6 @@ class TestImageLoader(unittest.TestCase):
         print("Must show 'Loading from file' and one file:")
         f_img = loader.load_frames(frames, files, show_file_names=True)
         self.assertEqual(f_img.shape, (4, 200, 200))
-
-        # checking the exact frames
-        # plot_4_frames(f_img, "ImageLoader\ntest_load_frames_one_file")
         self.assertTrue(np.all(np.equal(f_img, self.frames_1_2_41_42)))
 
     def test_load_frames_many_files(self):
@@ -150,9 +136,6 @@ class TestImageLoader(unittest.TestCase):
         print("Must show 'Loading from file' and two files:")
         f_img = loader.load_frames(frames, files, show_file_names=True)
         self.assertEqual(f_img.shape, (4, 200, 200))
-
-        # checking the exact frames
-        # plot_4_frames(f_img, "ImageLoader\ntest_load_frames_many_files")
         self.assertTrue(np.all(np.equal(f_img, self.frames_1_2_41_42)))
 
     def test_load_volumes_full(self):
@@ -296,15 +279,6 @@ class TestTimeLabel(unittest.TestCase):
         self.assertEqual(TimeLabel.from_dict(d3), c3)
         self.assertEqual(TimeLabel.from_dict(d3).to_dict(), d3)
 
-    # def test_state(self):
-    #     pass
-    #
-    # def test_str(self):
-    #     pass
-    #
-    # def test_repr(self):
-    #     pass
-
 
 class TestLabel(unittest.TestCase):
 
@@ -323,12 +297,6 @@ class TestLabel(unittest.TestCase):
         self.assertEqual(shape.states[1].description, "square on the screen")
         self.assertEqual(shape.c, c)
         self.assertEqual(shape.s, s)
-
-    # def test_str(self):
-    #     pass
-    #
-    # def test_repr(self):
-    #     pass
 
 
 class TestCycle(unittest.TestCase):
@@ -405,15 +373,6 @@ class TestCycle(unittest.TestCase):
                                                               self.shape.c.to_dict()]})
         self.assertEqual(Cycle.from_json(j), self.shape_cycle)
 
-    # def test_state(self):
-    #     pass
-    #
-    # def test_str(self):
-    #     pass
-    #
-    # def test_repr(self):
-    #     pass
-
 
 class TestFrameManager(unittest.TestCase):
     data_dir_split = Path(TEST_DATA, "test_movie")
@@ -442,15 +401,6 @@ class TestFrameManager(unittest.TestCase):
         frame_m2 = FrameManager.from_dir(self.data_dir_split)
         self.assertEqual(frame_m1, frame_m2)
 
-    # def test_state(self):
-    #     pass
-    #
-    # def test_str(self):
-    #     pass
-    #
-    # def test_repr(self):
-    #     pass
-
 
 class TestVolumeManager(unittest.TestCase):
     data_dir_split = Path(TEST_DATA, "test_movie")
@@ -478,18 +428,6 @@ class TestVolumeManager(unittest.TestCase):
     def test_get_frames_to_volumes_mapping(self):
         frame_to_vol = self.volume_m.get_frames_to_volumes_mapping()
         self.assertEqual(frame_to_vol, self.frame_to_vol)
-
-    # def test_from_dir(self):
-    #     pass
-    #
-    # def test_state(self):
-    #     pass
-    #
-    # def test_str(self):
-    #     pass
-    #
-    # def test_repr(self):
-    #     pass
 
 
 class TestAnnotation(unittest.TestCase):
@@ -532,195 +470,21 @@ class TestAnnotation(unittest.TestCase):
         self.assertEqual(a1, a2)
         self.assertNotEqual(a2, a3)
 
-    # def test_state(self):
-    #     pass
 
-    # def test_str(self):
-    #     pass
-    #
-    # def test_repr(self):
-    #     pass
+class TestExperiment(unittest.TestCase):
 
-
-# class TestExperiment(unittest.TestCase):
-#
-#     def test_state(self):
-#         pass
-#
-#     def test_create(self):
-#         pass
-#
-#     def test_choose_frames(self):
-#         pass
-#
-#     def test_choose_volumes(self):
-#         pass
-#
-
-
-class TestDbManager(unittest.TestCase):
-    data_dir_split = Path(TEST_DATA, "test_movie")
-
-    shape = Labels("shape", ["c", "s"],
-                   state_info={"c": "circle on the screen", "s": "square on the screen"})
-    light = Labels("light", ["on", "off"], group_info="Information about the light",
-                   state_info={"on": "the intensity of the background is high",
-                               "off": "the intensity of the background is low"})
-    cnum = Labels("c label", ['c1', 'c2', 'c3'], state_info={'c1': 'written c1', 'c2': 'written c1'})
-
-    shape_cycle = Cycle([shape.c, shape.s, shape.c], [5, 10, 5])
-    cnum_cycle = Cycle([cnum.c1, cnum.c2, cnum.c3], [10, 10, 10])
-    light_order = [light.off, light.on, light.off]
-    light_timing = [10, 20, 12]
-
-    shape_an = Annotation.from_cycle(42, shape, shape_cycle)
-    cnum_an = Annotation.from_cycle(42, cnum, cnum_cycle)
-    light_an = Annotation.from_timing(42, light, light_order, light_timing)
-
-    def test_table_as_df(self):
-        # not sure how to test this
-        db = DbManager.load(Path(TEST_DATA, "test.db"))
-        df = db.table_as_df("AnnotationTypeLabels")
-        db.connection.close()
-
-    def test__get_FrameId_from_Volumes_from_volumes(self):
-        frames_vol01 = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
-        frames_vol0 = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-
-        db = DbManager.load(Path(TEST_DATA, "test.db"))
-
-        frame_ids = db._get_FrameId_from_Volumes(volume_ids=[0])
-        self.assertEqual(frame_ids, frames_vol0)
-
-        frame_ids = db._get_FrameId_from_Volumes(volume_ids=[0, 1])
-        self.assertEqual(frame_ids, frames_vol01)
-
-        # duplicating doesn't change the frames
-        frame_ids = db._get_FrameId_from_Volumes(volume_ids=[0, 1, 1])
-        self.assertEqual(frame_ids, frames_vol01)
-
-        db.connection.close()
-
-    def test__get_FrameId_from_Volumes_from_slices(self):
-        frames_sl01 = [1, 2, 11, 12, 21, 22, 31, 32, 41, 42]
-        frames_sl0 = [1, 11, 21, 31, 41]
-
-        db = DbManager.load(Path(TEST_DATA, "test.db"))
-
-        frame_ids = db._get_FrameId_from_Volumes(slice_ids=[0])
-        self.assertEqual(frame_ids, frames_sl0)
-
-        frame_ids = db._get_FrameId_from_Volumes(slice_ids=[0, 1])
-        self.assertEqual(frame_ids, frames_sl01)
-
-        # duplicating doesn't change the frames
-        frame_ids = db._get_FrameId_from_Volumes(slice_ids=[0, 1, 1])
-        self.assertEqual(frame_ids, frames_sl01)
-
-        db.connection.close()
-
-    def test__get_AnnotationLabelId(self):
-        db = DbManager.load(Path(TEST_DATA, "test.db"))
-
-        label_id = db._get_AnnotationLabelId(("shape", "c"))
-        self.assertEqual(label_id, 1)
-
-        db.connection.close()
-
-    def test__get_and_FrameId_from_Annotations(self):
-        frames_cond1 = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40]
-        frames_cond2 = [6, 7, 8, 9, 10, 31, 32, 33, 34, 35]
-
-        cond1 = [("c label", "c1")]
-        cond2 = [("c label", "c1"), ("shape", "s")]
-
-        db = DbManager.load(Path(TEST_DATA, "test.db"))
-
-        frame_ids = db._get_and_FrameId_from_Annotations(cond1)
-        self.assertEqual(frame_ids, frames_cond1)
-
-        frame_ids = db._get_and_FrameId_from_Annotations(cond2)
-        self.assertEqual(frame_ids, frames_cond2)
-
-        db.connection.close()
-
-    def test__get_or_FrameId_from_Annotations(self):
-        frames_cond1 = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40]
-        frames_cond2 = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
-                        26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40]
-
-        cond1 = [("c label", "c1")]
-        cond2 = [("c label", "c1"), ("shape", "s")]
-
-        db = DbManager.load(Path(TEST_DATA, "test.db"))
-
-        frame_ids = db._get_or_FrameId_from_Annotations(cond1)
-        self.assertEqual(frame_ids, frames_cond1)
-
-        frame_ids = db._get_or_FrameId_from_Annotations(cond2)
-        self.assertEqual(frame_ids, frames_cond2)
-
-        db.connection.close()
-
-    def test__get_VolumeId_from_Volumes(self):
-        frames1 = [1, 2, 3, 11, 12, 13]
-        frames2 = [11, 12, 13, 1, 2, 3]
-
-        volumes1 = [0, 0, 0, 1, 1, 1]
-        volumes2 = [1, 1, 1, 0, 0, 0]
-
-        db = DbManager.load(Path(TEST_DATA, "test.db"))
-
-        volume_ids = db._get_VolumeId_from_Volumes(frames1)
-        self.assertEqual(volume_ids, volumes1)
-
-        # does not preserve order
-        volume_ids = db._get_VolumeId_from_Volumes(frames2)
-        self.assertNotEqual(volume_ids, volumes2)
-
-        db.connection.close()
-
-    def test_get_frames_per_slices(self):
-        frames1 = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
-                   11, 12,
-                   21, 22, 23]
-
-        frames2 = [2, 6, 12, 16, 17, 22, 26, 27]
-
-        db = DbManager.load(Path(TEST_DATA, "test.db"))
-
-        chosen_frames = db.get_frames_per_slices(frames1, [0, 1, 2])
-        self.assertEqual(chosen_frames, [1, 2, 3, 21, 22, 23])
-
-        chosen_frames = db.get_frames_per_slices(frames2, [1, 5, 6])
-        self.assertEqual(chosen_frames, [12, 16, 17, 22, 26, 27])
-
-        chosen_frames = db.get_frames_per_slices(frames2, [5, 1, 6])
-        self.assertEqual(chosen_frames, [12, 16, 17, 22, 26, 27])
-
-        db.connection.close()
-
-    def test_save(self):
-        # not sure how to test this
+    def test_state(self):
         pass
 
     def test_create(self):
-        # not sure how to test this
-        db = DbManager.create()
-        db.connection.close()
+        pass
 
-    def test_load(self):
-        # not sure how to test this
-        db = DbManager.load(Path(TEST_DATA, "test.db"))
-        db.connection.close()
+    def test_choose_frames(self):
+        pass
 
-    def test_populate(self):
-        # TODO: test that lists for the db are true int all the time !!!!
-        volume_m = VolumeManager.from_dir(self.data_dir_split, 10, fgf=0)
-        db = DbManager.create()
-        db.populate(volumes=volume_m, annotations=[self.shape_an, self.cnum_an, self.light_an])
-        db.save(Path(TEST_DATA, "test.db"))
-        db.connection.close()
+    def test_choose_volumes(self):
+        pass
+
 
 
 if __name__ == "__main__":

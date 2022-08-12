@@ -4,10 +4,10 @@ Classes to specify the experimental conditions and load necessary data.
 from tifffile import TiffFile
 import json
 import numpy as np
-import pandas as pd
 from pathlib import Path
 from tqdm import tqdm
-from sqlite3 import connect
+
+from dbmethods import DbWriter, DbReader
 
 
 class TiffLoader:
@@ -197,11 +197,11 @@ class ImageLoader:
                                        show_file_names=show_file_names,
                                        show_progress=show_progress)
 
-    def load_volumes(self, frames, files, volumes, show_file_names=False, show_progress=True):
+    def load_volumes(self, frame_in_file, files, volumes, show_file_names=False, show_progress=True):
         """
         Loads specified frames from specified files and shapes them into volumes.
-        :param frames: list of frames IN FILES to load.
-        :type frames: list[int]
+        :param frame_in_file: list of frames IN FILES to load.
+        :type frame_in_file: list[int]
         :param files: a file for every frame
         :type files: Union(list[str],list[Path])
         :param volumes: a volume for every frame
@@ -222,13 +222,14 @@ class ImageLoader:
         #  ( maybe not here but in the experiment ,
         #       before we turn them into frames_in_file )
         # get frames and info
-        frames = self.loader.load_frames(frames, files,
+        frames = self.loader.load_frames(frame_in_file, files,
                                          show_file_names=show_file_names,
                                          show_progress=show_progress)
         n_frames, w, h = frames.shape
 
         # get volume information
         i_volume, count = np.unique(volumes, return_counts=True)
+        # you can use this method to load portions of the volumes, so fpv will be smaller
         n_volumes, fpv = len(i_volume), count[0]
         assert np.all(count == fpv), "Can't have different number of frames per volume!"
 
@@ -879,136 +880,118 @@ class Experiment:
     Will use all the information you provided to figure out what frames to give you based on your request.
     """
 
-    def __init__(self, db):
+    def __init__(self, db_reader):
         """
-        :param volume_manager: volume manager
-        :param annotation: annotation
-        :param cycles: cycles ( optional - if you want to keep cycles information )
+        :param db_reader: DbReader connected to the data base with the experiment description
         """
-        self.db = db
+        self.db = db_reader
+        # will add the loader the first time you are loading anything
+        # in load_frames() or load_volumes()
+        self.loader = None
 
     @classmethod
-    def create(cls, volume_manager, annotation, cycles=None):
+    def create(cls, volume_manager, annotations):
         """
         Creates a database instance and initialises the experiment.
         provide cycles if you have any cycles
         """
+        db = DbWriter.create()
+        db.populate(volumes=volume_manager, annotations=annotations)
+        db_reader = DbReader(db.connection)
+        return cls(db_reader)
 
-        frame_manager = volume_manager.frame_manager
-        file_manager = frame_manager.file_manager
+    def save(self, file_name):
+        """
+        Saves a database into a file.
+        :param file_name: full path to a file to save database.
+        (Usually the filename would end with .db)
+        :type file_name: Union(Path, str)
+        """
+        self.db.save(file_name)
 
-        assert frame_manager.n_frames == annotation.n_frames, \
-            f"Number of frames in the frame manager, {frame_manager.n_frames}, " \
-            f"doesn't match the number of frames in the annotation , {annotation.n_frames}"
+    @classmethod
+    def load(cls, file_name):
+        """
+        Saves a database into a file.
+        :param file_name: full path to a file to load database.
+        :type file_name: Union(Path, str)
+        """
+        db_reader = DbReader.load(file_name)
+        return cls(db_reader)
 
-        db = DbManager.initialise_db()
-        db.create_tables()
-
-        db.populate_Options(file_manager, volume_manager)
-
-    def choose_frames(self, labels_dict, between_group_logic="and"):
+    def choose_frames(self, conditions, between_group_logic="and"):
         """
         Selects the frames that correspond to specified conditions;
-        "or" inside the label-group and "or" or "and" between the labels groups, defined by between_group_logic.
-        To actually load the selected frames, use frame_manager.load_frames()
+        "or" inside the label-group and "or" or "and" between the labels groups,
+         defined by between_group_logic.
+        To load the selected frames, use load_frames()
 
-        :param labels_dict: dict {label group : label list}
-        :param between_group_logic: "and" or "or" , default is "and"
-        :return: frame_ids, list of frame ids that were chosen
+        :param conditions: a list of conditions on the annotation labels
+        in a form [(group, name),(group, name), ...] where group is a string for the annotation type
+        and name is the name of the label of that annotation type. For example [('light', 'on'), ('shape','c')]
+        :type conditions: [tuple]
+        :param between_group_logic: "and" or "or" , default is "and".
+        :type between_group_logic: str
+        :return: list of frame ids that were chosen.
+                Remember that frame numbers start at 1.
         """
         assert between_group_logic == "and" or between_group_logic == "or", \
             'between_group_logic should be equal to "and" or "or"'
-
-        def choose_inside_group(labels_dict, label_group, annotation):
-            is_group_label = False
-            for label in labels_dict[label_group]:
-                # logical or inside the group
-                is_group_label = np.logical_or(is_group_label,
-                                               annotation.frame_to_label[label_group] == label)
-            return is_group_label
-
-        if between_group_logic == "or":
-            chosen_frames = False
-            # choose frames with "or" logic inside group
-            for label_group in labels_dict:
-                is_group_label = choose_inside_group(labels_dict, label_group, self.annotation)
-                # logical "or" between the groups
-                chosen_frames = np.logical_or(chosen_frames, is_group_label)
-
+        frames = []
         if between_group_logic == "and":
-            chosen_frames = True
-            # choose frames with "or" logic inside group
-            for label_group in labels_dict:
-                is_group_label = choose_inside_group(labels_dict, label_group, self.annotation)
-                # logical "and" between the groups
-                chosen_frames = np.logical_and(chosen_frames, is_group_label)
+            frames = self.db.get_and_frames_per_annotations(conditions)
+        elif between_group_logic == "or":
+            frames = self.db.get_or_frames_per_annotations(conditions)
 
-        frame_ids = np.where(chosen_frames)[0]
-        return frame_ids
+        return frames
 
-    def choose_volumes(self, labels_dict, between_group_logic="and",
-                       return_partial_volumes=False, return_counts=False):
+    def choose_volumes(self, conditions, between_group_logic="and"):
         """
-        Selects the volumes that correspond to specified conditions;
-        "or" inside the label-group and "or" or "and" between the labels groups, defined by between_group_logic.
-        To actually load the selected volumes, use volume_manager.load_volumes()
+        Selects only full volumes that correspond to specified conditions;
+        "or" inside the label-group and "or" or "and" between the labels groups,
+         defined by between_group_logic.
+        To load the selected volumes, use load_volumes()
 
-        :param labels_dict: dict {label group : label list}
-        :param between_group_logic: "and" or "or" , default is "and"
-        :param return_counts: bool, wether or not to return counts. If false, returns only full volumes (if return_counts is False ) or
-        all the volumes and counts (if return_counts is True ). If True , ignores return_partial_volumes.
-        :param return_partial_volumes: bool, wether or not to return partial volumes.
-        If True, returns full and partial volumes separately.
-        If false, returns depend on return_counts.
-        :return:
+        :param conditions: a list of conditions on the annotation labels
+        in a form [(group, name),(group, name), ...] where group is a string for the annotation type
+        and name is the name of the label of that annotation type. For example [('light', 'on'), ('shape','c')]
+        :type conditions: [tuple]
+        :param between_group_logic: "and" or "or" , default is "and".
+        :type between_group_logic: str
+        :return: list of volumes and list of frame ids that were chosen.
+                Remember that frame numbers start at 1, but volumes start at 0.
+                TODO : make everything start at 1 ????
         """
-        # TODO : make returns clearer !
-        frame_ids = self.choose_frames(labels_dict, between_group_logic=between_group_logic)
+        # get all the frames that correspond to the conditions
+        frames = self.choose_frames(conditions, between_group_logic=between_group_logic)
+        n_frames = len(frames)
+        # leave only such frames that correspond to full volumes
+        # TODO : why do I even need to return frames?
+        volumes, frames = self.db.choose_full_volumes(frames)
+        n_dropped = n_frames - len(frames)
+        print(f"Choosing only full volumes. "
+              f"Dropped {n_dropped} frames, kept {len(frames)}")
 
-        vol_ids = np.array(self.volume_manager.frame_to_vol)[frame_ids]
-        volumes, counts = np.unique(vol_ids, return_counts=True)
+        return volumes
 
-        # get frames that correspond to full volumes and partial volumes
-        full_volumes = volumes[counts == self.volume_manager.fpv]
-        partial_volumes = volumes[counts < self.volume_manager.fpv]
-
-        # figure out returns
-        if return_counts:
-            return volumes, counts
-        if return_partial_volumes:
-            return full_volumes, partial_volumes
-        return full_volumes
-
-    def choose_slices(self):
+    def load_volumes(self, volumes):
         """
-        Selects the slices that correspond to specified conditions;
+        Load volumes.
         """
-        raise NotImplementedError
-
-    # def select_zslices(self, zslice, condition=None):
-    #     """
-    #     Selects the frames for a specific zslice that correspond to a specified condition.
-    #     If condition is None, selects all the frames for the specified zslice.
-    #     To actually load the selected frames, use frame_manager.load_frames()
-    #
-    #     :param zslice: the zslice for which to select the frames
-    #     :type zslice: int
-    #
-    #     :param condition: the condition for which to select the frames, or None
-    #     :type condition: Condition
-    #
-    #     :return: 1D array of indices: a list of frames corresponding to the zslice and the condition.
-    #     :rtype: numpy.ndarray
-    #     """
-    #     zslice_match = self.volume_manager.frame_to_z == zslice
-    #
-    #     if condition is not None:
-    #         condition_match = self.frame_to_condition == condition
-    #         request_met = np.logical_and(condition_match, zslice_match)
-    #     else:
-    #         request_met = zslice_match
-    #     which_frames = np.where(request_met)[0]
-    #     return which_frames
+        frames = self.db.get_frames_per_volumes(volumes)
+        info = self.db.prepare_frames_for_loading(frames)
+        # unpack
+        data_dir, file_names, file_ids, frame_in_file, volumes = info
+        # make full paths to files ( remember file ids start with 1 )
+        files = [Path(data_dir, file_names[file_id - 1]) for file_id in file_ids]
+        if self.loader is None:
+            self.loader = ImageLoader(Path(data_dir, file_names[0]))
+        volumes_img = self.loader.load_volumes(frame_in_file,
+                                               files,
+                                               volumes,
+                                               show_file_names=False,
+                                               show_progress=True)
+        return volumes_img
 
     def __str__(self):
         raise NotImplementedError
@@ -1021,741 +1004,3 @@ class Experiment:
         Prints a detailed description of the experiment.
         """
         raise NotImplementedError
-
-
-class DbManager:
-    """
-    Database interface that abstracts the SQLite calls
-    Code adopted from https://www.devdungeon.com/content/python-sqlite3-tutorial
-    Maybe better stuff here : https://www.sqlitetutorial.net/sqlite-python/creating-tables/
-
-    Some thoughts on try-catch :
-    https://softwareengineering.stackexchange.com/questions/64180/good-use-of-try-catch-blocks
-    """
-
-    def __init__(self, db):
-        self.connection = db
-        db.execute("PRAGMA foreign_keys = 1")
-
-    def list_tables(self):
-        """
-        Shows all the tables in the database
-        """
-        cursor = self.connection.cursor()
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
-        print(cursor.fetchall())
-        cursor.close()
-
-    def table_as_df(self, table_name):
-        """
-        Returns the whole table as a dataframe
-        table_name : name of the table you want to see
-        """
-
-        cursor = self.connection.cursor()
-        try:
-            query = cursor.execute(f"SELECT * From {table_name}")
-            cols = [column[0] for column in query.description]
-            df = pd.DataFrame.from_records(data=query.fetchall(), columns=cols)
-        except Exception as e:
-            print(f"Could not show {table_name} because {e}")
-            raise e
-        finally:
-            cursor.close()
-        return df
-
-    def get_n_frames(self):
-        cursor = self.connection.cursor()
-        try:
-            cursor.execute(f"SELECT COUNT(*) FROM Frames")
-            n_frames = cursor.fetchone()[0]
-        except Exception as e:
-            print(f"Could not get total number of frames from Frames because {e}")
-            raise e
-        finally:
-            cursor.close()
-        return n_frames
-
-    def save(self, file_name):
-        """
-        Backup a database to a file.
-        Will CLOSE connection to the database in memory!
-        file_name : "databasename.db"
-        """
-
-        def progress(status, remaining, total):
-            print(f'Copied {total - remaining} of {total} pages...')
-
-        backup_db = connect(file_name)
-        with backup_db:
-            self.connection.backup(backup_db, progress=progress)
-        self.connection.close()
-        backup_db.close()
-
-    @classmethod
-    def create(cls):
-        """
-        Creates an empty DB to the experiment in memory
-        """
-        # For an in-memory only database:
-        memory_db = connect(':memory:')
-        return cls(memory_db)
-
-    @classmethod
-    def load(cls, file_name):
-        """
-        Load the contents of a database file on disk to a
-        transient copy in memory without modifying the file
-        """
-        disk_db = connect(file_name)
-        memory_db = connect(':memory:')
-        disk_db.backup(memory_db)
-        disk_db.close()
-        # Now use `memory_db` without modifying disk db
-        return cls(memory_db)
-
-    def populate(self, files=None, frames=None, volumes=None, annotations=None):
-        """
-        Creates the tables if they don't exist and fills the provided data.
-
-        :param files: information about the files : number of files, their location
-        :type files: FileManager
-        :param frames: mapping of frames to files
-        :type frames: FrameManager
-        :param volumes: mapping of frames to volumes, and to slices in volumes, frames per volume
-        :type volumes: VolumeManager
-        :param annotations: mapping of frames to labels, list of annotations
-        :type annotations: [Annotation]
-        :return: None
-        """
-        # TODO : add warnings when you are trying to write the same data again
-
-        # will only create if they don't exist
-        self._create_tables()
-        # TODO : write cases for files and frames not None
-
-        if volumes is not None:
-            self._populate_Options(volumes.file_manager, volumes)
-            self._populate_Files(volumes.file_manager)
-            self._populate_Frames(volumes.frame_manager)
-            self._populate_Volumes(volumes)
-
-        if annotations is not None:
-            for annotation in annotations:
-                self._populate_AnnotationTypes(annotation)
-                self._populate_AnnotationTypeLabels(annotation)
-                self._populate_Annotations(annotation)
-                if annotation.cycle is not None:
-                    self._populate_Cycles(annotation)
-                    self._populate_CycleIterations(annotation)
-
-    # def get_frames_per_volumes(self, frames, slices):
-    #     """
-    #     Chooses the frames from specified frames, that also correspond to full volumes.
-    #
-    #     The order of the frames is not preserved!
-    #     The result will correspond to frames sorted in increasing order !
-    #
-    #     :param frames: a list of frame IDs
-    #     :type frames: [int]
-    #     :param slices: a list of slice IDs, order will not be preserved: will be sorted in increasing order
-    #     :type slices: [int]
-    #     :return: frames IDs from frames. corresponding to slices
-    #     :rtype: [int]
-    #     """
-    #     # create list of frame Ids
-    #     frame_ids = tuple(frames)
-    #     slice_ids = tuple(slices)
-    #     n_frames = len(frame_ids)
-    #     n_slices = len(slices)
-    #
-    #     # get the volumes
-    #     cursor = self.connection.cursor()
-    #     try:
-    #         cursor.execute(
-    #         #     f"""SELECT FrameId FROM Volumes
-    #         #         WHERE FrameId in ({', '.join(['?'] * n_frames)})
-    #         #         AND SliceInVolume IN ({', '.join(['?'] * n_slices)})
-    #         #         AND VolumeId IN
-    #         #             (
-    #         #             SELECT VolumeId FROM
-    #         #                 (
-    #         #                 SELECT VolumeId, count(VolumeId) as N
-    #         #                 FROM Volumes
-    #         #                 WHERE FrameId IN ({', '.join(['?'] * n_frames)})
-    #         #                 AND SliceInVolume IN ({', '.join(['?'] * n_slices)})
-    #         #                 GROUP BY VolumeId
-    #         #                 )
-    #         #             WHERE N = ?
-    #         #             )""", frame_ids + slice_ids + frame_ids + slice_ids + (n_slices,)
-    #         # )
-    #
-    #         frame_ids = cursor.fetchall()
-    #     except Exception as e:
-    #         print(f"Could not get_frames_per_slices because {e}")
-    #         raise e
-    #     finally:
-    #         cursor.close()
-    #     frame_ids = [frame[0] for frame in frame_ids]
-    #     return frame_ids
-
-    def get_frames_per_slices(self, frames, slices):
-        """
-        Chooses the frames from specified frames, that also correspond to the same slices (continuously)
-        in different volumes.
-        For example, if slices = [2,3,4] it will choose such frames from "given frames" that also correspond
-        to a chunk from slice 2 to slice 4 in all the volumes.
-        If there is a frame that corresponds to a slice "2" in a volume,
-        but no frames corresponding to the slices "3" and "4" in the SAME volume, such frame will not be picked.
-
-        The order of the frames is not preserved!
-        The result will correspond to frames sorted in increasing order !
-
-        :param frames: a list of frame IDs
-        :type frames: [int]
-        :param slices: a list of slice IDs, order will not be preserved: will be sorted in increasing order
-        :type slices: [int]
-        :return: frames IDs from frames. corresponding to slices
-        :rtype: [int]
-        """
-        # create list of frame Ids
-        frame_ids = tuple(frames)
-        slice_ids = tuple(slices)
-        n_frames = len(frame_ids)
-        n_slices = len(slices)
-
-        # get the volumes
-        cursor = self.connection.cursor()
-        try:
-            cursor.execute(
-                f"""SELECT FrameId FROM Volumes
-                    WHERE FrameId in ({', '.join(['?'] * n_frames)})
-                    AND SliceInVolume IN ({', '.join(['?'] * n_slices)})
-                    AND VolumeId IN
-                        (
-                        SELECT VolumeId FROM
-                            (
-                            SELECT VolumeId, count(VolumeId) as N 
-                            FROM Volumes 
-                            WHERE FrameId IN ({', '.join(['?'] * n_frames)})
-                            AND SliceInVolume IN ({', '.join(['?'] * n_slices)})
-                            GROUP BY VolumeId
-                            )
-                        WHERE N = ?
-                        )""", frame_ids + slice_ids + frame_ids + slice_ids + (n_slices,)
-            )
-
-            frame_ids = cursor.fetchall()
-        except Exception as e:
-            print(f"Could not get_frames_per_slices because {e}")
-            raise e
-        finally:
-            cursor.close()
-        frame_ids = [frame[0] for frame in frame_ids]
-        return frame_ids
-
-    def _get_SliceInVolume_from_Volumes(self, frames):
-        """
-        Chooses the slices that correspond to the specified frames.
-        The order of the frames is not preserved!
-        the volume correspond to frames sorted in increasing order !
-
-        :param frames: a list of frame IDs
-        :type frames: [int]
-        :return: volume IDs
-        :rtype: [int]
-        """
-        # create list of frame Ids
-        frame_ids = tuple(frames)
-        n_frames = len(frame_ids)
-
-        # get the volumes
-        cursor = self.connection.cursor()
-        try:
-            # create a parameterised query with variable number of parameters
-            cursor.execute(
-                f"""SELECT SliceInVolume FROM Volumes 
-                    WHERE FrameId IN ({', '.join(['?'] * n_frames)})""", frame_ids)
-            slice_ids = cursor.fetchall()
-        except Exception as e:
-            print(f"Could not _get_SliceInVolume_from_Volumes because {e}")
-            raise e
-        finally:
-            cursor.close()
-        slice_ids = [slice_id[0] for slice_id in slice_ids]
-        return slice_ids
-
-    def _get_VolumeId_from_Volumes(self, frames):
-        """
-        Chooses the volumes that correspond to the specified frames.
-        The order is not preserved!
-        the volume correspond to sorted frames in increasing order !
-
-        :param frames: a list of frame IDs
-        :type frames: [int]
-        :return: volume IDs
-        :rtype: [int]
-        """
-        # create list of frame Ids
-        frame_ids = tuple(frames)
-        n_frames = len(frame_ids)
-
-        # get the volumes
-        cursor = self.connection.cursor()
-        try:
-            # create a parameterised query with variable number of parameters
-            cursor.execute(
-                f"""SELECT VolumeId FROM Volumes 
-                    WHERE FrameId IN ({', '.join(['?'] * n_frames)})""", frame_ids)
-            volume_ids = cursor.fetchall()
-        except Exception as e:
-            print(f"Could not _get_VolumeId_from_Volumes because {e}")
-            raise e
-        finally:
-            cursor.close()
-        volume_ids = [volume[0] for volume in volume_ids]
-        return volume_ids
-
-    def get_FrameId_from_Volumes(self, volume_ids=None, slice_ids=None):
-        """
-        Chooses the frames that correspond to the specified volumes.
-        The order is not preserved!
-        the volume correspond to sorted volumes in increasing order !
-
-        :param volume_ids: a list of volume IDs
-        :type volume_ids: [int]
-        :param slice_ids: a list of slice IDs
-        :type slice_ids: [int]
-        :return: frame IDs
-        :rtype: [int]
-        """
-        assert (volume_ids is None) != (slice_ids is None), \
-            "volume_ids or slice_ids need to be not None, but not both"
-        ids = volume_ids if volume_ids is not None else slice_ids
-        column = "VolumeId" if volume_ids is not None else "SliceInVolume"
-
-        # get the frames
-        cursor = self.connection.cursor()
-        try:
-            # create a parameterised query with variable number of parameters
-            cursor.execute(
-                f"""SELECT FrameId FROM Volumes 
-                    WHERE {column} IN ({', '.join(['?'] * len(ids))})""", tuple(ids))
-            frame_ids = cursor.fetchall()
-        except Exception as e:
-            print(f"Could not _get_FrameId_from_Volumes because {e}")
-            raise e
-        finally:
-            cursor.close()
-        # TODO : get rid of list of tuples?
-        #  https://www.reddit.com/r/Python/comments/2iiqri/quick_question_why_are_sqlite_fields_returned_as/
-        frame_ids = [frame[0] for frame in frame_ids]
-        return frame_ids
-
-    def _get_AnnotationLabelId(self, label_info):
-        """
-        Returns the AnnotationLabels.Id for a label , searching by its name and group name.
-        :param label_condition: (group, name), where group is the AnnotationType.Name
-                            and name is AnnotationTypeLabels.Name
-        :type label_condition: tuple
-        :return: AnnotationLabels.Id
-        :rtype: int
-        """
-        cursor = self.connection.cursor()
-        try:
-            # create a parameterised query with variable number of parameters
-            cursor.execute(
-                f"""SELECT Id FROM AnnotationTypeLabels 
-                    WHERE AnnotationTypeId = (SELECT Id from AnnotationTypes WHERE Name = ?)
-                    and Name = ?""", label_info)
-            label_id = cursor.fetchone()
-            assert label_id is not None, f"Could not find a label from group {label_info[0]} " \
-                                         f"with name {label_info[1]}. " \
-                                         f"Are you sure it's been added into the database? "
-        except Exception as e:
-            print(f"Could not _get_AnnotationLabelId because {e}")
-            raise e
-        finally:
-            cursor.close()
-        return label_id[0]
-
-    def get_and_FrameId_from_Annotations(self, conditions):
-        """
-        Chooses the frames that correspond to the specified conditions on annotation. Using "and" logic. Example : if
-        you ask for frames corresponding to condition 1 and condition 2 , it will return such frames that both
-        condition 1 and condition 2 are True AT THE SAME TIME
-
-        :param conditions: a list of conditions on the annotation labels
-        in a form [(group, name),(group, name), ...] where group is a string for the annotation type
-        and name is the name of the label of that annotation type. For example [('light', 'on'), ('shape','c')]
-        :type conditions: [tuple]
-        :return: list of frame Ids that satisfy all the conditions, if there are no such frames, an empty list
-        :rtype: list
-        """
-        # create list of label Ids
-        labels_ids = []
-        for label_info in conditions:
-            labels_ids.append(self._get_AnnotationLabelId(label_info))
-        labels_ids = tuple(labels_ids)
-        n_labels = len(labels_ids)
-
-        # get the frames
-        cursor = self.connection.cursor()
-        try:
-            # create a parameterised query with variable number of parameters
-            cursor.execute(
-                f"""SELECT FrameId FROM 
-                    (SELECT FrameId, count(FrameId) as N 
-                    FROM Annotations 
-                    WHERE AnnotationTypeLabelId IN ({', '.join(['?'] * n_labels)})
-                    GROUP BY FrameId)
-                    WHERE N = {n_labels}""", labels_ids)
-            frame_ids = cursor.fetchall()
-        except Exception as e:
-            print(f"Could not _get_and_FrameId_from_Annotations because {e}")
-            raise e
-        finally:
-            cursor.close()
-        # TODO : get rid of list of tuples?
-        #  https://www.reddit.com/r/Python/comments/2iiqri/quick_question_why_are_sqlite_fields_returned_as/
-        frame_ids = [frame[0] for frame in frame_ids]
-        return frame_ids
-
-    def get_or_FrameId_from_Annotations(self, conditions):
-        """
-        Chooses the frames that correspond to the specified conditions on annotation. Using "or" logic. Example : if
-        you ask for frames corresponding to condition 1 and condition 2 , it will return such frames that either
-        condition 1 is true OR condition 2 is True OR both are true.
-
-        :param conditions: a list of conditions on the annotation labels
-        in a form [(group, name),(group, name), ...] where group is a string for the annotation type
-        and name is the name of the label of that annotation type. For example [('light', 'on'), ('shape','c')]
-        :type conditions: [tuple]
-        :return:
-        :rtype:
-        """
-        # create list of label Ids
-        labels_ids = []
-        for label_info in conditions:
-            labels_ids.append(self._get_AnnotationLabelId(label_info))
-        labels_ids = tuple(labels_ids)
-        n_labels = len(labels_ids)
-
-        # get the frames
-        cursor = self.connection.cursor()
-        try:
-            # create a parameterised query with variable number of parameters
-            cursor.execute(
-                f"""SELECT FrameId FROM Annotations 
-                    WHERE AnnotationTypeLabelId IN ({', '.join(['?'] * n_labels)})
-                    GROUP BY FrameId""", labels_ids)
-            frame_ids = cursor.fetchall()
-        except Exception as e:
-            print(f"Could not _get_or_FrameId_from_Annotations because {e}")
-            raise e
-        finally:
-            cursor.close()
-        # TODO : get rid of list of tuples?
-        #  https://www.reddit.com/r/Python/comments/2iiqri/quick_question_why_are_sqlite_fields_returned_as/
-        frame_ids = [frame[0] for frame in frame_ids]
-        return frame_ids
-
-    def _create_tables(self):
-
-        # TODO : change UNIQUE(a, b)
-        # into primary key over both columns a and b where appropriate
-
-        db_cursor = self.connection.cursor()
-
-        sql_create_Options_table = """
-            CREATE TABLE IF NOT EXISTS "Options" (
-            "Key"	TEXT NOT NULL UNIQUE,
-            "Value"	TEXT NOT NULL,
-            "Description"	TEXT,
-            PRIMARY KEY("Key")
-            )
-            """
-        db_cursor.execute(sql_create_Options_table)
-
-        sql_create_Files_table = """
-            CREATE TABLE IF NOT EXISTS "Files" (
-            "Id"	INTEGER NOT NULL UNIQUE,
-            "FileName"	TEXT NOT NULL UNIQUE,
-            "NumFrames"	INTEGER NOT NULL,
-            PRIMARY KEY("Id" AUTOINCREMENT)
-            )
-            """
-        db_cursor.execute(sql_create_Files_table)
-
-        sql_create_AnnotationTypes_table = """
-            CREATE TABLE IF NOT EXISTS "AnnotationTypes" (
-            "Id"	INTEGER NOT NULL UNIQUE,
-            "Name"	TEXT NOT NULL UNIQUE,
-            "Description"	TEXT,
-            PRIMARY KEY("Id" AUTOINCREMENT)
-            )
-            """
-        db_cursor.execute(sql_create_AnnotationTypes_table)
-
-        sql_create_Frames_table = """
-            CREATE TABLE IF NOT EXISTS "Frames" (
-            "Id"	INTEGER NOT NULL UNIQUE,
-            "FrameInFile"	INTEGER NOT NULL,
-            "FileId"	INTEGER NOT NULL,
-            PRIMARY KEY("Id" AUTOINCREMENT),
-            FOREIGN KEY("FileId") REFERENCES "Files"("Id")
-            )
-            """
-        db_cursor.execute(sql_create_Frames_table)
-
-        sql_create_Cycles_table = """
-            CREATE TABLE IF NOT EXISTS "Cycles" (
-            "Id"	INTEGER NOT NULL UNIQUE,
-            "AnnotationTypeId"	INTEGER NOT NULL UNIQUE,
-            "Structure"	TEXT NOT NULL,
-            FOREIGN KEY("AnnotationTypeId") REFERENCES "AnnotationTypes"("Id"),
-            PRIMARY KEY("Id" AUTOINCREMENT)
-            )
-            """
-        db_cursor.execute(sql_create_Cycles_table)
-
-        sql_create_AnnotationTypeLabels_table = """
-            CREATE TABLE IF NOT EXISTS "AnnotationTypeLabels" (
-            "Id"	INTEGER NOT NULL UNIQUE,
-            "AnnotationTypeId"	INTEGER NOT NULL,
-            "Name"	TEXT NOT NULL,
-            "Description"	TEXT,
-            PRIMARY KEY("Id" AUTOINCREMENT),
-            FOREIGN KEY("AnnotationTypeId") REFERENCES "AnnotationTypes"("Id"),
-            UNIQUE("AnnotationTypeId","Name")
-            )
-            """
-        db_cursor.execute(sql_create_AnnotationTypeLabels_table)
-
-        sql_create_Annotations_table = """
-            CREATE TABLE IF NOT EXISTS "Annotations" (
-            "FrameId"	INTEGER NOT NULL,
-            "AnnotationTypeLabelId"	INTEGER NOT NULL,
-            FOREIGN KEY("FrameId") REFERENCES "Frames"("Id"),
-            FOREIGN KEY("AnnotationTypeLabelId") REFERENCES "AnnotationTypeLabels"("Id"),
-            UNIQUE("FrameId","AnnotationTypeLabelId")
-            )
-            """
-        db_cursor.execute(sql_create_Annotations_table)
-
-        sql_create_CycleIterations_table = """
-            CREATE TABLE IF NOT EXISTS "CycleIterations" (
-            "FrameId"	INTEGER NOT NULL,
-            "CycleId"	INTEGER NOT NULL,
-            "CycleIteration"	INTEGER NOT NULL,
-            FOREIGN KEY("CycleId") REFERENCES "Cycles"("Id"),
-            FOREIGN KEY("FrameId") REFERENCES "Frames"("Id")
-            )
-            """
-        db_cursor.execute(sql_create_CycleIterations_table)
-
-        sql_create_Volumes_table = """
-            CREATE TABLE IF NOT EXISTS "Volumes" (
-            "FrameId"	INTEGER NOT NULL UNIQUE,
-            "VolumeId"	INTEGER NOT NULL,
-            "SliceInVolume"	INTEGER NOT NULL,
-            PRIMARY KEY("FrameId" AUTOINCREMENT),
-            FOREIGN KEY("FrameId") REFERENCES "Frames"("Id")
-            UNIQUE("VolumeId","SliceInVolume")
-            )
-            """
-        db_cursor.execute(sql_create_Volumes_table)
-
-        db_cursor.close()
-
-    def _populate_Options(self, file_manager, volume_manager):
-        """
-        Options: dictionary with key - value pairs
-        another way of dealing with Errors : ( more pretty ??? )
-        https://www.w3resource.com/python-exercises/sqlite/python-sqlite-exercise-6.php
-        """
-        row_data = [("data_dir", file_manager.data_dir.as_posix()),
-                    ("frames_per_volume", volume_manager.fpv),
-                    ("num_head_frames", volume_manager.n_head),
-                    ("num_tail_frames", volume_manager.n_tail),
-                    ("num_full_volumes", volume_manager.full_volumes)]
-
-        cursor = self.connection.cursor()
-        try:
-            cursor.executemany(
-                "INSERT INTO Options (Key, Value) VALUES (?, ?)",
-                row_data)
-            self.connection.commit()
-        except Exception as e:
-            print(f"Could not write to Options because {e}")
-            raise e
-        finally:
-            cursor.close()
-
-    def _populate_Files(self, file_manager):
-        """
-        file_name : list with filenames per file (str)
-        num_frames : list with number of frames per file (int)
-        """
-        row_data = [(filename, frames) for
-                    filename, frames in zip(file_manager.file_names, file_manager.num_frames)]
-
-        cursor = self.connection.cursor()
-        try:
-            cursor.executemany(
-                "INSERT INTO Files (FileName, NumFrames) VALUES (?, ?)",
-                row_data)
-            self.connection.commit()
-        except Exception as e:
-            print(f"Could not write to Files because {e}")
-            raise e
-        finally:
-            cursor.close()
-
-    def _populate_Frames(self, frame_manager):
-        """
-        Something like :
-        insert into tab2 (id_customers, value)
-        values ((select id from tab1 where customers='john'), 'alfa');
-        but in SQLite
-        https://www.tutorialspoint.com/sqlite/sqlite_insert_query.htm
-        """
-        # adding +1 since the frame_to_file is indexing files from 0 and sqlite gave files IDs from 1
-        row_data = [(frame_in_file, frame_to_file + 1) for
-                    frame_in_file, frame_to_file in zip(frame_manager.frame_in_file, frame_manager.frame_to_file)]
-
-        cursor = self.connection.cursor()
-        try:
-            cursor.executemany(
-                "INSERT INTO Frames (FrameInFile, FileId) VALUES (?, ?)",
-                row_data)
-            self.connection.commit()
-        except Exception as e:
-            print(f"Could not write to Frames because {e}")
-            raise e
-        finally:
-            cursor.close()
-
-    def _populate_Volumes(self, volume_manager):
-
-        row_data = [(volume_id, slice_in_volume) for
-                    volume_id, slice_in_volume in zip(volume_manager.frame_to_vol, volume_manager.frame_to_z)]
-
-        cursor = self.connection.cursor()
-        try:
-            cursor.executemany(
-                "INSERT INTO Volumes (VolumeId, SliceInVolume) VALUES (?, ?)",
-                row_data)
-            self.connection.commit()
-        except Exception as e:
-            print(f"Could not write to Volumes because {e}")
-            raise e
-        finally:
-            cursor.close()
-
-    def _populate_AnnotationTypes(self, annotation):
-        """
-        """
-        row_data = (annotation.name, annotation.info)
-        cursor = self.connection.cursor()
-        try:
-            cursor.execute(
-                "INSERT INTO AnnotationTypes (Name, Description) VALUES (?, ?)",
-                row_data)
-            self.connection.commit()
-        except Exception as e:
-            print(f"Could not write to AnnotationTypes because {e}")
-            raise e
-        finally:
-            cursor.close()
-
-    def _populate_AnnotationTypeLabels(self, annotation):
-
-        row_data = [(label.group, label.name, label.description)
-                    for label in annotation.labels.states]
-
-        cursor = self.connection.cursor()
-        try:
-            cursor.executemany(
-                "INSERT INTO AnnotationTypeLabels (AnnotationTypeId, Name, Description) " +
-                "VALUES((SELECT Id FROM AnnotationTypes WHERE Name = ?), ?, ?)",
-                row_data)
-            self.connection.commit()
-        except Exception as e:
-            print(f"Could not write to AnnotationTypeLabels because {e}")
-            raise e
-        finally:
-            cursor.close()
-
-    def _populate_Annotations(self, annotation):
-        n_frames = self.get_n_frames()
-        assert n_frames == annotation.n_frames, f"Number of frames in the annotation, {annotation.n_frames}," \
-                                                f"doesn't match" \
-                                                f" the expected number of frames {n_frames}"
-        frames = range(n_frames)
-        row_data = [(frame + 1, label.name, label.group)
-                    for frame, label in zip(frames, annotation.frame_to_label)]
-        cursor = self.connection.cursor()
-        try:
-            cursor.executemany(
-                "INSERT INTO Annotations (FrameId, AnnotationTypeLabelId) " +
-                "VALUES(?, (SELECT Id FROM AnnotationTypeLabels "
-                "WHERE Name = ? " +
-                "AND AnnotationTypeId = (SELECT Id FROM AnnotationTypes " +
-                "WHERE Name = ?)))",
-                row_data)
-            self.connection.commit()
-        except Exception as e:
-            print(f"Could not write group {annotation.name} to Annotations because {e}")
-            raise e
-        finally:
-            cursor.close()
-
-    def _populate_Cycles(self, annotation):
-        """
-        """
-        row_data = (annotation.name, annotation.cycle.to_json())
-        cursor = self.connection.cursor()
-        try:
-            cursor.execute(
-                "INSERT INTO Cycles (AnnotationTypeId, Structure) " +
-                "VALUES((SELECT Id FROM AnnotationTypes WHERE Name = ?), ?)",
-                row_data)
-            self.connection.commit()
-        except Exception as e:
-            print(f"Could not write to Cycles because {e}")
-            raise e
-        finally:
-            cursor.close()
-
-    def _populate_CycleIterations(self, annotation):
-        n_frames = self.get_n_frames()
-        assert n_frames == annotation.n_frames, f"Number of frames in the annotation, {annotation.n_frames}," \
-                                                f"doesn't match" \
-                                                f" the expected number of frames {n_frames}"
-        # get cycle id by annotation type
-        cursor = self.connection.cursor()
-        cursor.execute(
-            "SELECT Id FROM Cycles " +
-            "WHERE AnnotationTypeId = (SELECT Id FROM AnnotationTypes " +
-            "WHERE Name = ?)", (annotation.name,))
-        cycle_id = cursor.fetchone()[0]
-        cursor.close()
-
-        # prepare rows
-        frames = range(n_frames)
-        row_data = [(frame + 1, cycle_id, iteration)
-                    for frame, iteration in zip(frames, annotation.frame_to_cycle)]
-
-        # insert into CycleIterations
-        cursor = self.connection.cursor()
-        try:
-            cursor.executemany(
-                "INSERT INTO CycleIterations (FrameId, CycleId, CycleIteration) " +
-                "VALUES(?, ?,?)", row_data)
-            self.connection.commit()
-        except Exception as e:
-            print(f"Could not write group {annotation.name} to CycleIterations because {e}")
-            raise e
-        finally:
-            cursor.close()
