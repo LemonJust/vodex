@@ -27,7 +27,7 @@ class TestDbWriter(unittest.TestCase):
     light_an = Annotation.from_timing(42, light, light_order, light_timing)
 
     def test_save(self):
-        # not sure how to test this
+        # not sure how to test this maybe just look at the saved database for now? >_<
         pass
 
     def test_create(self):

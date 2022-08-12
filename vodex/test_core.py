@@ -35,6 +35,7 @@ class TestTiffLoader(unittest.TestCase):
         loader1 = TiffLoader(self.full_movie)
         loader2 = TiffLoader(self.full_movie)
         self.assertEqual(loader1, loader2)
+        self.assertEqual(loader2, loader1)
 
     def test_get_frames_in_file(self):
         loader = TiffLoader(self.full_movie)
@@ -84,13 +85,14 @@ class TestImageLoader(unittest.TestCase):
                     ["mov0.tif", "mov1.tif", "mov2.tif"]]
 
     frames_1_2_41_42 = tif.imread(Path(TEST_DATA, "frames_1_2_41_42.tif"))
-    volumes_1_2 = tif.imread(Path(TEST_DATA, "volumes_1_2.tif"))
-    half_volumes_1_2 = tif.imread(Path(TEST_DATA, "half_volumes_1_2.tif"))
+    volumes_0_1 = tif.imread(Path(TEST_DATA, "volumes_1_2.tif"))
+    half_volumes_0_1 = tif.imread(Path(TEST_DATA, "half_volumes_1_2.tif"))
 
     def test_eq(self):
         loader1 = ImageLoader(self.full_movie)
         loader2 = ImageLoader(self.full_movie)
         self.assertEqual(loader1, loader2)
+        self.assertEqual(loader2, loader1)
 
     def test_choose_loader(self):
         tif_loader = TiffLoader(self.full_movie)
@@ -140,16 +142,17 @@ class TestImageLoader(unittest.TestCase):
 
     def test_load_volumes_full(self):
         loader = ImageLoader(self.full_movie)
+        # TODO : check all the places for consistency n volumes 1 2 meaning 0 1 actually :(
 
         frames = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
                   10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
-        volumes = [1] * 10
-        volumes.extend([2] * 10)
+        volumes = [0] * 10
+        volumes.extend([1] * 10)
         files = [self.full_movie] * 20
 
         v_img = loader.load_volumes(frames, files, volumes)
         self.assertEqual(v_img.shape, (2, 10, 200, 200))
-        self.assertTrue(np.all(np.equal(v_img, self.volumes_1_2)))
+        self.assertTrue(np.all(np.equal(v_img, self.volumes_0_1)))
 
     def test_load_volumes_half(self):
         loader = ImageLoader(self.full_movie)
@@ -162,7 +165,7 @@ class TestImageLoader(unittest.TestCase):
 
         v_img = loader.load_volumes(frames, files, volumes)
         self.assertEqual(v_img.shape, (2, 5, 200, 200))
-        self.assertTrue(np.all(np.equal(v_img, self.half_volumes_1_2)))
+        self.assertTrue(np.all(np.equal(v_img, self.half_volumes_0_1)))
 
         # now let's make sure it breaks when we ask for different number of slices per volume
         volumes = [1] * 6
@@ -184,6 +187,7 @@ class TestFileManager(unittest.TestCase):
         file_m1 = FileManager(self.data_dir_split)
         file_m2 = FileManager(self.data_dir_split)
         self.assertEqual(file_m1, file_m2)
+        self.assertEqual(file_m2, file_m1)
 
     def test_find_files(self):
         with self.assertRaises(AssertionError):
@@ -226,27 +230,39 @@ class TestTimeLabel(unittest.TestCase):
         c5 = TimeLabel("c")
 
         self.assertEqual(c1, c2)
+        self.assertEqual(c2, c1)
         # due to no group in c3
         self.assertNotEqual(c1, c3)
+        self.assertNotEqual(c3, c1)
+
         self.assertEqual(c1, c4)
+        self.assertEqual(c4, c1)
         # due to no group in c5
         self.assertNotEqual(c1, c5)
+        self.assertNotEqual(c5, c1)
         self.assertEqual(c3, c5)
+        self.assertEqual(c5, c3)
 
         c6 = TimeLabel("c", group="c label")
 
         self.assertNotEqual(c1, c6)
+        self.assertNotEqual(c6, c1)
         self.assertNotEqual(c4, c6)
+        self.assertNotEqual(c6, c4)
 
         s1 = TimeLabel("s", group="shape")
 
         self.assertNotEqual(c1, s1)
+        self.assertNotEqual(s1, c1)
         self.assertNotEqual(c5, s1)
+        self.assertNotEqual(s1, c5)
 
         s2 = TimeLabel("s", group="c label")
 
         self.assertNotEqual(c1, s2)
+        self.assertNotEqual(s2, c1)
         self.assertNotEqual(c5, s2)
+        self.assertNotEqual(s2, c5)
 
     def test_to_dict(self):
         c1 = TimeLabel("c", description="circle on the screen", group="shape")
@@ -330,8 +346,11 @@ class TestCycle(unittest.TestCase):
         cycle4 = Cycle([self.shape.c, self.shape.s, self.shape.c], [2, 10, 8])
 
         self.assertEqual(cycle1, cycle2)
+        self.assertEqual(cycle2, cycle1)
         self.assertNotEqual(cycle1, cycle3)
+        self.assertNotEqual(cycle3, cycle1)
         self.assertNotEqual(cycle1, cycle4)
+        self.assertNotEqual(cycle4, cycle1)
 
     def test_get_label_per_frame(self):
         per_frame_label_list = self.shape_cycle.get_label_per_frame()
@@ -388,6 +407,7 @@ class TestFrameManager(unittest.TestCase):
         frame_m1 = FrameManager(self.file_m)
         frame_m2 = FrameManager(self.file_m)
         self.assertEqual(frame_m1, frame_m2)
+        self.assertEqual(frame_m2, frame_m1)
 
     def test_get_frame_mapping(self):
         frame_m = FrameManager(self.file_m)
@@ -468,23 +488,178 @@ class TestAnnotation(unittest.TestCase):
         a3 = Annotation.from_cycle(42, self.shape, self.shape_cycle)
 
         self.assertEqual(a1, a2)
+        self.assertEqual(a2, a1)
+
+        self.assertNotEqual(a3, a2)
         self.assertNotEqual(a2, a3)
 
 
 class TestExperiment(unittest.TestCase):
+    # data to create an experiment
+    data_dir_split = Path(TEST_DATA, "test_movie")
 
-    def test_state(self):
-        pass
+    shape = Labels("shape", ["c", "s"],
+                   state_info={"c": "circle on the screen", "s": "square on the screen"})
+    light = Labels("light", ["on", "off"], group_info="Information about the light",
+                   state_info={"on": "the intensity of the background is high",
+                               "off": "the intensity of the background is low"})
+    cnum = Labels("c label", ['c1', 'c2', 'c3'], state_info={'c1': 'written c1', 'c2': 'written c1'})
 
-    def test_create(self):
-        pass
+    shape_cycle = Cycle([shape.c, shape.s, shape.c], [5, 10, 5])
+    cnum_cycle = Cycle([cnum.c1, cnum.c2, cnum.c3], [10, 10, 10])
+    light_order = [light.off, light.on, light.off]
+    light_timing = [10, 20, 12]
+
+    shape_an = Annotation.from_cycle(42, shape, shape_cycle)
+    cnum_an = Annotation.from_cycle(42, cnum, cnum_cycle)
+    light_an = Annotation.from_timing(42, light, light_order, light_timing)
+    annotations = [shape_an, cnum_an, light_an]
+
+    volume_m = VolumeManager.from_dir(data_dir_split, 10, fgf=0)
+
+    def test_create_and_save(self):
+        experiment = Experiment.create(self.volume_m, self.annotations)
+        experiment.save(Path(TEST_DATA, "test_experiment.db"))
+
+    def test_load(self):
+        # not sure how to compare really
+        experiment = Experiment.load(Path(TEST_DATA, "test.db"))
 
     def test_choose_frames(self):
-        pass
+        conditions1 = [("light", "on"), ("light", "off")]
+        conditions2 = [("light", "on")]
+        conditions3 = [("light", "on"), ("c label", "c1")]
+        conditions4 = [("light", "on"), ("c label", "c2")]
+        conditions5 = [("light", "on"), ("c label", "c2"), ("c label", "c3")]
+        conditions6 = [("light", "on"), ("c label", "c2"), ("shape", "s")]
+
+        # correct answers
+        frames_and1 = []
+        frames_and2 = [11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+                       21, 22, 23, 24, 25, 26, 27, 28, 29, 30]
+        frames_and3 = []
+        frames_and4 = [11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+        frames_and5 = []
+        frames_and6 = [11, 12, 13, 14, 15]
+
+        frames_or1 = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+                      11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+                      21, 22, 23, 24, 25, 26, 27, 28, 29, 30,
+                      31, 32, 33, 34, 35, 36, 37, 38, 39, 40,
+                      41, 42]
+        frames_or2 = [11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+                      21, 22, 23, 24, 25, 26, 27, 28, 29, 30]
+        frames_or3 = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+                      11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+                      21, 22, 23, 24, 25, 26, 27, 28, 29, 30,
+                      31, 32, 33, 34, 35, 36, 37, 38, 39, 40]
+        frames_or4 = [11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+                      21, 22, 23, 24, 25, 26, 27, 28, 29, 30,
+                      41, 42]
+        frames_or5 = [11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+                      21, 22, 23, 24, 25, 26, 27, 28, 29, 30,
+                      41, 42]
+        frames_or6 = [6, 7, 8, 9, 10,
+                      11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+                      21, 22, 23, 24, 25, 26, 27, 28, 29, 30,
+                      31, 32, 33, 34, 35,
+                      41, 42]
+
+        experiment = Experiment.load(Path(TEST_DATA, "test.db"))
+
+        frames = experiment.choose_frames(conditions1, logic="and")
+        self.assertEqual(frames_and1, frames)
+        frames = experiment.choose_frames(conditions2, logic="and")
+        self.assertEqual(frames_and2, frames)
+        frames = experiment.choose_frames(conditions3, logic="and")
+        self.assertEqual(frames_and3, frames)
+        frames = experiment.choose_frames(conditions4, logic="and")
+        self.assertEqual(frames_and4, frames)
+        frames = experiment.choose_frames(conditions5, logic="and")
+        self.assertEqual(frames_and5, frames)
+        frames = experiment.choose_frames(conditions6, logic="and")
+        self.assertEqual(frames_and6, frames)
+
+        frames = experiment.choose_frames(conditions1, logic="or")
+        self.assertEqual(frames_or1, frames)
+        frames = experiment.choose_frames(conditions2, logic="or")
+        self.assertEqual(frames_or2, frames)
+        frames = experiment.choose_frames(conditions3, logic="or")
+        self.assertEqual(frames_or3, frames)
+        frames = experiment.choose_frames(conditions4, logic="or")
+        self.assertEqual(frames_or4, frames)
+        frames = experiment.choose_frames(conditions5, logic="or")
+        self.assertEqual(frames_or5, frames)
+        frames = experiment.choose_frames(conditions6, logic="or")
+        self.assertEqual(frames_or6, frames)
 
     def test_choose_volumes(self):
-        pass
+        conditions1 = [("light", "on"), ("light", "off")]
+        conditions2 = [("light", "on")]
+        conditions3 = [("light", "on"), ("c label", "c1")]
+        conditions4 = [("light", "on"), ("c label", "c2")]
+        conditions5 = [("light", "on"), ("c label", "c2"), ("c label", "c3")]
+        conditions6 = [("light", "on"), ("c label", "c2"), ("shape", "s")]
 
+        # correct answers
+        volumes_and1 = []
+        volumes_and2 = [1, 2]
+        volumes_and3 = []
+        volumes_and4 = [1]
+        volumes_and5 = []
+        volumes_and6 = []
+
+        volumes_or1 = [0, 1, 2, 3]
+        volumes_or2 = [1, 2]
+        volumes_or3 = [0, 1, 2, 3]
+        volumes_or4 = [1, 2]
+        volumes_or5 = [1, 2]
+        volumes_or6 = [1, 2]
+
+        experiment = Experiment.load(Path(TEST_DATA, "test.db"))
+
+        frames = experiment.choose_volumes(conditions1, logic="and")
+        self.assertEqual(volumes_and1, frames)
+        frames = experiment.choose_volumes(conditions2, logic="and")
+        self.assertEqual(volumes_and2, frames)
+        frames = experiment.choose_volumes(conditions3, logic="and")
+        self.assertEqual(volumes_and3, frames)
+        frames = experiment.choose_volumes(conditions4, logic="and")
+        self.assertEqual(volumes_and4, frames)
+        frames = experiment.choose_volumes(conditions5, logic="and")
+        self.assertEqual(volumes_and5, frames)
+        frames = experiment.choose_volumes(conditions6, logic="and")
+        self.assertEqual(volumes_and6, frames)
+
+        frames = experiment.choose_volumes(conditions1, logic="or")
+        self.assertEqual(volumes_or1, frames)
+        frames = experiment.choose_volumes(conditions2, logic="or")
+        self.assertEqual(volumes_or2, frames)
+        frames = experiment.choose_volumes(conditions3, logic="or")
+        self.assertEqual(volumes_or3, frames)
+        frames = experiment.choose_volumes(conditions4, logic="or")
+        self.assertEqual(volumes_or4, frames)
+        frames = experiment.choose_volumes(conditions5, logic="or")
+        self.assertEqual(volumes_or5, frames)
+        frames = experiment.choose_volumes(conditions6, logic="or")
+        self.assertEqual(volumes_or6, frames)
+
+    def test_load_volumes(self):
+        volumes1 = [0, 1]
+        volumes2 = [-2]
+        volumes3 = [1, -2]
+
+        experiment = Experiment.load(Path(TEST_DATA, "test.db"))
+        volumes_img = experiment.load_volumes(volumes1)
+        volumes_0_1 = tif.imread(Path(TEST_DATA, "volumes_1_2.tif"))
+        self.assertTrue(np.all(np.equal(volumes_0_1, volumes_img)))
+
+        volumes_img = experiment.load_volumes(volumes2)
+        volumes_tail = tif.imread(Path(TEST_DATA, "volumes_tail.tif"))
+        self.assertTrue(np.all(np.equal(volumes_tail, volumes_img)))
+
+        with self.assertRaises(AssertionError):
+            experiment.load_volumes(volumes3)
 
 
 if __name__ == "__main__":

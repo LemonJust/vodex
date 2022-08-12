@@ -837,12 +837,13 @@ class Annotation:
                 self.name == other.name,
                 self.info == other.info
             ]
-            if self.cycle is not None:
-                if other.cycle is None:
-                    return False
-                else:
-                    is_same.extend([self.cycle == other.cycle,
-                                    self.frame_to_cycle == other.frame_to_cycle])
+            # if one of the annotations has a cycle but the other doesn't
+            if (self.cycle is None) != (other.cycle is None):
+                return False
+            # if both have a cycle, compare cycles as well
+            elif self.cycle is not None:
+                is_same.extend([self.cycle == other.cycle,
+                                self.frame_to_cycle == other.frame_to_cycle])
             return np.all(is_same)
         else:
             print(f"__eq__ is Not Implemented for {Annotation} and {type(other)}")
@@ -907,7 +908,7 @@ class Experiment:
         (Usually the filename would end with .db)
         :type file_name: Union(Path, str)
         """
-        self.db.save(file_name)
+        DbWriter(self.db.connection).save(file_name)
 
     @classmethod
     def load(cls, file_name):
@@ -919,51 +920,49 @@ class Experiment:
         db_reader = DbReader.load(file_name)
         return cls(db_reader)
 
-    def choose_frames(self, conditions, between_group_logic="and"):
+    def choose_frames(self, conditions, logic="and"):
         """
         Selects the frames that correspond to specified conditions;
-        "or" inside the label-group and "or" or "and" between the labels groups,
-         defined by between_group_logic.
+        Uses "or" or "and" between the conditions depending on logic.
         To load the selected frames, use load_frames()
 
         :param conditions: a list of conditions on the annotation labels
         in a form [(group, name),(group, name), ...] where group is a string for the annotation type
         and name is the name of the label of that annotation type. For example [('light', 'on'), ('shape','c')]
         :type conditions: [tuple]
-        :param between_group_logic: "and" or "or" , default is "and".
-        :type between_group_logic: str
+        :param logic: "and" or "or" , default is "and".
+        :type logic: str
         :return: list of frame ids that were chosen.
                 Remember that frame numbers start at 1.
         """
-        assert between_group_logic == "and" or between_group_logic == "or", \
+        assert logic == "and" or logic == "or", \
             'between_group_logic should be equal to "and" or "or"'
         frames = []
-        if between_group_logic == "and":
+        if logic == "and":
             frames = self.db.get_and_frames_per_annotations(conditions)
-        elif between_group_logic == "or":
+        elif logic == "or":
             frames = self.db.get_or_frames_per_annotations(conditions)
 
         return frames
 
-    def choose_volumes(self, conditions, between_group_logic="and"):
+    def choose_volumes(self, conditions, logic="and"):
         """
         Selects only full volumes that correspond to specified conditions;
-        "or" inside the label-group and "or" or "and" between the labels groups,
-         defined by between_group_logic.
+        Uses "or" or "and" between the conditions depending on logic.
         To load the selected volumes, use load_volumes()
 
         :param conditions: a list of conditions on the annotation labels
         in a form [(group, name),(group, name), ...] where group is a string for the annotation type
         and name is the name of the label of that annotation type. For example [('light', 'on'), ('shape','c')]
         :type conditions: [tuple]
-        :param between_group_logic: "and" or "or" , default is "and".
-        :type between_group_logic: str
+        :param logic: "and" or "or" , default is "and".
+        :type logic: str
         :return: list of volumes and list of frame ids that were chosen.
                 Remember that frame numbers start at 1, but volumes start at 0.
                 TODO : make everything start at 1 ????
         """
         # get all the frames that correspond to the conditions
-        frames = self.choose_frames(conditions, between_group_logic=between_group_logic)
+        frames = self.choose_frames(conditions, logic=logic)
         n_frames = len(frames)
         # leave only such frames that correspond to full volumes
         # TODO : why do I even need to return frames?
@@ -976,9 +975,11 @@ class Experiment:
 
     def load_volumes(self, volumes):
         """
-        Load volumes.
+        Load volumes. Will load the specified full volumes.
+        All the returned volumes or slices should have the same number of frames in them.
         """
         frames = self.db.get_frames_per_volumes(volumes)
+
         info = self.db.prepare_frames_for_loading(frames)
         # unpack
         data_dir, file_names, file_ids, frame_in_file, volumes = info
