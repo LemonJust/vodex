@@ -1,7 +1,4 @@
-from core import *
-
 import unittest
-
 import tifffile as tif
 import json
 import numpy as np
@@ -9,7 +6,11 @@ import numpy as np
 from pathlib import Path
 import matplotlib.pyplot as plt
 
-TEST_DATA = r"D:\Code\repos\vodex\data\test"
+from vodex import *
+
+
+package_dir = Path(__file__).parents[1]
+TEST_DATA = Path(package_dir, 'data', 'test')
 
 
 def plot_4_frames(f_img, test_function):
@@ -664,4 +665,5 @@ class TestExperiment(unittest.TestCase):
 
 if __name__ == "__main__":
     # TODO: test that lists for the db are true int all the time !!!!
+    print(TEST_DATA)
     unittest.main()

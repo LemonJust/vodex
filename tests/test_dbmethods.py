@@ -1,10 +1,10 @@
-from core import *
-from dbmethods import *
+from vodex import *
 
 import unittest
 from pathlib import Path
 
-TEST_DATA = r"D:\Code\repos\vodex\data\test"
+package_dir = Path(__file__).parents[1]
+TEST_DATA = Path(package_dir, 'data', 'test')
 
 
 class TestDbWriter(unittest.TestCase):

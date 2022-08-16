@@ -10,3 +10,7 @@ vodex/__pycache__/
 data/test/construction_blocks/
 
 notebooks/.ipynb_checkpoints/
+
+data/learning/packaging_tools/
+
+src/vodex/__pycache__/

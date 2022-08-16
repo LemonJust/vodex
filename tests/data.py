@@ -1,16 +1,12 @@
-from core import *
-# import nose2 as nose
-# from nose2.tools import params
-# import unittest
+"""
+Generates test data.
+"""
 
 import tifffile as tif
-import json
 import numpy as np
 import pandas as pd
 from pathlib import Path
-import matplotlib.pyplot as plt
-from tqdm import tqdm
-from sqlite3 import connect
+
 
 TEST_DATA = r"D:\Code\repos\vodex\data\test"
 
