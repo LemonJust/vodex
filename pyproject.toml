@@ -45,4 +45,4 @@ push = false
 "pyproject.toml" = [
     'version = "{version}"',
 ]
-"src\vodex\__init__.py" = ["{version}"]
+"src/vodex/__init__.py" = ["{version}"]
