@@ -10,12 +10,12 @@ readme = "README.md"
 authors = [{ name = "Anna Nadtochiy", email = "nadtochi@usc.edu" }]
 license = { file = "LICENSE" }
 classifiers=[
-    'Development Status :: 2-Pre-Alpha',
+    'Development Status :: 3 - Alpha',
     'Intended Audience :: Science/Research',
     'Topic :: Scientific/Engineering :: Image Processing',
     'Programming Language :: Python :: 3',
-    'License:: OSI Approved:: MIT License',
-    'Operating System:: OS Independent'
+    'License :: OSI Approved :: MIT License',
+    'Operating System :: OS Independent'
 ]
 dependencies = [
     'matplotlib', # do I really need this ?
