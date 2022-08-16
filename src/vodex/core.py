@@ -7,7 +7,7 @@ import numpy as np
 from pathlib import Path
 from tqdm import tqdm
 
-from vodex import DbWriter, DbReader
+from dbmethods import DbWriter, DbReader
 
 
 class TiffLoader:

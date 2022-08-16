@@ -57,10 +57,14 @@ class DbWriter:
         # Now use `memory_db` without modifying disk db
         return cls(memory_db)
 
-    def populate(self, volumes=None, annotations=None):
+    def populate(self, files=None, frames=None, volumes=None, annotations=None):
         """
         Creates the tables if they don't exist and fills the provided data.
 
+        :param files: information about the files : number of files, their location
+        :type files: FileManager
+        :param frames: mapping of frames to files
+        :type frames: FrameManager
         :param volumes: mapping of frames to volumes, and to slices in volumes, frames per volume
         :type volumes: VolumeManager
         :param annotations: mapping of frames to labels, list of annotations
