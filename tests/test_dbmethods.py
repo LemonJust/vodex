@@ -24,7 +24,7 @@ class TestDbWriter(unittest.TestCase):
 
     shape_an = Annotation.from_cycle(42, shape, shape_cycle)
     cnum_an = Annotation.from_cycle(42, cnum, cnum_cycle)
-    light_an = Annotation.from_timing(42, light, light_order, light_timing)
+    light_an = Annotation.from_timeline(42, light, Timeline(light_order, light_timing))
 
     def test_save(self):
         # not sure how to test this maybe just look at the saved database for now? >_<
@@ -56,6 +56,11 @@ class TestDbReader(unittest.TestCase):
         # not sure how to test this
         db = DbReader.load(Path(TEST_DATA, "test.db"))
         db.connection.close()
+
+    def test_get_volume_list(self):
+        db = DbReader.load(Path(TEST_DATA, "test.db"))
+        volume_ids = db.get_volume_list()
+        self.assertEqual([-2,0,1,2,3], volume_ids)
 
     def test_get_frames_per_volumes(self):
         frames_vol01 = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]

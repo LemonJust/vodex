@@ -1,7 +1,9 @@
 from sqlite3 import connect
+from .utils import list_of_int
 
 
 # TODO : make load static method
+
 
 class DbWriter:
     """
@@ -32,7 +34,7 @@ class DbWriter:
         backup_db = connect(file_name)
         with backup_db:
             self.connection.backup(backup_db, progress=progress)
-        self.connection.close()
+        # self.connection.close()
         backup_db.close()
 
     @classmethod
@@ -427,6 +429,45 @@ class DbReader:
             cursor.close()
         return n_frames
 
+        # get the volumes
+
+    def get_fpv(self):
+        """
+        Get frames per volume
+        """
+        cursor = self.connection.cursor()
+        try:
+            cursor.execute(
+                f"""SELECT Value FROM Options 
+                     WHERE Key = "frames_per_volume" """
+            )
+            fpv = int(cursor.fetchone()[0])
+        except Exception as e:
+            print(f"Could not get_fpv because {e}")
+            raise e
+        finally:
+            cursor.close()
+
+        return fpv
+
+    def get_volume_list(self):
+        """
+        Returns a list of all the volumes.
+        :return: list of all the volumes
+        :rtype: [int]
+        """
+        cursor = self.connection.cursor()
+        try:
+            cursor.execute(f"SELECT DISTINCT VolumeId FROM Volumes")
+            volume_ids = [volume[0] for volume in cursor.fetchall()]
+        except Exception as e:
+            print(f"Could not get total number of frames from Frames because {e}")
+            raise e
+        finally:
+            cursor.close()
+
+        return volume_ids
+
     @classmethod
     def load(cls, file_name):
         """
@@ -628,7 +669,7 @@ class DbReader:
         :return: frame IDs
         :rtype: [int]
         """
-        ids = volume_ids
+        ids = list_of_int(volume_ids)
 
         # get the frames
         cursor = self.connection.cursor()
@@ -728,6 +769,161 @@ class DbReader:
         #  https://www.reddit.com/r/Python/comments/2iiqri/quick_question_why_are_sqlite_fields_returned_as/
         frame_ids = [frame[0] for frame in frame_ids]
         return frame_ids
+
+    def get_conditionIds_per_cycle_per_volumes(self, annotation_name):
+        """
+        Returns a list of condition IDs that correspond to each volume, list of corresponding volumes
+        and a count of the volume-condition pairs
+        annotation_name: str
+        """
+        # TODO : check if empty
+        cursor = self.connection.cursor()
+        try:
+            # create a parameterised query with variable number of parameters
+            cursor.execute(
+                f"""SELECT VolumeId, AnnotationTypeLabelId, count(VolumeId) FROM
+                    CycleIterations 
+                    INNER JOIN Volumes ON CycleIterations.FrameId = Volumes.FrameId 
+                    INNER JOIN Annotations ON CycleIterations.FrameId = Annotations.FrameId 
+                    WHERE AnnotationTypeLabelId in 
+                        (
+                        SELECT Id from AnnotationTypeLabels 
+                        WHERE AnnotationTypeId = (SELECT Id from AnnotationTypes WHERE Name = ?)
+                        )
+                    AND CycleId = (SELECT Id from AnnotationTypes WHERE Name = ?)
+                    AND CycleIteration = 0
+                    GROUP BY VolumeId, AnnotationTypeLabelId
+                    ORDER BY VolumeId""", (annotation_name, annotation_name))
+            info = cursor.fetchall()
+            # TODO : check if empty
+            volume_ids = [row[0] for row in info]
+            condition_ids = [row[1] for row in info]
+            count = [row[2] for row in info]
+
+        except Exception as e:
+            print(f"Could not get_conditions_per_cycle_per_volumes because {e}")
+            raise e
+        finally:
+            cursor.close()
+
+        return volume_ids, condition_ids, count
+
+    def get_conditionIds_per_cycle_per_frame(self, annotation_name):
+        """
+        Returns a list of condition IDs that correspond to each frame, list of corresponding frames.
+        annotation_name: str
+        """
+        # TODO : check if empty
+        cursor = self.connection.cursor()
+        try:
+            # create a parameterised query with variable number of parameters
+            cursor.execute(
+                f"""SELECT CycleIterations.FrameId, AnnotationTypeLabelId FROM
+                    CycleIterations 
+                    INNER JOIN Annotations ON CycleIterations.FrameId = Annotations.FrameId 
+                    WHERE AnnotationTypeLabelId in 
+                        (
+                        SELECT Id from AnnotationTypeLabels 
+                        WHERE AnnotationTypeId = (SELECT Id from AnnotationTypes WHERE Name = ?)
+                        )
+                    AND CycleId = (SELECT Id from AnnotationTypes WHERE Name = ?)
+                    AND CycleIteration = 0
+                    ORDER BY CycleIterations.FrameId""", (annotation_name, annotation_name))
+            info = cursor.fetchall()
+            # TODO : check if empty
+            frame_ids = [row[0] for row in info]
+            condition_ids = [row[1] for row in info]
+
+        except Exception as e:
+            print(f"Could not get_conditionIds_per_cycle_per_frame because {e}")
+            raise e
+        finally:
+            cursor.close()
+
+        return frame_ids, condition_ids
+
+    def get_cycleIterations_per_volumes(self, annotation_name):
+        """
+        Returns a list of cycleIterations that correspond to each volume, list of corresponding volumes
+        and a count of the volume-iteration pairs
+        annotation_name: str
+        """
+        # TODO : check if empty
+        cursor = self.connection.cursor()
+        try:
+            # create a parameterised query with variable number of parameters
+            cursor.execute(
+                f"""SELECT VolumeId, CycleIteration, count(VolumeId) FROM
+                    CycleIterations 
+                    INNER JOIN Volumes ON CycleIterations.FrameId = Volumes.FrameId 
+                    INNER JOIN Annotations ON CycleIterations.FrameId = Annotations.FrameId 
+                    WHERE AnnotationTypeLabelId in 
+                        (
+                        SELECT Id from AnnotationTypeLabels 
+                        WHERE AnnotationTypeId = (SELECT Id from AnnotationTypes WHERE Name = ?)
+                        )
+                    AND CycleId = (SELECT Id from AnnotationTypes WHERE Name = ?)
+                    GROUP BY VolumeId
+                    ORDER BY VolumeId""", (annotation_name, annotation_name))
+            info = cursor.fetchall()
+            # TODO : check if empty
+            volume_ids = [row[0] for row in info]
+            cycle_its = [row[1] for row in info]
+            count = [row[2] for row in info]
+
+        except Exception as e:
+            print(f"Could not get_cycleIterations_per_volumes because {e}")
+            raise e
+        finally:
+            cursor.close()
+
+        return volume_ids, cycle_its, count
+
+    def get_cycleIterations_per_frame(self, annotation_name):
+        """
+        Returns a list of cycle iterations that correspond to each frame, list of corresponding frames.
+        annotation_name: str
+        """
+        # TODO : check if empty
+        cursor = self.connection.cursor()
+        try:
+            # create a parameterised query with variable number of parameters
+            cursor.execute(
+                f"""SELECT CycleIterations.FrameId, CycleIteration FROM
+                    CycleIterations 
+                    INNER JOIN Annotations ON CycleIterations.FrameId = Annotations.FrameId 
+                    WHERE AnnotationTypeLabelId in 
+                        (
+                        SELECT Id from AnnotationTypeLabels 
+                        WHERE AnnotationTypeId = (SELECT Id from AnnotationTypes WHERE Name = ?)
+                        )
+                    AND CycleId = (SELECT Id from AnnotationTypes WHERE Name = ?)
+                    ORDER BY CycleIterations.FrameId""", (annotation_name, annotation_name))
+            info = cursor.fetchall()
+            # TODO : check if empty
+            frame_ids = [row[0] for row in info]
+            condition_ids = [row[1] for row in info]
+
+        except Exception as e:
+            print(f"Could not get_conditionIds_per_cycle_per_frame because {e}")
+            raise e
+        finally:
+            cursor.close()
+
+        return frame_ids, condition_ids
+
+    def _get_Name_from_AnnotationTypeLabels(self):
+        cursor = self.connection.cursor()
+        try:
+            # create a parameterised query with variable number of parameters
+            cursor.execute("""SELECT Name FROM AnnotationTypeLabels""")
+            names = [name[0] for name in cursor.fetchall()]
+        except Exception as e:
+            print(f"Could not _get_Name_from_AnnotationTypeLabels because {e}")
+            raise e
+        finally:
+            cursor.close()
+        return names
 
     def _get_AnnotationLabelId(self, label_info):
         """

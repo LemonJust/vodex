@@ -8,7 +8,6 @@ import matplotlib.pyplot as plt
 
 from vodex import *
 
-
 package_dir = Path(__file__).parents[1]
 TEST_DATA = Path(package_dir, 'data', 'test')
 
@@ -209,7 +208,8 @@ class TestFileManager(unittest.TestCase):
         pass
 
     def test_str(self):
-        pass
+        file_m = FileManager(self.data_dir_split)
+        print(file_m)
 
     def test_repr(self):
         pass
@@ -450,11 +450,17 @@ class TestVolumeManager(unittest.TestCase):
         frame_to_vol = self.volume_m.get_frames_to_volumes_mapping()
         self.assertEqual(frame_to_vol, self.frame_to_vol)
 
+    def test_from_dir(self):
+        volume_m = VolumeManager.from_dir(self.data_dir_split, 10, fgf=0)
+        self.assertEqual(self.volume_m, volume_m)
+
 
 class TestAnnotation(unittest.TestCase):
     shape = Labels("shape", ["c", "s"],
                    state_info={"c": "circle on the screen", "s": "square on the screen"})
     shape_cycle = Cycle([shape.c, shape.s, shape.c], [5, 10, 5])
+    shape_timeline = Timeline([shape.c, shape.s, shape.c, shape.s, shape.c],
+                              [5, 10, 10, 10, 7])
 
     shape_frame_to_label = [shape.c] * 5
     shape_frame_to_label.extend([shape.s] * 10)
@@ -467,6 +473,12 @@ class TestAnnotation(unittest.TestCase):
                       1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
                       1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
                       2, 2]
+
+    def test_get_timeline(self):
+        a = Annotation.from_timeline(42, self.shape, self.shape_timeline)
+        shape_timeline = a.get_timeline()
+        self.assertEqual(self.shape_timeline, shape_timeline)
+        self.assertEqual(shape_timeline, self.shape_timeline)
 
     def test_from_cycle(self):
         a1 = Annotation(42, self.shape, self.shape_frame_to_label)
@@ -481,11 +493,9 @@ class TestAnnotation(unittest.TestCase):
         self.assertEqual(a2.cycle, self.shape_cycle)
         self.assertEqual(a2.frame_to_cycle, self.frame_to_cycle)
 
-    def test_from_timing(self):
+    def test_from_timeline(self):
         a1 = Annotation(42, self.shape, self.shape_frame_to_label)
-        a2 = Annotation.from_timing(42, self.shape,
-                                    [self.shape.c, self.shape.s, self.shape.c, self.shape.s, self.shape.c],
-                                    [5, 10, 10, 10, 7])
+        a2 = Annotation.from_timeline(42, self.shape, self.shape_timeline)
         a3 = Annotation.from_cycle(42, self.shape, self.shape_cycle)
 
         self.assertEqual(a1, a2)
@@ -508,12 +518,11 @@ class TestExperiment(unittest.TestCase):
 
     shape_cycle = Cycle([shape.c, shape.s, shape.c], [5, 10, 5])
     cnum_cycle = Cycle([cnum.c1, cnum.c2, cnum.c3], [10, 10, 10])
-    light_order = [light.off, light.on, light.off]
-    light_timing = [10, 20, 12]
+    light_tml = Timeline([light.off, light.on, light.off], [10, 20, 12])
 
     shape_an = Annotation.from_cycle(42, shape, shape_cycle)
     cnum_an = Annotation.from_cycle(42, cnum, cnum_cycle)
-    light_an = Annotation.from_timing(42, light, light_order, light_timing)
+    light_an = Annotation.from_timeline(42, light, light_tml)
     annotations = [shape_an, cnum_an, light_an]
 
     volume_m = VolumeManager.from_dir(data_dir_split, 10, fgf=0)

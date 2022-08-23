@@ -18,7 +18,7 @@ def create_test_movie():
     # load images
     c1_img = tif.imread(Path(TEST_DATA, "construction_blocks", "zero_frame_c1.tif")).astype(bool)
     c2_img = tif.imread(Path(TEST_DATA, "construction_blocks", "zero_frame_c2.tif")).astype(bool)
-    c3_img = tif.imread(Path(TEST_DATA, "construction_blocks", "zero_frame_c2.tif")).astype(bool)
+    c3_img = tif.imread(Path(TEST_DATA, "construction_blocks", "zero_frame_c3.tif")).astype(bool)
     s_img = tif.imread(Path(TEST_DATA, "construction_blocks", "zero_frame_square.tif")).astype(bool)
     c_img = tif.imread(Path(TEST_DATA, "construction_blocks", "zero_frame_circle.tif")).astype(bool)
     f_img = tif.imread(Path(TEST_DATA, "construction_blocks", "numbered_frames.tif")).astype(bool)
@@ -63,7 +63,7 @@ def create_test_movie():
     volume_frames = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
                      10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
     volumes = movie[volume_frames]
-    tif.imwrite(Path(TEST_DATA, "volumes_1_2.tif"),
+    tif.imwrite(Path(TEST_DATA, "volumes_0_1.tif"),
                 np.expand_dims(volumes.astype(np.uint16).reshape((2, 10, 200, 200)), axis=1),
                 imagej=True)
 
@@ -71,8 +71,15 @@ def create_test_movie():
     volume_frames = [0, 1, 2, 3, 4,
                      10, 11, 12, 13, 14]
     volumes = movie[volume_frames]
-    tif.imwrite(Path(TEST_DATA, "half_volumes_1_2.tif"),
+    tif.imwrite(Path(TEST_DATA, "half_volumes_0_1.tif"),
                 np.expand_dims(volumes.astype(np.uint16).reshape((2, 5, 200, 200)), axis=1),
+                imagej=True)
+
+    # write tail-volume
+    volume_frames = [40,41]
+    volumes = movie[volume_frames]
+    tif.imwrite(Path(TEST_DATA, "volumes_tail.tif"),
+                np.expand_dims(volumes.astype(np.uint16).reshape((1, 2, 200, 200)), axis=1),
                 imagej=True)
 
 
