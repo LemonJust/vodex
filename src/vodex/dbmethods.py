@@ -86,13 +86,26 @@ class DbWriter:
             self._populate_Volumes(volumes)
 
         if annotations is not None:
-            for annotation in annotations:
-                self._populate_AnnotationTypes(annotation)
-                self._populate_AnnotationTypeLabels(annotation)
-                self._populate_Annotations(annotation)
-                if annotation.cycle is not None:
-                    self._populate_Cycles(annotation)
-                    self._populate_CycleIterations(annotation)
+            self.add_annotations(annotations)
+
+    def add_annotations(self, annotations):
+        """
+        Adds a list of annotations to the database.
+        Does NOT save the database after adding.
+        To keep this change in the future, you need to save the database after adding.
+
+        :param annotations: mapping of frames to labels, list of annotations
+        :type annotations: [Annotation]
+        :return: None
+        """
+        # TODO : add list checking
+        for annotation in annotations:
+            self._populate_AnnotationTypes(annotation)
+            self._populate_AnnotationTypeLabels(annotation)
+            self._populate_Annotations(annotation)
+            if annotation.cycle is not None:
+                self._populate_Cycles(annotation)
+                self._populate_CycleIterations(annotation)
 
     def get_n_frames(self):
         cursor = self.connection.cursor()
