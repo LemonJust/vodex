@@ -1,243 +1,30 @@
 """
-Classes to specify the experimental conditions and load necessary data.
+This module contains classes to specify the information about the imaging data, about the experimental conditions
+and load the data based on the specified information.
+
+The module contains the following classes:
+- `FileManager` - file-related information
+- `TimeLabel` - blah blah blah
+- `Labels` - blah blah blah
+- `Cycle` - blah blah blah
+- `Timeline` - blah blah blah
+- `FrameManager` - blah blah blah
+- `VolumeManager` - blah blah blah
+- `Annotation` - blah blah blah
+- `Experiment` - blah blah blah
 """
-from tifffile import TiffFile
+from itertools import groupby
 import json
 import numpy as np
 from pathlib import Path
+from tifffile import TiffFile
 from tqdm import tqdm
-from itertools import groupby
+from typing import Union
 import warnings
 
+from .loaders import ImageLoader
 from .dbmethods import DbWriter, DbReader
 from .utils import list_of_int
-
-
-class TiffLoader:
-    """
-    A class to work with tiff images.
-    """
-
-    def __init__(self, file_example):
-        """
-        :param file_example: an example file file from the data
-        :type file_example: Union(str, Path)
-        """
-        self.frame_size = self.get_frame_size(file_example)
-        self.data_type = self.get_frame_dtype(file_example)
-
-    def __eq__(self, other):
-        if isinstance(other, TiffLoader):
-            same_fs = self.frame_size == other.frame_size
-            same_dt = self.data_type == other.data_type
-            return same_fs and same_dt
-
-        else:
-            print(f"__eq__ is Not Implemented for {TiffLoader} and {type(other)}")
-            return NotImplemented
-
-    @staticmethod
-    def get_frames_in_file(file):
-        """
-        returns the number of frames in file
-        file_name: name of file relative to data_dir
-        """
-        # TODO : try-catch here ?
-        # setting multifile to false since sometimes there is a problem with the corrupted metadata
-        # not using metadate, since for some files it is corrupted for unknown reason ...
-        stack = TiffFile(file, _multifile=False)
-        n_frames = len(stack.pages)
-        stack.close()
-
-        return n_frames
-
-    @staticmethod
-    def get_frame_size(file):
-        """
-        Gets frame size ( height , width ).
-
-        :return: height and width of an individual frame in pixels
-        """
-        # TODO : try-catch here ?
-        # setting multifile to false since sometimes there is a problem with the corrupted metadata
-        # not using metadate, since for some files it is corrupted for unknown reason ...
-        stack = TiffFile(file, _multifile=False)
-        page = stack.pages.get(0)
-        h, w = page.shape
-        stack.close()
-        return h, w
-
-    @staticmethod
-    def get_frame_dtype(file):
-        """
-        Gets frame datatype
-
-        :return: datatype of the frame
-        """
-        # TODO : try-catch here ?
-        # setting multifile to false since sometimes there is a problem with the corrupted metadata
-        # not using metadate, since for some files it is corrupted for unknown reason ...
-        stack = TiffFile(file, _multifile=False)
-        page = stack.pages.get(0)
-        data_type = page.dtype
-        stack.close()
-        return data_type
-
-    def load_frames(self, frames, files, show_file_names=False, show_progress=True):
-        """
-        Load frames from files and return as an array (frame, y, x).
-
-        :param frames: list of frames inside corresponding files to load
-        :type frames: list[int]
-
-        :param files: list of files corresponding to each frame
-        :type files: Union(list[str],list[Path])
-
-        :param show_file_names: whether to print the file from which the frames are loaded on the screen.
-        :type show_file_names: bool
-
-        :param show_progress: whether to show the progress bar of how many frames have been loaded.
-        :type show_progress: bool
-
-        :return: 3D array of requested frames (frame, y, x)
-        :rtype: numpy.ndarray
-        """
-
-        def print_file_name():
-            if show_file_names:
-                print(f'Loading from file:\n {tif_file}')
-
-        if show_file_names:
-            # Setting show_progress to False, show_progress can't be True when show_file_names is True
-            if show_progress:
-                show_progress = False
-        hide_progress = not show_progress
-
-        # prepare an empty array:
-        h, w = self.frame_size
-        img = np.zeros((len(frames), h, w), dtype=self.data_type)
-
-        # initialise tif file and open the stack
-        tif_file = files[0]
-        stack = TiffFile(tif_file, _multifile=False)
-
-        print_file_name()
-        for i, frame in enumerate(tqdm(frames, disable=hide_progress, unit='frames')):
-            # check if the frame belongs to an opened file
-            if files[i] != tif_file:
-                # switch to a different file
-                tif_file = files[i]
-                stack.close()
-                print_file_name()
-                stack = TiffFile(tif_file, _multifile=False)
-            img[i, :, :] = stack.asarray(frame)
-        stack.close()
-        return img
-
-
-class ImageLoader:
-    """
-    Loads Images. Deals with different types of Images
-    """
-
-    def __init__(self, file_example):
-        """
-        file_example : needed to get file extention and get the frame size
-        """
-
-        self.supported_extension = [".tif", ".tiff"]
-        self.file_extension = file_example.suffix
-        assert self.file_extension in self.supported_extension, \
-            f"Only files with the following extensions are supported: {self.supported_extension}, but" \
-            f"{self.file_extension} was given"
-        # pick the loader and initialise it with the data directory
-        self.loader = self.choose_loader(file_example)
-
-    def __eq__(self, other):
-        if isinstance(other, ImageLoader):
-            is_same = [
-                self.supported_extension == other.supported_extension,
-                self.file_extension == other.file_extension,
-                self.loader == other.loader
-            ]
-            return np.all(is_same)
-        else:
-            print(f"__eq__ is Not Implemented for {ImageLoader} and {type(other)}")
-            return NotImplemented
-
-    def choose_loader(self, file_example):
-        """
-        Chooses the proper loader based on the files extension.
-        """
-        if self.file_extension == ".tif" or self.file_extension == ".tiff":
-            return TiffLoader(file_example)
-
-    def get_frames_in_file(self, file_name):
-        return self.loader.get_frames_in_file(file_name)
-
-    def get_frame_size(self, file_name):
-        return self.loader.get_frame_size(file_name)
-
-    def load_frames(self, frames, files, show_file_names=False, show_progress=True):
-        """
-        Loads specified frames from specified files.
-        :param frames: list of frames IN FILES to load.
-        :type frames: list[int]
-        :param files: a file for every frame
-        :type files: Union(list[str],list[Path])
-
-        :param show_file_names: whether to print the names of the files from which the frames are loaded.
-                                Setting it to True will turn off show_progress.
-        :type show_file_names: bool
-        :param show_progress: whether to show the progress bar of how many frames have been loaded.
-        Won't have effect of show_file_names is True.
-        :type show_progress: bool
-
-        :return: 3D array of shape (n_frames, height, width)
-        :rtype: numpy.ndarray
-        """
-        return self.loader.load_frames(frames, files,
-                                       show_file_names=show_file_names,
-                                       show_progress=show_progress)
-
-    def load_volumes(self, frame_in_file, files, volumes, show_file_names=False, show_progress=True):
-        """
-        Loads specified frames from specified files and shapes them into volumes.
-        :param frame_in_file: list of frames IN FILES to load.
-        :type frame_in_file: list[int]
-        :param files: a file for every frame
-        :type files: Union(list[str],list[Path])
-        :param volumes: a volume for every frame
-        :type volumes: list[int]
-
-        :param show_file_names: whether to print the names of the files from which the frames are loaded.
-                                Setting it to True will turn off show_progress.
-        :type show_file_names: bool
-        :param show_progress: whether to show the progress bar of how many frames have been loaded.
-        Won't have effect of show_file_names is True.
-        :type show_progress: bool
-
-        :return: 4D array of shape (number of volumes, zslices, height, width)
-        :rtype: numpy.ndarray
-        """
-        # TODO : do I need to check anything else here???
-        #  Like that the frames are in increasing order per file
-        #  ( maybe not here but in the experiment ,
-        #       before we turn them into frames_in_file )
-        # get frames and info
-        frames = self.loader.load_frames(frame_in_file, files,
-                                         show_file_names=show_file_names,
-                                         show_progress=show_progress)
-        n_frames, w, h = frames.shape
-
-        # get volume information
-        i_volume, count = np.unique(volumes, return_counts=True)
-        # you can use this method to load portions of the volumes, so fpv will be smaller
-        n_volumes, fpv = len(i_volume), count[0]
-        assert np.all(count == fpv), "Can't have different number of frames per volume!"
-
-        frames = frames.reshape((n_volumes, fpv, w, h))
-        return frames
 
 
 class FileManager:
@@ -245,24 +32,32 @@ class FileManager:
     Figures out stuff concerning the many files. For example in what order do stacks go?
     Will grab all the files with the provided file_extension
     in the provided folder and order them alphabetically.
+
+    Args:
+        data_dir: path to the folder with the files, ends with "/" or "\\"
+        file_names: names of files relative to the data_dir (TODO:?)
+        frames_per_file: number of frames in each file.
+        file_extension: file extension to search for (if files are not provided)
+
+    Attributes:
+        data_dir: the directory with all the imaging data
+        file_names: names of files relative to the data_dir (TODO:?)
     """
 
-    def __init__(self, data_dir, file_names=None, frames_per_file=None, file_extension=".tif"):
-        """
-        :param data_dir: path to the folder with the files, ends with "/" or "\\"
-        :type data_dir: Union(str,Path)
-        """
+    def __init__(self, data_dir: Union[str, Path], file_names: list[str] = None,
+                 frames_per_file: list[int] = None, file_extension: str = ".tif"):
+
         # 1. get data_dir and check it exists
-        self.data_dir = Path(data_dir)
+        self.data_dir: Path = Path(data_dir)
         assert self.data_dir.is_dir(), f"No directory {self.data_dir}"
 
         # 2. get files
         if file_names is None:
             # if files are not provided , search for tiffs in the data_dir
-            self.file_names = self.find_files(file_extension)
+            self.file_names: list[str] = self.find_files(file_extension)
         else:
             # if a list of files is provided, check it's in the folder
-            self.file_names = self.check_files(file_names)
+            self.file_names: list[str] = self.check_files(file_names)[1]
         # 3. Initialise ImageLoader
         #    will pick the image loader that works with the provided file type
         self.loader = ImageLoader(self.data_dir.joinpath(self.file_names[0]))
@@ -275,7 +70,8 @@ class FileManager:
             # if provided ... we'll trust you - hope these numbers are correct
             self.num_frames = frames_per_file
         # check that the type is int
-        assert all(isinstance(n, (int, np.integer)) for n in self.num_frames), "self.num_frames should be a list of int"
+        assert all(isinstance(n, (int, np.integer)) for n in self.num_frames), \
+            "self.num_frames should be a list of int"
 
         self.n_files = len(self.file_names)
 
@@ -318,24 +114,24 @@ class FileManager:
         return file_names
 
     # TODO : probably rename it?
-    def check_files(self, file_names):
+    def check_files(self, file_names: list[str]) -> (Union[list[str], list[Path]], list[str]):
         """
-        Given a list files checks that files are in the self.data_dir.
-        :param file_names: list of filenames to check
-        :type file_names: list[str]
-        :return: the files ( full paths to the files ) and file_names
-        :rtype: (Union(list[str],list[Path]),list[str])
+        Given a list of files checks that files are in the self.data_dir.
+        Args:
+            file_names: list of filenames to check.
+        Returns:
+            the files ( full paths to the files ) and file_names.
         """
         files = [self.data_dir.joinpath(file) for file in file_names]
         for file in files:
             assert file.is_file(), f"File {file} is not found"
         return files, file_names
 
-    def get_frames_per_file(self):
+    def get_frames_per_file(self) -> list[int]:
         """
-        Get the number of frames  per file.
-        returns a list with number fof frames per file.
-        Expand this method if you want to work with other file types (not tiffs).
+        Get the number of frames per file.
+        Returns:
+            a list with number of frames per file.
         """
         frames_per_file = []
         for file in self.file_names:
@@ -376,31 +172,30 @@ class TimeLabel:
     Describes a particular time-located event during the experiment.
     Any specific aspect of the experiment that you want to document :
         temperature|light|sound|image on the screen|drug|behaviour ... etc.
-    """
 
-    def __init__(self, name, description=None, group=None):
-        """
-
-        :param name: the name for the time label. This is a unique identifier of the label.
+    Args:
+        name: the name for the time label. This is a unique identifier of the label.
                     Different labels must have different names.
                     Different labels are compared based on their names, so the same name means it is the same event.
-        :type name: str
+        description: a detailed description of the label. This is to give you more info, but it is not used for
+            anything else.
+        group: the group that the label belongs to.
 
-        :param description: a detailed description of the label. This is to give you more info, but it is not used for
-        anything else.
-        :type description: str
+    Attributes:
+        name: the name for the time label. This is a unique identifier of the label.
+                    Different labels must have different names.
+                    Different labels are compared based on their names, so the same name means it is the same event.
+        description: a detailed description of the label. This is to give you more info, but it is not used for
+            anything else.
+        group: the group that the label belongs to.
+    """
 
-        :param group: the group that the label belongs to.
-        :type group: str
-        """
+    def __init__(self, name: str, description: str = None, group: str = None):
         self.name = name
         self.group = group
         self.description = description
 
     def __str__(self):
-        """
-        :return:
-        """
         description = self.name
         if self.description is not None:
             description = description + " : " + self.description
@@ -432,6 +227,11 @@ class TimeLabel:
         return not self.__eq__(other)
 
     def to_dict(self):
+        """
+        Put all the information about a TimeLabel object into a dictionary.
+        Returns:
+            a dictionary with fields 'name', 'group', 'description' storing the corresponding attributes.
+        """
         d = {'name': self.name}
         if self.group is not None:
             d['group'] = self.group
@@ -441,6 +241,12 @@ class TimeLabel:
 
     @classmethod
     def from_dict(cls, d):
+        """
+        Create a TimeLabel object from a dictionary.
+
+        Returns:
+            a TimeLabel with attributes 'name', 'group', 'description' filled from the corresponding dictionary fields.
+        """
         description = None
         group = None
         if 'description' in d:
@@ -453,17 +259,24 @@ class TimeLabel:
 class Labels:
     """
     Describes a particular group of time labels.
-    TODO : also responsible for colors for plotting these labels.
+    TODO : also responsible for colors for plotting these labels?
+
+    Args:
+        group : the name of the group
+        group_info : description of what this group is about. Just for storing the information.
+        state_names: the state names
+        state_info: description of each individual state {state name : description}. Just for storing the information.
+    Attributes:
+        group : the name of the group
+        group_info : description of what this group is about. Just for storing the information.
+        state_names: the state names
+
     """
 
-    def __init__(self, group, state_names, group_info=None, state_info={}):
-        """
-        group : str, the name of the group
-        group_info : str, description of what this group is about
-        states: list[str], the state names
-        state_info: {state name : description}
-        """
+    def __init__(self, group: str, state_names: list[str], group_info: str = None, state_info: dict = None):
 
+        if state_info is None:
+            state_info = {}
         self.group = group
         self.group_info = group_info
         self.state_names = state_names
@@ -508,14 +321,12 @@ class Cycle:
     Information about the repeated cycle of labels. Use it when you have some periodic conditions, like : light
     on , light off, light on, light off... will be made of list of labels [light_on, light_off] that repeat ..."""
 
-    def __init__(self, label_order, duration):
+    def __init__(self, label_order: list[TimeLabel], duration: Union[np.array, list[int]]):
         """
-        :param label_order: a list of labels in the right order in which they follow
-        :type label_order: list[TimeLabel]
-
-        :param duration: duration of the corresponding labels, in frames (based on your imaging). Note that these are
-        frames, not volumes !
-        :type duration: Union(numpy.array, list[int])
+        Args:
+            label_order: a list of labels in the right order in which they follow
+            duration: duration of the corresponding labels, in frames (based on your imaging).
+                Note that these are frames, not volumes !
         """
         # check that all labels are from the same group
         label_group = label_order[0].group
