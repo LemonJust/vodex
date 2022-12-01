@@ -1028,6 +1028,13 @@ class Experiment:
         """
         DbWriter(self.db.connection).save(file_name)
 
+    def add_annotations(self, annotations):
+        """
+        Adds annotations to existing experiment.
+        Does NOT save the changes to disc! run self.save() to save
+        """
+        DbWriter(self.db.connection).add_annotations(annotations)
+
     def close(self):
         """
         Close database connection
