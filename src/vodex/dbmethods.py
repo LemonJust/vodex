@@ -1,4 +1,5 @@
 from sqlite3 import connect
+from .core import *
 from .utils import list_of_int
 
 
@@ -10,22 +11,27 @@ class DbWriter:
     Writes information to the database.
     Database interface that abstracts the SQLite calls.
 
-    Code adopted from https://www.devdungeon.com/content/python-sqlite3-tutorial
-    Maybe better stuff here : https://www.sqlitetutorial.net/sqlite-python/creating-tables/
+    Learning resources:
+        sql:
+        https://www.devdungeon.com/content/python-sqlite3-tutorial
+        https://www.sqlitetutorial.net/sqlite-python/creating-tables/
+        try-catch :
+        https://softwareengineering.stackexchange.com/questions/64180/good-use-of-try-catch-blocks
 
-    Some thoughts on try-catch :
-    https://softwareengineering.stackexchange.com/questions/64180/good-use-of-try-catch-blocks
+    Args:
+        connection: connection to the SQL database
     """
 
     def __init__(self, connection):
         self.connection = connection
         self.connection.execute("PRAGMA foreign_keys = 1")
 
-    def save(self, file_name):
+    def save(self, file_name: str):
         """
         Backup a database to a file.
         Will CLOSE connection to the database in memory!
-        file_name : "databasename.db"
+        Args:
+            file_name : the name of the file to save database to, EX.: 'databasename.db'
         """
 
         def progress(status, remaining, total):
@@ -40,17 +46,18 @@ class DbWriter:
     @classmethod
     def create(cls):
         """
-        Creates an empty DB to the experiment in memory
+        Creates an empty DB for the experiment in memory.
         """
+        # TODO : figure out how to type-annotate classmethod
         # For an in-memory only database:
         memory_db = connect(':memory:')
         return cls(memory_db)
 
     @classmethod
-    def load(cls, file_name):
+    def load(cls, file_name: str):
         """
         Load the contents of a database file on disk to a
-        transient copy in memory without modifying the file
+        transient copy in memory without modifying the file.
         """
         disk_db = connect(file_name)
         memory_db = connect(':memory:')
@@ -59,21 +66,15 @@ class DbWriter:
         # Now use `memory_db` without modifying disk db
         return cls(memory_db)
 
-    def populate(self, files=None, frames=None, volumes=None, annotations=None):
+    def populate(self, volumes: VolumeManager = None, annotations: list[Annotation] = None):
         """
-        Creates the tables if they don't exist and fills the provided data.
-
-        :param files: information about the files : number of files, their location
-        :type files: FileManager
-        :param frames: mapping of frames to files
-        :type frames: FrameManager
-        :param volumes: mapping of frames to volumes, and to slices in volumes, frames per volume
-        :type volumes: VolumeManager
-        :param annotations: mapping of frames to labels, list of annotations
-        :type annotations: [Annotation]
-        :return: None
+        Creates the tables if they don't exist and fills with the provided data.
+        Args:
+            volumes: mapping of frames to volumes, and to slices in volumes, frames per volume
+            annotations: mapping of frames to labels, list of annotations
         """
         # TODO : add warnings when you are trying to write the same data again
+        # TODO : How to type annotate vodex classes from core ?
 
         # will only create if they don't exist
         self._create_tables()
@@ -88,15 +89,13 @@ class DbWriter:
         if annotations is not None:
             self.add_annotations(annotations)
 
-    def add_annotations(self, annotations):
+    def add_annotations(self, annotations: list[Annotation]):
         """
         Adds a list of annotations to the database.
         Does NOT save the database after adding.
         To keep this change in the future, you need to save the database after adding.
-
-        :param annotations: mapping of frames to labels, list of annotations
-        :type annotations: [Annotation]
-        :return: None
+        Args:
+            annotations: mapping of frames to labels, list of annotations
         """
         # TODO : add list checking
         for annotation in annotations:
@@ -107,7 +106,10 @@ class DbWriter:
                 self._populate_Cycles(annotation)
                 self._populate_CycleIterations(annotation)
 
-    def get_n_frames(self):
+    def get_n_frames(self) -> int:
+        """
+        Queries and returns the total number of frames in the experiment.
+        """
         cursor = self.connection.cursor()
         try:
             cursor.execute(f"SELECT COUNT(*) FROM Frames")
@@ -227,11 +229,15 @@ class DbWriter:
 
         db_cursor.close()
 
-    def _populate_Options(self, file_manager, volume_manager):
+    def _populate_Options(self, file_manager: FileManager, volume_manager: VolumeManager):
         """
-        Options: dictionary with key - value pairs
-        another way of dealing with Errors : ( more pretty ??? )
-        https://www.w3resource.com/python-exercises/sqlite/python-sqlite-exercise-6.php
+        Populates the Options table (a dictionary with key - value pairs).
+        Learning resources:
+            another way of dealing with Errors : ( more pretty ??? )
+            https://www.w3resource.com/python-exercises/sqlite/python-sqlite-exercise-6.php
+        Args:
+            file_manager: FileManager object that provides the data to populate the tables.
+            volume_manager: VolumeManager object that provides the data to populate the tables.
         """
         row_data = [("data_dir", file_manager.data_dir.as_posix()),
                     ("frames_per_volume", volume_manager.fpv),
@@ -251,10 +257,13 @@ class DbWriter:
         finally:
             cursor.close()
 
-    def _populate_Files(self, file_manager):
+    def _populate_Files(self, file_manager: FileManager):
         """
-        file_name : list with filenames per file (str)
+        Populates the Files table with
+        file_name : list with filenames per file (str), and
         num_frames : list with number of frames per file (int)
+        Args:
+            file_manager: FileManager object that provides the data to populate the tables.
         """
         row_data = [(filename, frames) for
                     filename, frames in zip(file_manager.file_names, file_manager.num_frames)]
@@ -271,13 +280,20 @@ class DbWriter:
         finally:
             cursor.close()
 
-    def _populate_Frames(self, frame_manager):
+    def _populate_Frames(self, frame_manager: FrameManager):
         """
-        Something like :
-        insert into tab2 (id_customers, value)
-        values ((select id from tab1 where customers='john'), 'alfa');
-        but in SQLite
-        https://www.tutorialspoint.com/sqlite/sqlite_insert_query.htm
+        Populates the Frames table with
+        frame_in_file and frame_to_file mapping.
+
+        Learning Resourses:
+            Something like
+            insert into tab2 (id_customers, value)
+            values ((select id from tab1 where customers='john'), 'alfa');
+            but in SQLite
+            https://www.tutorialspoint.com/sqlite/sqlite_insert_query.htm
+
+        Args:
+            frame_manager: FrameManager object that provides the data to populate the tables.
         """
         # adding +1 since the frame_to_file is indexing files from 0 and sqlite gave files IDs from 1
         row_data = [(frame_in_file, frame_to_file + 1) for
@@ -295,8 +311,14 @@ class DbWriter:
         finally:
             cursor.close()
 
-    def _populate_Volumes(self, volume_manager):
+    def _populate_Volumes(self, volume_manager: VolumeManager):
+        """
+        Populates the Volumes table with
+        volume_id and slice_in_volume mapping.
 
+        Args:
+            volume_manager: VolumeManager object that provides the data to populate the tables.
+        """
         row_data = [(volume_id, slice_in_volume) for
                     volume_id, slice_in_volume in zip(volume_manager.frame_to_vol, volume_manager.frame_to_z)]
 
@@ -312,8 +334,13 @@ class DbWriter:
         finally:
             cursor.close()
 
-    def _populate_AnnotationTypes(self, annotation):
+    def _populate_AnnotationTypes(self, annotation: Annotation):
         """
+        Populates the AnnotationTypes table with
+        annotation.name, annotation.info mapping.
+
+        Args:
+            volume_manager: VolumeManager object that provides the data to populate the tables.
         """
         row_data = (annotation.name, annotation.info)
         cursor = self.connection.cursor()

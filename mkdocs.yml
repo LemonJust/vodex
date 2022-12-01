@@ -10,5 +10,9 @@ nav:
   - Home: index.md
   - tutorials.md
   - How-To Guides: how-to-guides.md
-  - reference.md
+  - 'User Guide':
+      - Overview: reference.md
+      - 'Loaders': loaders.md
+      - 'Core': core.md
+      - 'DataBase methods': dbmethods.md
   - explanation.md

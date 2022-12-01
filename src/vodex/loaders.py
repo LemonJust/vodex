@@ -3,10 +3,12 @@ This module contains classes to load and collect information from the imaging da
 
 The module contains the following classes:
 
-- `TiffLoader` - interacts with the tiff files to get file information and load frames from files.
-You can create more loaders to work with other file types.
+- `TiffLoader` - A class to work with tiff image files.
+It is used to get the datatype of the images, get the number of frames in each tiff file and load frames from tiff files.
+You can create your own loaders to work with other file types.
 
-- `ImageLoader` - collects information about the data files and loads data from files.
+- `ImageLoader` - Chooses appropriate loader based on the type of the imaging files,
+collects information about the datatype, number of frames per file and loads data from files.
 """
 
 import numpy as np
@@ -18,7 +20,10 @@ from typing import Union, Final, Dict
 
 class TiffLoader:
     """
-    A class to work with tiff images.
+    A class to work with tiff image files.
+    It is used to get the datatype of the images, get the number
+    of frames in each tiff file and load frames from tiff files.
+    You can create your own loaders to work with other file types.
 
     Args:
         file_example: An example file file from the dataset
@@ -66,7 +71,7 @@ class TiffLoader:
     @staticmethod
     def get_frame_size(file: Union[str, Path]) -> tuple[int, int]:
         """
-        Gets frame size ( height , width ).
+        Gets frame size ( height , width ) from a tiff file.
 
         Args:
             file: the path to the file to get the size of the frame for.
@@ -149,11 +154,12 @@ class TiffLoader:
 
 class ImageLoader:
     """
-    Loads Images. Deals with different types of Images
+    Chooses appropriate loader based on the type of the imaging files,
+    collects information about the datatype, number of frames per file and loads data from files.
 
     Args:
         file_example : the path to a file example (one file from the whole dataaset).
-        needed to get file type and initialise the corresponding data loader.
+            needed to get file type and initialise the corresponding data loader.
 
     Attributes:
         loader_map: a dictionary that maps the file extensions to their loaders.
@@ -215,13 +221,12 @@ class ImageLoader:
 
     def get_frame_size(self, file_name: Union[str, Path]) -> tuple[int, int]:
         """
-        Calculates and returns the number of frames in a given file.
+        Gets frame size ( height , width ) from an image files.
 
         Args:
-            file_name: the name of the file to get the number of frames for.
-
+            file_name: the path to the file to get the size of the frame for.
         Returns:
-            the number of frames in the file.
+            ( height , width ) height and width of an individual frame in pixels.
         """
         return self.loader.get_frame_size(file_name)
 
@@ -260,7 +265,7 @@ class ImageLoader:
             show_file_names: whether to print the names of the files from which the frames are loaded.
                                 Setting it to True will turn off show_progress.
             show_progress: whether to show the progress bar of how many frames have been loaded.
-            Won't have effect of show_file_names is True.
+                Won't have effect of show_file_names is True.
         Returns:
             4D array of shape (number of volumes, zslices, height, width)
         """
