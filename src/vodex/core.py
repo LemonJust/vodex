@@ -1,283 +1,98 @@
 """
-Classes to specify the experimental conditions and load necessary data.
+This module contains classes to specify the information about the imaging data, about the experimental conditions
+and load the data based on the specified information.
+
+The module contains the following classes:
+
+- `FileManager` - Figures out stuff concerning the many files. For example in what order do stacks go?
+    Will grab all the files with the provided file_extension
+    in the provided folder and order them alphabetically.
+
+- `TimeLabel` - Describes a particular time-located event during the experiment.
+        Any specific aspect of the experiment that you want to document :
+        temperature|light|sound|image on the screen|drug|behaviour ... etc.
+
+- `Labels` - Describes a particular group of time labels.
+
+- `Cycle` - Information about the repeated cycle of labels. Use it when you have some periodic conditions, like : light
+        on , light off, light on, light off... will be made of list of labels [light_on, light_off] that repeat ...
+
+- `Timeline` - Information about the sequence of labels. Use it when you have non-periodic conditions.
+
+- `FrameManager` - Deals with frames. Which frames correspond to a volume / cycle/ condition.
+
+- `VolumeManager` - Figures out how to get full volumes for certain time points.
+
+- `Annotation` - Time annotation of the experiment.
+
+- `Experiment` - Information about the experiment.
+        Will use all the information you provided to figure out what frames to give you based on your request.
 """
-from tifffile import TiffFile
+from itertools import groupby
 import json
 import numpy as np
 from pathlib import Path
+from tifffile import TiffFile
 from tqdm import tqdm
-from itertools import groupby
+from typing import Union
 import warnings
 
+from .loaders import ImageLoader
 from .dbmethods import DbWriter, DbReader
 from .utils import list_of_int
 
 
-class TiffLoader:
-    """
-    A class to work with tiff images.
-    """
-
-    def __init__(self, file_example):
-        """
-        :param file_example: an example file file from the data
-        :type file_example: Union(str, Path)
-        """
-        self.frame_size = self.get_frame_size(file_example)
-        self.data_type = self.get_frame_dtype(file_example)
-
-    def __eq__(self, other):
-        if isinstance(other, TiffLoader):
-            same_fs = self.frame_size == other.frame_size
-            same_dt = self.data_type == other.data_type
-            return same_fs and same_dt
-
-        else:
-            print(f"__eq__ is Not Implemented for {TiffLoader} and {type(other)}")
-            return NotImplemented
-
-    @staticmethod
-    def get_frames_in_file(file):
-        """
-        returns the number of frames in file
-        file_name: name of file relative to data_dir
-        """
-        # TODO : try-catch here ?
-        # setting multifile to false since sometimes there is a problem with the corrupted metadata
-        # not using metadate, since for some files it is corrupted for unknown reason ...
-        stack = TiffFile(file, _multifile=False)
-        n_frames = len(stack.pages)
-        stack.close()
-
-        return n_frames
-
-    @staticmethod
-    def get_frame_size(file):
-        """
-        Gets frame size ( height , width ).
-
-        :return: height and width of an individual frame in pixels
-        """
-        # TODO : try-catch here ?
-        # setting multifile to false since sometimes there is a problem with the corrupted metadata
-        # not using metadate, since for some files it is corrupted for unknown reason ...
-        stack = TiffFile(file, _multifile=False)
-        page = stack.pages.get(0)
-        h, w = page.shape
-        stack.close()
-        return h, w
-
-    @staticmethod
-    def get_frame_dtype(file):
-        """
-        Gets frame datatype
-
-        :return: datatype of the frame
-        """
-        # TODO : try-catch here ?
-        # setting multifile to false since sometimes there is a problem with the corrupted metadata
-        # not using metadate, since for some files it is corrupted for unknown reason ...
-        stack = TiffFile(file, _multifile=False)
-        page = stack.pages.get(0)
-        data_type = page.dtype
-        stack.close()
-        return data_type
-
-    def load_frames(self, frames, files, show_file_names=False, show_progress=True):
-        """
-        Load frames from files and return as an array (frame, y, x).
-
-        :param frames: list of frames inside corresponding files to load
-        :type frames: list[int]
-
-        :param files: list of files corresponding to each frame
-        :type files: Union(list[str],list[Path])
-
-        :param show_file_names: whether to print the file from which the frames are loaded on the screen.
-        :type show_file_names: bool
-
-        :param show_progress: whether to show the progress bar of how many frames have been loaded.
-        :type show_progress: bool
-
-        :return: 3D array of requested frames (frame, y, x)
-        :rtype: numpy.ndarray
-        """
-
-        def print_file_name():
-            if show_file_names:
-                print(f'Loading from file:\n {tif_file}')
-
-        if show_file_names:
-            # Setting show_progress to False, show_progress can't be True when show_file_names is True
-            if show_progress:
-                show_progress = False
-        hide_progress = not show_progress
-
-        # prepare an empty array:
-        h, w = self.frame_size
-        img = np.zeros((len(frames), h, w), dtype=self.data_type)
-
-        # initialise tif file and open the stack
-        tif_file = files[0]
-        stack = TiffFile(tif_file, _multifile=False)
-
-        print_file_name()
-        for i, frame in enumerate(tqdm(frames, disable=hide_progress, unit='frames')):
-            # check if the frame belongs to an opened file
-            if files[i] != tif_file:
-                # switch to a different file
-                tif_file = files[i]
-                stack.close()
-                print_file_name()
-                stack = TiffFile(tif_file, _multifile=False)
-            img[i, :, :] = stack.asarray(frame)
-        stack.close()
-        return img
-
-
-class ImageLoader:
-    """
-    Loads Images. Deals with different types of Images
-    """
-
-    def __init__(self, file_example):
-        """
-        file_example : needed to get file extention and get the frame size
-        """
-
-        self.supported_extension = [".tif", ".tiff"]
-        self.file_extension = file_example.suffix
-        assert self.file_extension in self.supported_extension, \
-            f"Only files with the following extensions are supported: {self.supported_extension}, but" \
-            f"{self.file_extension} was given"
-        # pick the loader and initialise it with the data directory
-        self.loader = self.choose_loader(file_example)
-
-    def __eq__(self, other):
-        if isinstance(other, ImageLoader):
-            is_same = [
-                self.supported_extension == other.supported_extension,
-                self.file_extension == other.file_extension,
-                self.loader == other.loader
-            ]
-            return np.all(is_same)
-        else:
-            print(f"__eq__ is Not Implemented for {ImageLoader} and {type(other)}")
-            return NotImplemented
-
-    def choose_loader(self, file_example):
-        """
-        Chooses the proper loader based on the files extension.
-        """
-        if self.file_extension == ".tif" or self.file_extension == ".tiff":
-            return TiffLoader(file_example)
-
-    def get_frames_in_file(self, file_name):
-        return self.loader.get_frames_in_file(file_name)
-
-    def get_frame_size(self, file_name):
-        return self.loader.get_frame_size(file_name)
-
-    def load_frames(self, frames, files, show_file_names=False, show_progress=True):
-        """
-        Loads specified frames from specified files.
-        :param frames: list of frames IN FILES to load.
-        :type frames: list[int]
-        :param files: a file for every frame
-        :type files: Union(list[str],list[Path])
-
-        :param show_file_names: whether to print the names of the files from which the frames are loaded.
-                                Setting it to True will turn off show_progress.
-        :type show_file_names: bool
-        :param show_progress: whether to show the progress bar of how many frames have been loaded.
-        Won't have effect of show_file_names is True.
-        :type show_progress: bool
-
-        :return: 3D array of shape (n_frames, height, width)
-        :rtype: numpy.ndarray
-        """
-        return self.loader.load_frames(frames, files,
-                                       show_file_names=show_file_names,
-                                       show_progress=show_progress)
-
-    def load_volumes(self, frame_in_file, files, volumes, show_file_names=False, show_progress=True):
-        """
-        Loads specified frames from specified files and shapes them into volumes.
-        :param frame_in_file: list of frames IN FILES to load.
-        :type frame_in_file: list[int]
-        :param files: a file for every frame
-        :type files: Union(list[str],list[Path])
-        :param volumes: a volume for every frame
-        :type volumes: list[int]
-
-        :param show_file_names: whether to print the names of the files from which the frames are loaded.
-                                Setting it to True will turn off show_progress.
-        :type show_file_names: bool
-        :param show_progress: whether to show the progress bar of how many frames have been loaded.
-        Won't have effect of show_file_names is True.
-        :type show_progress: bool
-
-        :return: 4D array of shape (number of volumes, zslices, height, width)
-        :rtype: numpy.ndarray
-        """
-        # TODO : do I need to check anything else here???
-        #  Like that the frames are in increasing order per file
-        #  ( maybe not here but in the experiment ,
-        #       before we turn them into frames_in_file )
-        # get frames and info
-        frames = self.loader.load_frames(frame_in_file, files,
-                                         show_file_names=show_file_names,
-                                         show_progress=show_progress)
-        n_frames, w, h = frames.shape
-
-        # get volume information
-        i_volume, count = np.unique(volumes, return_counts=True)
-        # you can use this method to load portions of the volumes, so fpv will be smaller
-        n_volumes, fpv = len(i_volume), count[0]
-        assert np.all(count == fpv), "Can't have different number of frames per volume!"
-
-        frames = frames.reshape((n_volumes, fpv, w, h))
-        return frames
-
-
 class FileManager:
     """
-    Figures out stuff concerning the many files. For example in what order do stacks go?
-    Will grab all the files with the provided file_extension
-    in the provided folder and order them alphabetically.
+    Collects and stores the information about all the image files.
+    By default, it will search for all the files with the provided file extension
+    in the provided data director and order them alphabetically.
+    If a list of file names is provided, will use these files in the provided order.
+
+    Args:
+        data_dir: path to the folder with the files, ends with "/" or "\\"
+        file_names: names of files relative to the data_dir (TODO:?)
+        frames_per_file: number of frames in each file.
+        file_extension: file extension to search for (if files are not provided)
+
+    Attributes:
+        data_dir: the directory with all the imaging data
+        file_names: names of files relative to the data_dir (TODO:?)
+        loader: initialised image loader (see loaders.ImageLoader for more details)
+        num_frames: a number of frames per file
+        n_files: total number of image files
     """
 
-    def __init__(self, data_dir, file_names=None, frames_per_file=None, file_extension=".tif"):
-        """
-        :param data_dir: path to the folder with the files, ends with "/" or "\\"
-        :type data_dir: Union(str,Path)
-        """
+    def __init__(self, data_dir: Union[str, Path], file_extension: str = ".tif",
+                 file_names: list[str] = None, frames_per_file: list[int] = None):
+
         # 1. get data_dir and check it exists
-        self.data_dir = Path(data_dir)
+        self.data_dir: Path = Path(data_dir)
         assert self.data_dir.is_dir(), f"No directory {self.data_dir}"
 
         # 2. get files
         if file_names is None:
             # if files are not provided , search for tiffs in the data_dir
-            self.file_names = self.find_files(file_extension)
+            self.file_names: list[str] = self.find_files(file_extension)
         else:
             # if a list of files is provided, check it's in the folder
-            self.file_names = self.check_files(file_names)
+            self.file_names: list[str] = self.check_files(file_names)[1]
         # 3. Initialise ImageLoader
         #    will pick the image loader that works with the provided file type
-        self.loader = ImageLoader(self.data_dir.joinpath(self.file_names[0]))
+        self.loader: ImageLoader = ImageLoader(self.data_dir.joinpath(self.file_names[0]))
 
         # 4. Get number of frames per file
         if frames_per_file is None:
             # if number of frames not provided , search for tiffs in the data_dir
-            self.num_frames = self.get_frames_per_file()
+            self.num_frames: list[int] = self.get_frames_per_file()
         else:
             # if provided ... we'll trust you - hope these numbers are correct
-            self.num_frames = frames_per_file
+            self.num_frames: list[int] = frames_per_file
         # check that the type is int
-        assert all(isinstance(n, (int, np.integer)) for n in self.num_frames), "self.num_frames should be a list of int"
+        assert all(isinstance(n, (int, np.integer)) for n in self.num_frames), \
+            "self.num_frames should be a list of int"
 
-        self.n_files = len(self.file_names)
+        self.n_files: int = len(self.file_names)
 
     def __str__(self):
         description = f"Image files information :\n\n"
@@ -305,37 +120,39 @@ class FileManager:
             print(f"__eq__ is Not Implemented for {FileManager} and {type(other)}")
             return NotImplemented
 
-    def find_files(self, file_extension):
+    def find_files(self, file_extension: str) -> list[str]:
         """
-        Searches for files , ending with file_extension in the data_dir
-        :param file_extension: extension of files to search for
-        :type file_extension: str
-        :return: File names ( with extension, names only, no full path)
-        :rtype: list[str]
+        Searches for files ending with the provided file extension in the data directory.
+        Args:
+            file_extension: extension of files to search for
+        Returns:
+            A list of file names. File names are with the extension, relative to the data directory
+            (names only, not full paths to files)
         """
         files = list(self.data_dir.glob(f"*{file_extension}"))
         file_names = [file.name for file in files]
         return file_names
 
     # TODO : probably rename it?
-    def check_files(self, file_names):
+    def check_files(self, file_names: list[str]) -> (Union[list[str], list[Path]], list[str]):
         """
-        Given a list files checks that files are in the self.data_dir.
-        :param file_names: list of filenames to check
-        :type file_names: list[str]
-        :return: the files ( full paths to the files ) and file_names
-        :rtype: (Union(list[str],list[Path]),list[str])
+        Given a list of files checks that files are in the data directory.
+        Args:
+            file_names: list of filenames to check.
+        Returns:
+            If the files are all present in the directory,
+            returns the files ( full paths to the files ) and file_names.
         """
         files = [self.data_dir.joinpath(file) for file in file_names]
         for file in files:
             assert file.is_file(), f"File {file} is not found"
         return files, file_names
 
-    def get_frames_per_file(self):
+    def get_frames_per_file(self) -> list[int]:
         """
-        Get the number of frames  per file.
-        returns a list with number fof frames per file.
-        Expand this method if you want to work with other file types (not tiffs).
+        Get the number of frames per file.
+        Returns:
+            a list with number of frames per file.
         """
         frames_per_file = []
         for file in self.file_names:
@@ -374,33 +191,32 @@ class FileManager:
 class TimeLabel:
     """
     Describes a particular time-located event during the experiment.
-    Any specific aspect of the experiment that you want to document :
-        temperature|light|sound|image on the screen|drug|behaviour ... etc.
-    """
+    Any specific aspect of the experiment that you may want to document :
+    temperature|light|sound|image on the screen|drug|behaviour ... etc.
 
-    def __init__(self, name, description=None, group=None):
-        """
-
-        :param name: the name for the time label. This is a unique identifier of the label.
+    Args:
+        name: the name for the time label. This is a unique identifier of the label.
                     Different labels must have different names.
                     Different labels are compared based on their names, so the same name means it is the same event.
-        :type name: str
+        description: a detailed description of the label. This is to give you more info, but it is not used for
+            anything else.
+        group: the group that the label belongs to.
 
-        :param description: a detailed description of the label. This is to give you more info, but it is not used for
-        anything else.
-        :type description: str
+    Attributes:
+        name: the name for the time label. This is a unique identifier of the label.
+                    Different labels must have different names.
+                    Different labels are compared based on their names, so the same name means it is the same event.
+        description: a detailed description of the label. This is to give you more info, but it is not used for
+            anything else.
+        group: the group that the label belongs to.
+    """
 
-        :param group: the group that the label belongs to.
-        :type group: str
-        """
-        self.name = name
-        self.group = group
-        self.description = description
+    def __init__(self, name: str, description: str = None, group: str = None):
+        self.name: str = name
+        self.group: str = group
+        self.description: str = description
 
     def __str__(self):
-        """
-        :return:
-        """
         description = self.name
         if self.description is not None:
             description = description + " : " + self.description
@@ -431,7 +247,12 @@ class TimeLabel:
     def __ne__(self, other):
         return not self.__eq__(other)
 
-    def to_dict(self):
+    def to_dict(self) -> dict:
+        """
+        Put all the information about a TimeLabel object into a dictionary.
+        Returns:
+            a dictionary with fields 'name', 'group', 'description' storing the corresponding attributes.
+        """
         d = {'name': self.name}
         if self.group is not None:
             d['group'] = self.group
@@ -441,6 +262,13 @@ class TimeLabel:
 
     @classmethod
     def from_dict(cls, d):
+        """
+        Create a TimeLabel object from a dictionary.
+
+        Returns:
+            (TimeLabel): a TimeLabel object with attributes 'name', 'group', 'description'
+            filled from the dictionary fields.
+        """
         description = None
         group = None
         if 'description' in d:
@@ -453,17 +281,25 @@ class TimeLabel:
 class Labels:
     """
     Describes a particular group of time labels.
-    TODO : also responsible for colors for plotting these labels.
+    TODO : also responsible for colors for plotting these labels?
+
+    Args:
+        group : the name of the group
+        group_info : description of what this group is about. Just for storing the information.
+        state_names: the state names
+        state_info: description of each individual state {state name : description}. Just for storing the information.
+    Attributes:
+        group (str): the name of the group
+        group_info (str): description of what this group is about. Just for storing the information.
+        state_names (list[str]): the state names
+        states (list[TimeLabel]): list of states, each state as a TimeLabel object
+
     """
 
-    def __init__(self, group, state_names, group_info=None, state_info={}):
-        """
-        group : str, the name of the group
-        group_info : str, description of what this group is about
-        states: list[str], the state names
-        state_info: {state name : description}
-        """
+    def __init__(self, group: str, state_names: list[str], group_info: str = None, state_info: dict = None):
 
+        if state_info is None:
+            state_info = {}
         self.group = group
         self.group_info = group_info
         self.state_names = state_names
@@ -506,17 +342,15 @@ class Labels:
 class Cycle:
     """
     Information about the repeated cycle of labels. Use it when you have some periodic conditions, like : light
-    on , light off, light on, light off... will be made of list of labels [light_on, light_off] that repeat ..."""
+    on , light off, light on, light off... will be made of list of labels [light_on, light_off]
+    that repeat to cover the whole tie of the experiment. All labels must be from the same label group!
+    Args:
+        label_order: a list of labels in the right order in which they follow
+        duration: duration of the corresponding labels, in frames (based on your imaging).
+            Note that these are frames, not volumes !
+    """
 
-    def __init__(self, label_order, duration):
-        """
-        :param label_order: a list of labels in the right order in which they follow
-        :type label_order: list[TimeLabel]
-
-        :param duration: duration of the corresponding labels, in frames (based on your imaging). Note that these are
-        frames, not volumes !
-        :type duration: Union(numpy.array, list[int])
-        """
+    def __init__(self, label_order: list[TimeLabel], duration: Union[np.array, list[int]]):
         # check that all labels are from the same group
         label_group = label_order[0].group
         for label in label_order:
@@ -549,11 +383,11 @@ class Cycle:
             print(f"__eq__ is Not Implemented for {Cycle} and {type(other)}")
             return NotImplemented
 
-    def get_label_per_frame(self):
+    def get_label_per_frame(self) -> list[TimeLabel]:
         """
         A list of labels per frame for one cycle only.
-        :return: labels per frame for one full cycle
-        :rtype: list[TimeLabels]
+        Returns:
+            labels per frame for one full cycle
         """
         per_frame_label_list = []
         for (label_time, label) in zip(self.duration, self.label_order):
@@ -570,37 +404,38 @@ class Cycle:
     def __repr__(self):
         return self.__str__()
 
-    def fit_frames(self, n_frames):
+    def fit_frames(self, n_frames: int) -> int:
         """
         Calculates how many cycles you need to fully cover n_frames.
-        :param n_frames: number of frames to cover
-        :type n_frames: int
-        :return: number of cycle
-        :rtype: int
+        Args:
+            n_frames: number of frames to cover
+        Returns:
+            number of cycle
         """
         n_cycles = int(np.ceil(n_frames / self.full_length))
         return n_cycles
 
-    def fit_labels_to_frames(self, n_frames):
+    def fit_labels_to_frames(self, n_frames: int) -> list[TimeLabel]:
         """
         Create a list of labels corresponding to each frame in the range of n_frames
-        :param n_frames: number of frames to fit labels to
-        :type n_frames: int
-        :return: label_per_frame_list
-        :rtype: list[TimeLabel]
+        Args:
+            n_frames: number of frames to fit labels to
+        Returns:
+            label_per_frame_list
         """
         n_cycles = self.fit_frames(n_frames)
         label_per_frame_list = np.tile(self.per_frame_list, n_cycles)
         # crop the tail
         return list(label_per_frame_list[0:n_frames])
 
-    def fit_cycles_to_frames(self, n_frames):
+    def fit_cycles_to_frames(self, n_frames: int) -> list[int]:
         """
         Create a list of integers (what cycle iteration it is) corresponding to each frame in the range of n_frames
-        :param n_frames: number of frames to fit cycle iterations to
-        :type n_frames: int
-        :return: cycle_per_frame_list
-        :rtype: list[int]
+
+        Args:
+            n_frames: number of frames to fit cycle iterations to
+        Returns:
+            cycle_per_frame_list
         """
         n_cycles = self.fit_frames(n_frames)
         cycle_per_frame_list = []
@@ -623,7 +458,7 @@ class Cycle:
         return cls(label_order, d['timing'])
 
     @classmethod
-    def from_json(cls, j):
+    def from_json(cls, j: str):
         """
         j : json string
         """
@@ -633,18 +468,15 @@ class Cycle:
 
 class Timeline:
     """
-    Information about the sequence of labels. Use it when you have non-periodic conditions
+    Information about the sequence of labels. Use it when you have non-periodic conditions.
+    Args:
+        label_order: a list of labels in the right order in which they follow
+        duration: duration of the corresponding labels, in frames (based on your imaging). Note that these are
+            frames, not volumes !
     """
 
-    def __init__(self, label_order, duration):
-        """
-        :param label_order: a list of labels in the right order in which they follow
-        :type label_order: list[TimeLabel]
+    def __init__(self, label_order: list[TimeLabel], duration: list[int]):
 
-        :param duration: duration of the corresponding labels, in frames (based on your imaging). Note that these are
-        frames, not volumes !
-        :type duration: list[int]
-        """
         # check that all labels are from the same group
         label_group = label_order[0].group
         for label in label_order:
@@ -677,11 +509,11 @@ class Timeline:
             print(f"__eq__ is Not Implemented for {Timeline} and {type(other)}")
             return NotImplemented
 
-    def get_label_per_frame(self):
+    def get_label_per_frame(self) -> list[TimeLabel]:
         """
         A list of labels per frame for the duration of the experiment.
-        :return: labels per frame for the experiment
-        :rtype: list[TimeLabels]
+        Returns:
+            labels per frame for the experiment.
         """
         per_frame_label_list = []
         for (label_time, label) in zip(self.duration, self.label_order):
@@ -703,11 +535,11 @@ class FrameManager:
     """
     Deals with frames. Which frames correspond to a volume / cycle/ condition.
 
-    :param file_manager: info about the files.
-    :type file_manager: FileManager
+    Args:
+        file_manager: info about the files.
     """
 
-    def __init__(self, file_manager):
+    def __init__(self, file_manager: FileManager):
         self.file_manager = file_manager
         self.frame_to_file, self.frame_in_file = self.get_frame_mapping()
 
@@ -729,19 +561,17 @@ class FrameManager:
         file_manager = FileManager(data_dir, file_names=file_names, frames_per_file=frames_per_file)
         return cls(file_manager)
 
-    def get_frame_mapping(self):
+    def get_frame_mapping(self) -> (list[int], list[int]):
         """
-        Calculate frame range in each file.
-        Returns a dict with file index for each frame and frame index in the file.
+        Calculates frame range in each file and returns a file index for each frame and frame index in the file.
         Used to figure out in which stack the requested frames is.
-        Frame number starts at 0, it is a numpy array or a list.
+        Frame number starts at 0.
 
-        :return: Dictionary mapping frames to files. 'file_idx' is a list of length equal to the total number of
-        frames in all the files, where each element corresponds to a frame and contains the file index, where that
-        frame is located. 'in_file_frame' is a list of length equal to the total number of
-        frames in all the files, where each element corresponds to the index of the frame inside the file.
-
-        :rtype: dict of str: list[int]
+        Returns:
+            Two lists mapping frames to files. 'frame_to_file' is a list of length equal to the total number of
+            frames in all the files, where each element corresponds to a frame and contains the file index,
+            of the file where that frame can be found. 'in_file_frame' is a list of length equal to the total number of
+            frames in all the files, where each element corresponds to the index of the frame inside the file.
         """
         frame_to_file = []
         frame_in_file = []
@@ -764,21 +594,19 @@ class VolumeManager:
     """
     Figures out how to get full volumes for certain time points.
 
-    :param fpv: frames per volume, number of frames in one volume
-    :type fpv: int
-
-    :param fgf: first good frame, the first frame in the imaging session that is at the top of a volume.
-    For example if you started imaging at the top of the volume, fgf = 0,
-    but if you started somewhere in the middle, the first good frame is , for example, 23 ...
-    :type fgf: int
-
-    :param frame_manager: the info about the frames
-    :type frame_manager: FrameManager
+    Learning Resourses:
+        maybe I should do type checking automatically, something like here:
+        https://stackoverflow.com/questions/9305751/how-to-force-ensure-class-attributes-are-a-specific-type
+    Args:
+        fpv: frames per volume, number of frames in one volume
+        fgf: first good frame, the first frame in the imaging session that is at the top of a volume.
+            For example if you started imaging at the top of the volume, fgf = 0,
+            but if you started somewhere in the middle, the first good frame is , for example, 23 ...
+        frame_manager: the info about the frames
     """
 
-    def __init__(self, fpv, frame_manager, fgf=0):
-        # maybe I should do type checking automatically, something like here:
-        # https://stackoverflow.com/questions/9305751/how-to-force-ensure-class-attributes-are-a-specific-type
+    def __init__(self, fpv: int, frame_manager: FrameManager, fgf: int = 0):
+
         assert isinstance(fpv, int) or (isinstance(fpv, float) and fpv.is_integer()), "fpv must be an integer"
         assert isinstance(fgf, int) or (isinstance(fgf, float) and fgf.is_integer()), "fgf must be an integer"
 
@@ -867,21 +695,22 @@ class VolumeManager:
 class Annotation:
     """
     Time annotation of the experiment.
+
+    Either frame_to_label_dict or n_frames need to be provided to infer the number of frames.
+    If both are provided , they need to agree.
+
+    Args:
+        labels: Labels
+        info: str, description of the annotation
+        frame_to_label: what label it is for each frame
+        frame_to_cycle: what cycle it is for each frame
+        cycle: for annotation from cycles keeps the cycle
+        n_frames: total number of frames, will be inferred from frame_to_label if not provided
     """
 
-    def __init__(self, n_frames, labels, frame_to_label, info=None,
-                 cycle=None, frame_to_cycle=None):
-        """
-        Either frame_to_label_dict or n_frames need to be provided to infer the number of frames.
-        If both are provided , they need to agree.
+    def __init__(self, n_frames: int, labels: Labels, frame_to_label: list[TimeLabel], info: str = None,
+                 cycle: Cycle = None, frame_to_cycle: list[int] = None):
 
-        :param labels: Labels
-        :param info: str, description of the annotation
-        :param frame_to_label: list[TimeLabels] what label it is for each frame
-        :param frame_to_cycle: list[int] what cycle it is for each frame
-        :param cycle: for annotation from cycles keeps the cycle
-        :param n_frames: total number of frames, will be inferred from frame_to_label if not provided
-        """
         # get total experiment length in frames, check that it is consistent
         if frame_to_label is not None:
             assert n_frames == len(frame_to_label), f"The number of frames in the frame_to_label," \
@@ -946,11 +775,11 @@ class Annotation:
         frame_to_label = timeline.per_frame_list
         return cls(n_frames, labels, frame_to_label, info=info)
 
-    def get_timeline(self):
+    def get_timeline(self) -> Timeline:
         """
         Transforms frame_to_label to Timeline
-        :return: timeline of the resulting annotation
-        :rtype: Timeline
+        Returns:
+            timeline of the resulting annotation
         """
         duration = []
         labels = []
@@ -959,9 +788,11 @@ class Annotation:
             labels.append(label)
         return Timeline(labels, duration)
 
-    def cycle_info(self):
+    def cycle_info(self) -> str:
         """
-        Returns information about the cycle
+        Creates and returns a description of a cycle.
+        Returns:
+            human-readable information about the cycle.
         """
         if self.cycle is None:
             cycle_info = "Annotation doesn't have a cycle"
@@ -986,12 +817,12 @@ class Experiment:
     """
     Information about the experiment.
     Will use all the information you provided to figure out what frames to give you based on your request.
+    Args:
+        db_reader: a DbReader object connected to the database with the experiment description
     """
 
-    def __init__(self, db_reader):
-        """
-        :param db_reader: DbReader connected to the data base with the experiment description
-        """
+    def __init__(self, db_reader: DbReader):
+
         assert isinstance(db_reader, DbReader), "Need DbReader to initialise the Experiment"
 
         self.db = db_reader
@@ -1000,11 +831,13 @@ class Experiment:
         self.loader = None
 
     @classmethod
-    def create(cls, volume_manager, annotations, verbose=False):
+    def create(cls, volume_manager: VolumeManager, annotations: list[Annotation], verbose: bool = False):
         """
         Creates a database instance and initialises the experiment.
-        provide cycles if you have any cycles
-        verbose: whether or not to print the information about Filemanager, Volumemanager and Annotations on the screen.
+        Args:
+            volume_manager:
+            annotations:
+            verbose: whether to print the information about Filemanager, Volumemanager and Annotations on the screen.
         """
         if verbose:
             print(volume_manager.file_manager)
@@ -1019,12 +852,12 @@ class Experiment:
         db_reader = DbReader(db.connection)
         return cls(db_reader)
 
-    def save(self, file_name):
+    def save(self, file_name: Union[Path, str]):
         """
         Saves a database into a file.
-        :param file_name: full path to a file to save database.
-        (Usually the filename would end with .db)
-        :type file_name: Union(Path, str)
+        Args:
+            file_name: full path to a file to save database.
+                (Usually the filename would end with .db)
         """
         DbWriter(self.db.connection).save(file_name)
 
@@ -1037,34 +870,32 @@ class Experiment:
 
     def close(self):
         """
-        Close database connection
+        Close database connection.
         """
         self.db.connection.close()
 
     @classmethod
-    def load(cls, file_name):
+    def load(cls, file_name: Union[Path, str]):
         """
         Saves a database into a file.
-        :param file_name: full path to a file to load database.
-        :type file_name: Union(Path, str)
+        Args:
+            file_name: full path to a file to load database.
         """
         db_reader = DbReader.load(file_name)
         return cls(db_reader)
 
-    def choose_frames(self, conditions, logic="and"):
+    def choose_frames(self, conditions: [tuple], logic: str = "and"):
         """
         Selects the frames that correspond to specified conditions;
         Uses "or" or "and" between the conditions depending on logic.
-        To load the selected frames, use load_frames()
-
-        :param conditions: a list of conditions on the annotation labels
-        in a form [(group, name),(group, name), ...] where group is a string for the annotation type
-        and name is the name of the label of that annotation type. For example [('light', 'on'), ('shape','c')]
-        :type conditions: [tuple]
-        :param logic: "and" or "or" , default is "and".
-        :type logic: str
-        :return: list of frame ids that were chosen.
-                Remember that frame numbers start at 1.
+        To load the selected frames, use load_frames().
+        Args:
+            conditions: a list of conditions on the annotation labels
+                in a form [(group, name),(group, name), ...] where group is a string for the annotation type
+                and name is the name of the label of that annotation type. For example [('light', 'on'), ('shape','c')]
+            logic: "and" or "or" , default is "and".
+        Returns:
+            list of frame ids that were chosen. Remember that frame numbers start at 1.
         """
         assert logic == "and" or logic == "or", \
             'between_group_logic should be equal to "and" or "or"'
@@ -1076,24 +907,23 @@ class Experiment:
 
         return frames
 
-    def choose_volumes(self, conditions, logic="and", verbose=False):
+    def choose_volumes(self, conditions: Union[tuple, list[tuple]], logic: str = "and", verbose: bool = False):
         """
         Selects only full volumes that correspond to specified conditions;
         Uses "or" or "and" between the conditions depending on logic.
         To load the selected volumes, use load_volumes()
-
-        :param verbose: Whether or not to print the information about how many frames were chose/ dropped
-        :type verbose: bool
-        :param conditions: a list of conditions on the annotation labels
-        in a form [(group, name),(group, name), ...] where group is a string for the annotation type
-        and name is the name of the label of that annotation type. For example [('light', 'on'), ('shape','c')]
-        :type conditions: Union(tuple,[tuple])
-        :param logic: "and" or "or" , default is "and".
-        :type logic: str
-        :return: list of volumes and list of frame ids that were chosen.
-                Remember that frame numbers start at 1, but volumes start at 0.
-                TODO : make everything start at 1 ????
+        Args:
+            verbose: Whether to print the information about how many frames were chose/ dropped
+            conditions: a list of conditions on the annotation labels
+                in a form [(group, name),(group, name), ...] where group is a string for the annotation type
+                and name is the name of the label of that annotation type. For example [('light', 'on'), ('shape','c')]
+            logic: "and" or "or" , default is "and".
+        Returns:
+            list of volumes and list of frame ids that were chosen.
+            Remember that frame numbers start at 1, but volumes start at 0.
         """
+        # TODO : make everything start at 1 ????
+
         assert isinstance(conditions, list) or isinstance(conditions, tuple), f"conditions must be a list or a tuple," \
                                                                               f" but got {type(conditions)} instead"
         if isinstance(conditions, tuple):
@@ -1112,10 +942,15 @@ class Experiment:
 
         return volumes
 
-    def load_volumes(self, volumes, verbose=False):
+    def load_volumes(self, volumes: list[int], verbose: bool = False) -> np.ndarray:
         """
         Load volumes. Will load the specified full volumes.
         All the returned volumes or slices should have the same number of frames in them.
+        Args:
+            volumes: the indexes of volumes to load.
+            verbose: Whether to print the information about the loading
+        Returns:
+            4D array with the loaded volumes.
         """
         frames = self.db.get_frames_per_volumes(volumes)
 
@@ -1133,12 +968,12 @@ class Experiment:
                                                show_progress=verbose)
         return volumes_img
 
-    def list_volumes(self):
+    def list_volumes(self) -> np.ndarray[int]:
         """
         Returns a list of all the volumes IDs in the experiment.
         If partial volumes are present: for "head" returns -1, for "tail" returns -2.
-        :return: list of volume IDs
-        :rtype: numpy.array(int)
+        Returns:
+            list of volume IDs
         """
         volume_list = np.array(self.db.get_volume_list())
         if np.sum(volume_list == -1) > 0:
@@ -1149,17 +984,16 @@ class Experiment:
                           f"that don't correspond to a full volume.")
         return volume_list
 
-    def list_conditions_per_cycle(self, annotation_type, as_volumes=True):
+    def list_conditions_per_cycle(self, annotation_type: str, as_volumes: bool = True) -> (list[int], list[str]):
         """
         Returns a list of conditions per cycle.
-        :param annotation_type: The name of the annotation for which to get the conditions list
-        :type annotation_type: str
-        :param as_volumes: weather to return conditions per frame ( default) or per volume.
-        If as_volumes is true, it is expected that the conditions are not changing in the middle of the volume.
-        Will throw an error if it happens.
-        :type as_volumes: bool
-        :return: list of the condition ids ( condition per frame or per volume) and corresponding condition names
-        :rtype: [int], ["str]
+        Args:
+            annotation_type: The name of the annotation for which to get the conditions list
+            as_volumes: weather to return conditions per frame (default) or per volume.
+                If as_volumes is true, it is expected that the conditions are not changing in the middle of the volume.
+                Will throw an error if it happens.
+        Returns:
+            list of the condition ids ( condition per frame or per volume) and corresponding condition names.
         """
         # TODO : check if empty
         if as_volumes:
@@ -1175,17 +1009,17 @@ class Experiment:
 
         return condition_ids, names
 
-    def list_cycle_iterations(self, annotation_type, as_volumes=True):
+    def list_cycle_iterations(self, annotation_type: str, as_volumes: bool = True) -> list[int]:
         """
         Returns a list of cycle iteratoins.
-        :param annotation_type: The name of the annotation for which to get the cycle iteratoins list
-        :type annotation_type: str
-        :param as_volumes: weather to return cycle iteratoins per frame ( default) or per volume.
-        If as_volumes is true, it is expected that the cycle iteratoins are not changing in the middle of the volume.
-        Will throw an error if it happens.
-        :type as_volumes: bool
-        :return: list of the condition ids ( cycle iteratoins per frame or per volume)
-        :rtype: [int]
+        Args:
+            annotation_type: The name of the annotation for which to get the cycle iteratoins list
+            as_volumes: weather to return cycle iteratoins per frame ( default) or per volume.
+                If as_volumes is true, it is expected that the cycle iteratoins are not changing in the middle of the volume.
+                Will throw an error if it happens.
+            as_volumes: bool
+        Returns:
+            list of the condition ids (cycle iterations per frame or per volume)
         """
         # TODO : check if empty
         if as_volumes:

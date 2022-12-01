@@ -1,0 +1,18 @@
+site_name: VoDEx Docs
+
+theme:
+  name: "material"
+
+plugins:
+  - mkdocstrings
+
+nav:
+  - Home: index.md
+  - tutorials.md
+  - How-To Guides: how-to-guides.md
+  - 'User Guide':
+      - Overview: reference.md
+      - 'Loaders': loaders.md
+      - 'Core': core.md
+      - 'DataBase methods': dbmethods.md
+  - explanation.md
