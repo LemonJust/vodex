@@ -28,18 +28,20 @@ The module contains the following classes:
 - `Experiment` - Information about the experiment.
         Will use all the information you provided to figure out what frames to give you based on your request.
 """
-from itertools import groupby
 import json
-import numpy as np
+from itertools import groupby
 from pathlib import Path
-from tifffile import TiffFile
-from tqdm import tqdm
 from typing import Union
-import warnings
+
+import numpy as np
 
 from .loaders import ImageLoader
-from .dbmethods import DbWriter, DbReader
 from .utils import list_of_int
+
+# dictionary that contains the supported file types and corresponding extensions
+# if adding support to a new file type, add the info here
+# please add extensions as tuples, even if is a single entry ( Ex. : { ... , 'MyFileType': ('.mytag') } )
+VX_SUPPORTED_TYPES = {'TIFF': ('.tif', '.tiff')}
 
 
 class FileManager:
@@ -52,8 +54,8 @@ class FileManager:
     Args:
         data_dir: path to the folder with the files, ends with "/" or "\\"
         file_names: names of files relative to the data_dir (TODO:?)
-        frames_per_file: number of frames in each file.
-        file_extension: file extension to search for (if files are not provided)
+        frames_per_file: number of frames in each file. Will be used ONLY if the file_names were provided.
+        file_type: file type to search for (if files are not provided). Must be a key in the VX_SUPPORTED_TYPES dict.
 
     Attributes:
         data_dir: the directory with all the imaging data
@@ -63,7 +65,7 @@ class FileManager:
         n_files: total number of image files
     """
 
-    def __init__(self, data_dir: Union[str, Path], file_extension: str = ".tif",
+    def __init__(self, data_dir: Union[str, Path], file_type: str = "TIFF",
                  file_names: list[str] = None, frames_per_file: list[int] = None):
 
         # 1. get data_dir and check it exists
@@ -71,23 +73,31 @@ class FileManager:
         assert self.data_dir.is_dir(), f"No directory {self.data_dir}"
 
         # 2. get files
+        file_extensions = VX_SUPPORTED_TYPES[file_type]
+
+        self.num_frames = None
         if file_names is None:
             # if files are not provided , search for tiffs in the data_dir
-            self.file_names: list[str] = self.find_files(file_extension)
+            self.file_names: list[str] = self.find_files(file_extensions)
         else:
             # if a list of files is provided, check it's in the folder
-            self.file_names: list[str] = self.check_files(file_names)[1]
+            self.file_names: list[str] = self.check_files(file_names)
+            if frames_per_file is not None:
+                # not recommended! this information is taken as is and is not verified...
+                self.num_frames: list[int] = frames_per_file
+
+        assert len(self.file_names) > 0, f"Can not initialise FileManager: " \
+                                         f"No files of type {file_type}, extentions {file_extensions}," \
+                                         f" in the {data_dir} directory."
         # 3. Initialise ImageLoader
         #    will pick the image loader that works with the provided file type
         self.loader: ImageLoader = ImageLoader(self.data_dir.joinpath(self.file_names[0]))
 
-        # 4. Get number of frames per file
-        if frames_per_file is None:
+        # 4. Get number of frames per file (if it wasn't entered manually)
+        if self.num_frames is None:
             # if number of frames not provided , search for tiffs in the data_dir
             self.num_frames: list[int] = self.get_frames_per_file()
-        else:
-            # if provided ... we'll trust you - hope these numbers are correct
-            self.num_frames: list[int] = frames_per_file
+
         # check that the type is int
         assert all(isinstance(n, (int, np.integer)) for n in self.num_frames), \
             "self.num_frames should be a list of int"
@@ -120,33 +130,33 @@ class FileManager:
             print(f"__eq__ is Not Implemented for {FileManager} and {type(other)}")
             return NotImplemented
 
-    def find_files(self, file_extension: str) -> list[str]:
+    def find_files(self, file_extensions: tuple[str]) -> list[str]:
         """
         Searches for files ending with the provided file extension in the data directory.
         Args:
-            file_extension: extension of files to search for
+            file_extensions: extensions of files to search for
         Returns:
             A list of file names. File names are with the extension, relative to the data directory
             (names only, not full paths to files)
         """
-        files = list(self.data_dir.glob(f"*{file_extension}"))
+        files = (p.resolve() for p in Path(self.data_dir).glob("**/*") if p.suffix in file_extensions)
         file_names = [file.name for file in files]
         return file_names
 
-    # TODO : probably rename it?
-    def check_files(self, file_names: list[str]) -> (Union[list[str], list[Path]], list[str]):
+    def check_files(self, file_names: list[str]) -> list[str]:
         """
         Given a list of files checks that files are in the data directory.
+        Throws an error if any of the files are missing.
         Args:
             file_names: list of filenames to check.
         Returns:
-            If the files are all present in the directory,
-            returns the files ( full paths to the files ) and file_names.
+            If the files are all present in the directory, returns the file_names.
         """
+        # TODO: List all the missing files, not just the first encountered.
         files = [self.data_dir.joinpath(file) for file in file_names]
         for file in files:
             assert file.is_file(), f"File {file} is not found"
-        return files, file_names
+        return file_names
 
     def get_frames_per_file(self) -> list[int]:
         """
@@ -160,32 +170,24 @@ class FileManager:
             frames_per_file.append(n_frames)
         return frames_per_file
 
-    # TODO : make sure it works
-    # def change_files_order(self, order):
-    #     """
-    #     Changes the order of the files. If you notices that files are in the wrong order, provide the new order.
-    #     If you wish to exclude any files, get rid of them ( don't include their IDs into the new order ).
-    #
-    #     :param order: The new order in which the files follow. Refer to file by it's position in the original list.
-    #     Should be the same length as the number of files in the original list, or smaller (if you want to get rid of
-    #     some files).
-    #     :type order: list[int]
-    #     """
-    #     assert len(np.unique(order)) > self.n_files, \
-    #         "Number of unique files is smaller than elements in the list! "
-    #
-    #     self.file_names = [self.file_names[i] for i in order]
-    #     self.num_frames = [self.num_frames[i] for i in order]
-    #
-    # def __str__(self):
-    #     description = f"Total of {self.n_files} files.\nCheck the order :\n"
-    #     for i_file, file in enumerate(self.file_names):
-    #         description = description + "[ " + str(i_file) + " ] " + file + " : " + str(
-    #             self.num_frames[i_file]) + " frames\n"
-    #     return description
-    #
-    # def __repr__(self):
-    #     return self.__str__()
+    def change_files_order(self, order: list[int]) -> None:
+        """
+        Changes the order of the files. If you notice that files are in the wrong order, provide the new order.
+        If you wish to exclude any files, get rid of them ( don't include their IDs into the new order ).
+
+        Args:
+            order: The new order in which the files follow. Refer to file by it's position in the original list.
+            Should be the same length as the number of files in the original list or smaller, no duplicates.
+        """
+        # TODO : test it
+        assert len(order) <= self.n_files, \
+            "Number of files is smaller than elements in the new order list! "
+        assert len(order) == len(set(order)), \
+            "All elements in the new order list must be unique! "
+
+        self.file_names = [self.file_names[i] for i in order]
+        self.num_frames = [self.num_frames[i] for i in order]
+        self.n_files = len(self.file_names)
 
 
 class TimeLabel:
@@ -811,237 +813,3 @@ class Annotation:
 
     def __repr__(self):
         return self.__str__()
-
-
-class Experiment:
-    """
-    Information about the experiment.
-    Will use all the information you provided to figure out what frames to give you based on your request.
-    Args:
-        db_reader: a DbReader object connected to the database with the experiment description
-    """
-
-    def __init__(self, db_reader: DbReader):
-
-        assert isinstance(db_reader, DbReader), "Need DbReader to initialise the Experiment"
-
-        self.db = db_reader
-        # will add the loader the first time you are loading anything
-        # in load_frames() or load_volumes()
-        self.loader = None
-
-    @classmethod
-    def create(cls, volume_manager: VolumeManager, annotations: list[Annotation], verbose: bool = False):
-        """
-        Creates a database instance and initialises the experiment.
-        Args:
-            volume_manager:
-            annotations:
-            verbose: whether to print the information about Filemanager, Volumemanager and Annotations on the screen.
-        """
-        if verbose:
-            print(volume_manager.file_manager)
-            print(volume_manager)
-            for annotation in annotations:
-                print(annotation)
-                if annotation.cycle is not None:
-                    print(annotation.cycle_info())
-
-        db = DbWriter.create()
-        db.populate(volumes=volume_manager, annotations=annotations)
-        db_reader = DbReader(db.connection)
-        return cls(db_reader)
-
-    def save(self, file_name: Union[Path, str]):
-        """
-        Saves a database into a file.
-        Args:
-            file_name: full path to a file to save database.
-                (Usually the filename would end with .db)
-        """
-        DbWriter(self.db.connection).save(file_name)
-
-    def add_annotations(self, annotations):
-        """
-        Adds annotations to existing experiment.
-        Does NOT save the changes to disc! run self.save() to save
-        """
-        DbWriter(self.db.connection).add_annotations(annotations)
-
-    def close(self):
-        """
-        Close database connection.
-        """
-        self.db.connection.close()
-
-    @classmethod
-    def load(cls, file_name: Union[Path, str]):
-        """
-        Saves a database into a file.
-        Args:
-            file_name: full path to a file to load database.
-        """
-        db_reader = DbReader.load(file_name)
-        return cls(db_reader)
-
-    def choose_frames(self, conditions: [tuple], logic: str = "and"):
-        """
-        Selects the frames that correspond to specified conditions;
-        Uses "or" or "and" between the conditions depending on logic.
-        To load the selected frames, use load_frames().
-        Args:
-            conditions: a list of conditions on the annotation labels
-                in a form [(group, name),(group, name), ...] where group is a string for the annotation type
-                and name is the name of the label of that annotation type. For example [('light', 'on'), ('shape','c')]
-            logic: "and" or "or" , default is "and".
-        Returns:
-            list of frame ids that were chosen. Remember that frame numbers start at 1.
-        """
-        assert logic == "and" or logic == "or", \
-            'between_group_logic should be equal to "and" or "or"'
-        frames = []
-        if logic == "and":
-            frames = self.db.get_and_frames_per_annotations(conditions)
-        elif logic == "or":
-            frames = self.db.get_or_frames_per_annotations(conditions)
-
-        return frames
-
-    def choose_volumes(self, conditions: Union[tuple, list[tuple]], logic: str = "and", verbose: bool = False):
-        """
-        Selects only full volumes that correspond to specified conditions;
-        Uses "or" or "and" between the conditions depending on logic.
-        To load the selected volumes, use load_volumes()
-        Args:
-            verbose: Whether to print the information about how many frames were chose/ dropped
-            conditions: a list of conditions on the annotation labels
-                in a form [(group, name),(group, name), ...] where group is a string for the annotation type
-                and name is the name of the label of that annotation type. For example [('light', 'on'), ('shape','c')]
-            logic: "and" or "or" , default is "and".
-        Returns:
-            list of volumes and list of frame ids that were chosen.
-            Remember that frame numbers start at 1, but volumes start at 0.
-        """
-        # TODO : make everything start at 1 ????
-
-        assert isinstance(conditions, list) or isinstance(conditions, tuple), f"conditions must be a list or a tuple," \
-                                                                              f" but got {type(conditions)} instead"
-        if isinstance(conditions, tuple):
-            conditions = [conditions]
-
-        # get all the frames that correspond to the conditions
-        frames = self.choose_frames(conditions, logic=logic)
-        n_frames = len(frames)
-        # leave only such frames that correspond to full volumes
-        # TODO : why do I even need to return frames?
-        volumes, frames = self.db.choose_full_volumes(frames)
-        n_dropped = n_frames - len(frames)
-        if verbose:
-            print(f"Choosing only full volumes. "
-                  f"Dropped {n_dropped} frames, kept {len(frames)}")
-
-        return volumes
-
-    def load_volumes(self, volumes: list[int], verbose: bool = False) -> np.ndarray:
-        """
-        Load volumes. Will load the specified full volumes.
-        All the returned volumes or slices should have the same number of frames in them.
-        Args:
-            volumes: the indexes of volumes to load.
-            verbose: Whether to print the information about the loading
-        Returns:
-            4D array with the loaded volumes.
-        """
-        frames = self.db.get_frames_per_volumes(volumes)
-
-        info = self.db.prepare_frames_for_loading(frames)
-        # unpack
-        data_dir, file_names, file_ids, frame_in_file, volumes = info
-        # make full paths to files ( remember file ids start with 1 )
-        files = [Path(data_dir, file_names[file_id - 1]) for file_id in file_ids]
-        if self.loader is None:
-            self.loader = ImageLoader(Path(data_dir, file_names[0]))
-        volumes_img = self.loader.load_volumes(frame_in_file,
-                                               files,
-                                               volumes,
-                                               show_file_names=False,
-                                               show_progress=verbose)
-        return volumes_img
-
-    def list_volumes(self) -> np.ndarray[int]:
-        """
-        Returns a list of all the volumes IDs in the experiment.
-        If partial volumes are present: for "head" returns -1, for "tail" returns -2.
-        Returns:
-            list of volume IDs
-        """
-        volume_list = np.array(self.db.get_volume_list())
-        if np.sum(volume_list == -1) > 0:
-            warnings.warn(f"The are some frames at the beginning of the recording "
-                          f"that don't correspond to a full volume.")
-        if np.sum(volume_list == -2) > 0:
-            warnings.warn(f"The are some frames at the end of the recording "
-                          f"that don't correspond to a full volume.")
-        return volume_list
-
-    def list_conditions_per_cycle(self, annotation_type: str, as_volumes: bool = True) -> (list[int], list[str]):
-        """
-        Returns a list of conditions per cycle.
-        Args:
-            annotation_type: The name of the annotation for which to get the conditions list
-            as_volumes: weather to return conditions per frame (default) or per volume.
-                If as_volumes is true, it is expected that the conditions are not changing in the middle of the volume.
-                Will throw an error if it happens.
-        Returns:
-            list of the condition ids ( condition per frame or per volume) and corresponding condition names.
-        """
-        # TODO : check if empty
-        if as_volumes:
-            _, condition_ids, count = self.db.get_conditionIds_per_cycle_per_volumes(annotation_type)
-            fpv = self.db.get_fpv()
-            assert np.all(np.array(count) == fpv), "Can't list_conditions_per_cycle with as_volumes=True: " \
-                                                   "some conditions don't cover the whole volume." \
-                                                   "You might want to get conditions per frame," \
-                                                   " by setting as_volumes=False"
-        else:
-            _, condition_ids = self.db.get_conditionIds_per_cycle_per_frame(annotation_type)
-        names = self.db._get_Name_from_AnnotationTypeLabels()
-
-        return condition_ids, names
-
-    def list_cycle_iterations(self, annotation_type: str, as_volumes: bool = True) -> list[int]:
-        """
-        Returns a list of cycle iteratoins.
-        Args:
-            annotation_type: The name of the annotation for which to get the cycle iteratoins list
-            as_volumes: weather to return cycle iteratoins per frame ( default) or per volume.
-                If as_volumes is true, it is expected that the cycle iteratoins are not changing in the middle of the volume.
-                Will throw an error if it happens.
-            as_volumes: bool
-        Returns:
-            list of the condition ids (cycle iterations per frame or per volume)
-        """
-        # TODO : check if empty
-        if as_volumes:
-            _, cycle_its, count = self.db.get_cycleIterations_per_volumes(annotation_type)
-            fpv = self.db.get_fpv()
-            assert np.all(np.array(count) == fpv), "Can't list_cycle_iteratoins with as_volumes=True: " \
-                                                   "some iteratoins don't cover the whole volume." \
-                                                   "You might want to get iteratoins per frame," \
-                                                   " by setting as_volumes=False"
-        else:
-            _, cycle_its = self.db.get_cycleIterations_per_frame(annotation_type)
-
-        return cycle_its
-
-    def __str__(self):
-        pass
-
-    def __repr__(self):
-        return self.__str__()
-
-    def summary(self):
-        """
-        Prints a detailed description of the experiment.
-        """
-        raise NotImplementedError

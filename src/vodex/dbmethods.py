@@ -1,4 +1,5 @@
 from sqlite3 import connect
+
 from .core import *
 from .utils import list_of_int
 
