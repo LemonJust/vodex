@@ -472,6 +472,25 @@ class DbReader:
 
         # get the volumes
 
+    def get_data_dir(self):
+        """
+        Get data directory
+        """
+        cursor = self.connection.cursor()
+        try:
+            cursor.execute(
+                f"""SELECT Value FROM Options 
+                     WHERE Key = "data_dir" """
+            )
+            data_dir = cursor.fetchone()[0]
+        except Exception as e:
+            print(f"Could not get_data_dir because {e}")
+            raise e
+        finally:
+            cursor.close()
+
+        return data_dir
+
     def get_fpv(self):
         """
         Get frames per volume
@@ -490,6 +509,84 @@ class DbReader:
             cursor.close()
 
         return fpv
+
+    def get_fgf(self):
+        """
+        Get frames per volume
+        """
+        cursor = self.connection.cursor()
+        try:
+            cursor.execute(
+                f"""SELECT Value FROM Options 
+                     WHERE Key = "num_head_frames" """
+            )
+            fdf = int(cursor.fetchone()[0])
+        except Exception as e:
+            print(f"Could not get_fgf because {e}")
+            raise e
+        finally:
+            cursor.close()
+
+        return fdf
+
+    def get_options(self):
+        """
+        Gets the information from the OPTIONS table.
+        Returns a dictionary with the Key: Value from the table.
+        ( Keys: 'data_dir', 'frames_per_volume', 'num_head_frames', 'num_tail_frames', 'num_full_volumes' )
+        """
+        cursor = self.connection.cursor()
+        try:
+            cursor.execute(
+                f"""SELECT * FROM Options"""
+            )
+            options = {}
+            for row in cursor.fetchall():
+                options[row[0]] = row[1]
+
+        except Exception as e:
+            print(f"Could not get_options because {e}")
+            raise e
+        finally:
+            cursor.close()
+
+        return options
+
+    def get_file_names(self):
+        """
+        Get the file names from the Files table.
+        """
+        cursor = self.connection.cursor()
+        try:
+            cursor.execute(
+                f"""SELECT FileName FROM Files ORDER BY Id ASC"""
+            )
+            file_names = [row[0] for row in cursor.fetchall()]
+        except Exception as e:
+            print(f"Could not get_file_names because {e}")
+            raise e
+        finally:
+            cursor.close()
+
+        return file_names
+
+    def get_frames_per_file(self):
+        """
+        Get the file names from the Files table.
+        """
+        cursor = self.connection.cursor()
+        try:
+            cursor.execute(
+                f"""SELECT NumFrames FROM Files ORDER BY Id ASC"""
+            )
+            frames_per_file = [row[0] for row in cursor.fetchall()]
+        except Exception as e:
+            print(f"Could not get_frames_per_file because {e}")
+            raise e
+        finally:
+            cursor.close()
+
+        return frames_per_file
 
     def get_volume_list(self):
         """
@@ -1055,51 +1152,77 @@ class DbReader:
         volume_ids = [volume[0] for volume in volume_ids]
         return volume_ids
 
-# class DbExporter:
-#     """
-#     Transforms the information from the database into other human-readable formats.
-#     """
-#
-#     def __init__(self, db):
-#         self.connection = db
-#         db.execute("PRAGMA foreign_keys = 1")
-#
-#     @classmethod
-#     def load(cls, file_name):
-#         """
-#         Load the contents of a database file on disk to a
-#         transient copy in memory without modifying the file
-#         """
-#         disk_db = connect(file_name)
-#         memory_db = connect(':memory:')
-#         disk_db.backup(memory_db)
-#         disk_db.close()
-#         # Now use `memory_db` without modifying disk db
-#         return cls(memory_db)
-#
-#     def list_tables(self):
-#         """
-#         Shows all the tables in the database
-#         """
-#         cursor = self.connection.cursor()
-#         cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
-#         print(cursor.fetchall())
-#         cursor.close()
-#
-#     def table_as_df(self, table_name):
-#         """
-#         Returns the whole table as a dataframe
-#         table_name : name of the table you want to see
-#         """
-#
-#         cursor = self.connection.cursor()
-#         try:
-#             query = cursor.execute(f"SELECT * From {table_name}")
-#             cols = [column[0] for column in query.description]
-#             df = pd.DataFrame.from_records(data=query.fetchall(), columns=cols)
-#         except Exception as e:
-#             print(f"Could not show {table_name} because {e}")
-#             raise e
-#         finally:
-#             cursor.close()
-#         return df
+
+class DbExporter:
+    """
+    Transforms the information from the database into the core classes.
+    """
+
+    def __init__(self, db_reader: DbReader):
+        self.db = db_reader
+
+    @classmethod
+    def load(cls, file_name: Union[Path, str]):
+        """
+        Loads a database from a file and initialises a DbExporter.
+
+        Args:
+            file_name: full path to a file to database.
+        """
+        db_reader = DbReader.load(file_name)
+        return cls(db_reader)
+
+    def reconstruct_file_manager(self):
+        """
+        Creates file manager from the database records.
+        """
+        data_dir = self.db.get_data_dir()
+        file_names = self.db.get_file_names()
+        frames_per_file = self.db.get_frames_per_file()
+
+        fm = FileManager(data_dir, file_names=file_names, frames_per_file=frames_per_file)
+        return fm
+
+    def reconstruct_volume_manager(self):
+        """
+        Creates volume manager from the database records.
+        """
+        fm = self.reconstruct_file_manager()
+        fpv = self.db.get_fpv()
+        fgf = self.db.get_fgf()
+        vm = VolumeManager(fpv, FrameManager(fm), fgf=fgf)
+        return vm
+
+    def reconstruct_annotations(self):
+        """
+        Creates annotations from the database records.
+        """
+        # TODO : implement
+        pass
+
+    # def list_tables(self):
+    #     """
+    #     Shows all the tables in the database
+    #     """
+    #     cursor = self.connection.cursor()
+    #     cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+    #     print(cursor.fetchall())
+    #     cursor.close()
+
+    # def table_as_df(self, table_name):
+    #     """
+    #     Returns the whole table as a dataframe
+    #     table_name : name of the table you want to see
+    #     """
+    #
+    #     cursor = self.connection.cursor()
+    #     try:
+    #         query = cursor.execute(f"SELECT * From {table_name}")
+    #         cols = [column[0] for column in query.description]
+    #         df = pd.DataFrame.from_records(data=query.fetchall(), columns=cols)
+    #     except Exception as e:
+    #         print(f"Could not show {table_name} because {e}")
+    #         raise e
+    #     finally:
+    #         cursor.close()
+    #     return df

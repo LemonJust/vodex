@@ -52,6 +52,42 @@ class TestDbWriter(unittest.TestCase):
 
 class TestDbReader(unittest.TestCase):
 
+    def test_get_n_frames(self):
+        db = DbReader.load(Path(TEST_DATA, "test.db"))
+        n_frames = db.get_n_frames()
+        self.assertEqual(42, n_frames)
+
+    def test_get_fpv(self):
+        db = DbReader.load(Path(TEST_DATA, "test.db"))
+        fpv = db.get_fpv()
+        self.assertEqual(10, fpv)
+
+    def test_get_fgf(self):
+        db = DbReader.load(Path(TEST_DATA, "test.db"))
+        fpv = db.get_fgf()
+        self.assertEqual(0, fpv)
+
+    def test_get_file_names(self):
+        db = DbReader.load(Path(TEST_DATA, "test.db"))
+        file_names = db.get_file_names()
+        self.assertEqual(['mov0.tif', 'mov1.tif', 'mov2.tif'], file_names)
+
+    def test_get_frames_per_file(self):
+        db = DbReader.load(Path(TEST_DATA, "test.db"))
+        frames_per_file = db.get_frames_per_file()
+        self.assertEqual([7, 18, 17], frames_per_file)
+
+    def test_get_data_dir(self):
+        db = DbReader.load(Path(TEST_DATA, "test.db"))
+        data_dir = db.get_data_dir()
+        self.assertEqual("D:/Code/repos/vodex/data/test/test_movie", data_dir)
+
+    def test_get_options(self):
+        db = DbReader.load(Path(TEST_DATA, "test.db"))
+        options = db.get_options()
+        self.assertEqual({'data_dir': 'D:/Code/repos/vodex/data/test/test_movie', 'frames_per_volume': '10',
+                          'num_head_frames': '0', 'num_tail_frames': '2', 'num_full_volumes': '4'}, options)
+
     def test_load(self):
         # not sure how to test this
         db = DbReader.load(Path(TEST_DATA, "test.db"))
@@ -60,7 +96,7 @@ class TestDbReader(unittest.TestCase):
     def test_get_volume_list(self):
         db = DbReader.load(Path(TEST_DATA, "test.db"))
         volume_ids = db.get_volume_list()
-        self.assertEqual([-2,0,1,2,3], volume_ids)
+        self.assertEqual([-2, 0, 1, 2, 3], volume_ids)
 
     def test_get_frames_per_volumes(self):
         frames_vol01 = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
@@ -185,7 +221,7 @@ class TestDbReader(unittest.TestCase):
 
         chosen_frames1 = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
                           11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
-        chosen_volumes1 = [0,1]
+        chosen_volumes1 = [0, 1]
 
         frames2 = [2, 6, 12, 16, 17, 22, 26, 27]
         chosen_frames2 = []
@@ -203,14 +239,18 @@ class TestDbReader(unittest.TestCase):
 
         db.connection.close()
 
-
+#
 # class TestDbExporter(unittest.TestCase):
 #
-#     def test_table_as_df(self):
-#         # not sure how to test this
-#         db = DbExporter.load(Path(TEST_DATA, "test.db"))
-#         df = db.table_as_df("AnnotationTypeLabels")
-#         db.connection.close()
+#     def test_reconstruct_file_manager(self):
+#         de = DbExporter.load(Path(TEST_DATA, "test.db"))
+#         fm = de.reconstruct_file_manager()
+#         print(fm)
+#
+#     def test_reconstruct_volume_manager(self):
+#         de = DbExporter.load(Path(TEST_DATA, "test.db"))
+#         vm = de.reconstruct_volume_manager()
+#         print(vm)
 
 
 if __name__ == "__main__":

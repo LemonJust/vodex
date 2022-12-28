@@ -13,6 +13,7 @@ class Experiment:
     """
     Information about the experiment.
     Will use all the information you provided to figure out what frames to give you based on your request.
+
     Args:
         db_reader: a DbReader object connected to the database with the experiment description
     """
@@ -30,6 +31,7 @@ class Experiment:
     def create(cls, volume_manager: VolumeManager, annotations: list[Annotation], verbose: bool = False):
         """
         Creates a database instance and initialises the experiment.
+
         Args:
             volume_manager:
             annotations:
@@ -51,6 +53,7 @@ class Experiment:
     def save(self, file_name: Union[Path, str]):
         """
         Saves a database into a file.
+
         Args:
             file_name: full path to a file to save database.
                 (Usually the filename would end with .db)
@@ -61,6 +64,7 @@ class Experiment:
         """
         Adds annotations to existing experiment.
         Does NOT save the changes to disc! run self.save() to save
+
         Args:
             annotations: a list of annotations to add to the database.
         """
@@ -75,9 +79,10 @@ class Experiment:
     @classmethod
     def load(cls, file_name: Union[Path, str]):
         """
-        Saves a database into a file.
+        Loads a database from a file and initialises an Experiment.
+
         Args:
-            file_name: full path to a file to load database.
+            file_name: full path to a file to database.
         """
         db_reader = DbReader.load(file_name)
         return cls(db_reader)
@@ -87,6 +92,7 @@ class Experiment:
         Selects the frames that correspond to specified conditions;
         Uses "or" or "and" between the conditions depending on logic.
         To load the selected frames, use load_frames().
+
         Args:
             conditions: a list of conditions on the annotation labels
                 in a form [(group, name),(group, name), ...] where group is a string for the annotation type
@@ -110,8 +116,9 @@ class Experiment:
         Selects only full volumes that correspond to specified conditions;
         Uses "or" or "and" between the conditions depending on logic.
         To load the selected volumes, use load_volumes()
+
         Args:
-            verbose: Whether to print the information about how many frames were chose/ dropped
+            verbose: Whether to print the information about how many frames were choose/ dropped
             conditions: a list of conditions on the annotation labels
                 in a form [(group, name),(group, name), ...] where group is a string for the annotation type
                 and name is the name of the label of that annotation type. For example [('light', 'on'), ('shape','c')]
@@ -120,7 +127,7 @@ class Experiment:
             list of volumes and list of frame ids that were chosen.
             Remember that frame numbers start at 1, but volumes start at 0.
         """
-        # TODO : make everything start at 1 ????
+        # TODO : make all indices start at 1 ?
 
         assert isinstance(conditions, list) or isinstance(conditions, tuple), f"conditions must be a list or a tuple," \
                                                                               f" but got {type(conditions)} instead"
@@ -131,7 +138,7 @@ class Experiment:
         frames = self.choose_frames(conditions, logic=logic)
         n_frames = len(frames)
         # leave only such frames that correspond to full volumes
-        # TODO : why do I even need to return frames?
+        # TODO : not necessary to return the frames?
         volumes, frames = self.db.choose_full_volumes(frames)
         n_dropped = n_frames - len(frames)
         if verbose:
@@ -140,10 +147,11 @@ class Experiment:
 
         return volumes
 
-    def load_volumes(self, volumes: list[int], verbose: bool = False) -> np.ndarray:
+    def load_volumes(self, volumes: list[int], verbose: bool = False) -> npt.NDArray:
         """
         Load volumes. Will load the specified full volumes.
         All the returned volumes or slices should have the same number of frames in them.
+
         Args:
             volumes: the indexes of volumes to load.
             verbose: Whether to print the information about the loading
@@ -170,6 +178,7 @@ class Experiment:
         """
         Returns a list of all the volumes IDs in the experiment.
         If partial volumes are present: for "head" returns -1, for "tail" returns -2.
+
         Returns:
             list of volume IDs
         """
@@ -185,6 +194,7 @@ class Experiment:
     def list_conditions_per_cycle(self, annotation_type: str, as_volumes: bool = True) -> (list[int], list[str]):
         """
         Returns a list of conditions per cycle.
+
         Args:
             annotation_type: The name of the annotation for which to get the conditions list
             as_volumes: weather to return conditions per frame (default) or per volume.
@@ -210,6 +220,7 @@ class Experiment:
     def list_cycle_iterations(self, annotation_type: str, as_volumes: bool = True) -> list[int]:
         """
         Returns a list of cycle iteratoins.
+
         Args:
             annotation_type: The name of the annotation for which to get the cycle iteratoins list
             as_volumes: weather to return cycle iteratoins per frame ( default) or per volume.

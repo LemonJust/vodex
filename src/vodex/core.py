@@ -42,6 +42,7 @@ from .utils import list_of_int
 # if adding support to a new file type, add the info here
 # please add extensions as tuples, even if is a single entry ( Ex. : { ... , 'MyFileType': ('.mytag') } )
 VX_SUPPORTED_TYPES = {'TIFF': ('.tif', '.tiff')}
+VX_EXTENSION_TO_TYPE = {'tif': 'TIFF', 'tiff': 'TIFF'}
 
 
 class FileManager:
@@ -73,9 +74,17 @@ class FileManager:
         assert self.data_dir.is_dir(), f"No directory {self.data_dir}"
 
         # 2. get files
-        file_extensions = VX_SUPPORTED_TYPES[file_type]
+        if file_names is not None:
+            tags = [name.split(".")[-1] for name in file_names]
+            # check that all the elements of the list are same
+            assert len(set(tags)) == 1, "Error initializing FileManager: " \
+                                        f"file_names must be files with the same resolution, but got {set(tags)}"
+            file_type = VX_EXTENSION_TO_TYPE[tags[0]]
+        self.file_type = file_type
+        file_extensions = VX_SUPPORTED_TYPES[self.file_type]
 
         self.num_frames = None
+        # TODO : check in accordance with the file extension/ figure out file type from files when provided
         if file_names is None:
             # if files are not provided , search for tiffs in the data_dir
             self.file_names: list[str] = self.find_files(file_extensions)
@@ -86,9 +95,9 @@ class FileManager:
                 # not recommended! this information is taken as is and is not verified...
                 self.num_frames: list[int] = frames_per_file
 
-        assert len(self.file_names) > 0, f"Can not initialise FileManager: " \
-                                         f"No files of type {file_type}, extentions {file_extensions}," \
-                                         f" in the {data_dir} directory."
+        assert len(self.file_names) > 0, f"Error when initialising FileManager:\n" \
+                                         f"No files of type {file_type} [extensions {file_extensions}]\n" \
+                                         f" in {data_dir}"
         # 3. Initialise ImageLoader
         #    will pick the image loader that works with the provided file type
         self.loader: ImageLoader = ImageLoader(self.data_dir.joinpath(self.file_names[0]))
@@ -133,6 +142,7 @@ class FileManager:
     def find_files(self, file_extensions: tuple[str]) -> list[str]:
         """
         Searches for files ending with the provided file extension in the data directory.
+
         Args:
             file_extensions: extensions of files to search for
         Returns:
@@ -147,8 +157,10 @@ class FileManager:
         """
         Given a list of files checks that files are in the data directory.
         Throws an error if any of the files are missing.
+
         Args:
             file_names: list of filenames to check.
+
         Returns:
             If the files are all present in the directory, returns the file_names.
         """
@@ -161,6 +173,7 @@ class FileManager:
     def get_frames_per_file(self) -> list[int]:
         """
         Get the number of frames per file.
+
         Returns:
             a list with number of frames per file.
         """
@@ -252,6 +265,7 @@ class TimeLabel:
     def to_dict(self) -> dict:
         """
         Put all the information about a TimeLabel object into a dictionary.
+
         Returns:
             a dictionary with fields 'name', 'group', 'description' storing the corresponding attributes.
         """
@@ -290,6 +304,7 @@ class Labels:
         group_info : description of what this group is about. Just for storing the information.
         state_names: the state names
         state_info: description of each individual state {state name : description}. Just for storing the information.
+
     Attributes:
         group (str): the name of the group
         group_info (str): description of what this group is about. Just for storing the information.
@@ -346,6 +361,7 @@ class Cycle:
     Information about the repeated cycle of labels. Use it when you have some periodic conditions, like : light
     on , light off, light on, light off... will be made of list of labels [light_on, light_off]
     that repeat to cover the whole tie of the experiment. All labels must be from the same label group!
+
     Args:
         label_order: a list of labels in the right order in which they follow
         duration: duration of the corresponding labels, in frames (based on your imaging).
@@ -388,6 +404,7 @@ class Cycle:
     def get_label_per_frame(self) -> list[TimeLabel]:
         """
         A list of labels per frame for one cycle only.
+
         Returns:
             labels per frame for one full cycle
         """
@@ -409,6 +426,7 @@ class Cycle:
     def fit_frames(self, n_frames: int) -> int:
         """
         Calculates how many cycles you need to fully cover n_frames.
+
         Args:
             n_frames: number of frames to cover
         Returns:
@@ -420,6 +438,7 @@ class Cycle:
     def fit_labels_to_frames(self, n_frames: int) -> list[TimeLabel]:
         """
         Create a list of labels corresponding to each frame in the range of n_frames
+
         Args:
             n_frames: number of frames to fit labels to
         Returns:
@@ -471,6 +490,7 @@ class Cycle:
 class Timeline:
     """
     Information about the sequence of labels. Use it when you have non-periodic conditions.
+
     Args:
         label_order: a list of labels in the right order in which they follow
         duration: duration of the corresponding labels, in frames (based on your imaging). Note that these are
@@ -514,6 +534,7 @@ class Timeline:
     def get_label_per_frame(self) -> list[TimeLabel]:
         """
         A list of labels per frame for the duration of the experiment.
+
         Returns:
             labels per frame for the experiment.
         """
@@ -599,12 +620,16 @@ class VolumeManager:
     Learning Resourses:
         maybe I should do type checking automatically, something like here:
         https://stackoverflow.com/questions/9305751/how-to-force-ensure-class-attributes-are-a-specific-type
+
     Args:
         fpv: frames per volume, number of frames in one volume
         fgf: first good frame, the first frame in the imaging session that is at the top of a volume.
             For example if you started imaging at the top of the volume, fgf = 0,
             but if you started somewhere in the middle, the first good frame is , for example, 23 ...
         frame_manager: the info about the frames
+
+    Attributes:
+
     """
 
     def __init__(self, fpv: int, frame_manager: FrameManager, fgf: int = 0):
@@ -613,25 +638,25 @@ class VolumeManager:
         assert isinstance(fgf, int) or (isinstance(fgf, float) and fgf.is_integer()), "fgf must be an integer"
 
         # frames per volume
-        self.fpv = int(fpv)
+        self.fpv: int = int(fpv)
 
         # get total number of frames
-        self.frame_manager = frame_manager
-        self.file_manager = frame_manager.file_manager
-        self.n_frames = np.sum(self.file_manager.num_frames)
+        self.frame_manager: FrameManager = frame_manager
+        self.file_manager: FileManager = frame_manager.file_manager
+        self.n_frames: int = int(np.sum(self.file_manager.num_frames))
 
         # prepare info about frames at the beginning, full volumes and frames at the end
         # first good frame, start counting from 0 : 0, 1, 2, 3, ...
         # n_head is the number of frames before the first frame of the first full volume
         # n_tail is the number of frames after the last frame of the last full volume
-        self.n_head = int(fgf)
+        self.n_head: int = int(fgf)
         full_volumes, n_tail = divmod((self.n_frames - self.n_head), self.fpv)
-        self.full_volumes = int(full_volumes)
-        self.n_tail = int(n_tail)
+        self.full_volumes: int = int(full_volumes)
+        self.n_tail: int = int(n_tail)
 
         # map frames to slices an full volumes:
-        self.frame_to_z = self.get_frames_to_z_mapping()
-        self.frame_to_vol = self.get_frames_to_volumes_mapping()
+        self.frame_to_z: list[int] = self.get_frames_to_z_mapping()
+        self.frame_to_vol: list[int] = self.get_frames_to_volumes_mapping()
 
     def __eq__(self, other):
         if isinstance(other, VolumeManager):
@@ -689,6 +714,9 @@ class VolumeManager:
 
     @classmethod
     def from_dir(cls, data_dir, fpv, fgf=0, file_names=None, frames_per_file=None):
+        """
+        Creates a VolumeManager object from directory.
+        """
         file_manager = FileManager(data_dir, file_names=file_names, frames_per_file=frames_per_file)
         frame_manager = FrameManager(file_manager)
         return cls(fpv, frame_manager, fgf=fgf)
@@ -702,8 +730,8 @@ class Annotation:
     If both are provided , they need to agree.
 
     Args:
-        labels: Labels
-        info: str, description of the annotation
+        labels: Labels used to build the annotation
+        info: a short description of the annotation
         frame_to_label: what label it is for each frame
         frame_to_cycle: what cycle it is for each frame
         cycle: for annotation from cycles keeps the cycle
@@ -763,15 +791,36 @@ class Annotation:
             return NotImplemented
 
     @classmethod
-    def from_cycle(cls, n_frames, labels, cycle, info=None):
+    def from_cycle(cls, n_frames: int, labels: Labels, cycle: Cycle, info: str = None):
+        """
+        Creates an Annotation object from Cycle.
 
+        Args:
+            n_frames: total number of frames, must be provided
+            labels: Labels used to build the annotation
+            cycle: the cycle to create annotation from
+            info: a short description of the annotation
+        Returns:
+            Annotation object
+        """
         frame_to_label = cycle.fit_labels_to_frames(n_frames)
         frame_to_cycle = cycle.fit_cycles_to_frames(n_frames)
         return cls(n_frames, labels, frame_to_label, info=info,
                    cycle=cycle, frame_to_cycle=frame_to_cycle)
 
     @classmethod
-    def from_timeline(cls, n_frames, labels, timeline, info=None):
+    def from_timeline(cls, n_frames: int, labels: Labels, timeline: Timeline, info: str = None):
+        """
+        Creates an Annotation object from Timeline.
+
+        Args:
+            n_frames: total number of frames, must be provided
+            labels: Labels used to build the annotation
+            timeline: the timeline to create annotation from
+            info: a short description of the annotation
+        Returns:
+            Annotation object
+        """
         assert n_frames == timeline.full_length, "number of frames and total timing should be the same"
         # make a fake cycle the length of the whole recording
         frame_to_label = timeline.per_frame_list
@@ -780,6 +829,7 @@ class Annotation:
     def get_timeline(self) -> Timeline:
         """
         Transforms frame_to_label to Timeline
+
         Returns:
             timeline of the resulting annotation
         """
@@ -793,6 +843,7 @@ class Annotation:
     def cycle_info(self) -> str:
         """
         Creates and returns a description of a cycle.
+
         Returns:
             human-readable information about the cycle.
         """

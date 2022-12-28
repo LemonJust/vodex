@@ -193,7 +193,7 @@ class ImageLoader:
         # Pick the loader and initialise it with the data directory:
         # chooses the proper loader based on the files extension.
         # Add your class to name to the supported variable types when adding support to other file formats.
-        self.loader: Union[TiffFile,] = self.loader_map[self.file_extension](file_example)
+        self.loader: Union[TiffFile, ] = self.loader_map[self.file_extension](file_example)
 
     def __eq__(self, other):
         if isinstance(other, ImageLoader):
