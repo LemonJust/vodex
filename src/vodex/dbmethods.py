@@ -3,8 +3,7 @@ from sqlite3 import connect
 from .core import *
 from .utils import list_of_int
 
-
-# TODO : make load static method
+from typing import Union, List
 
 
 class DbWriter:
@@ -67,7 +66,7 @@ class DbWriter:
         # Now use `memory_db` without modifying disk db
         return cls(memory_db)
 
-    def populate(self, volumes: VolumeManager = None, annotations: list[Annotation] = None):
+    def populate(self, volumes: VolumeManager = None, annotations: List[Annotation] = None):
         """
         Creates the tables if they don't exist and fills with the provided data.
         Args:
@@ -90,7 +89,7 @@ class DbWriter:
         if annotations is not None:
             self.add_annotations(annotations)
 
-    def add_annotations(self, annotations: list[Annotation]):
+    def add_annotations(self, annotations: List[Annotation]):
         """
         Adds a list of annotations to the database.
         Does NOT save the database after adding.
@@ -175,7 +174,7 @@ class DbWriter:
             "Id"	INTEGER NOT NULL UNIQUE,
             "AnnotationTypeId"	INTEGER NOT NULL UNIQUE,
             "Structure"	TEXT NOT NULL,
-            FOREIGN KEY("AnnotationTypeId") REFERENCES "AnnotationTypes"("Id"),
+            FOREIGN KEY("AnnotationTypeId") REFERENCES "AnnotationTypes"("Id") ON DELETE CASCADE,
             PRIMARY KEY("Id" AUTOINCREMENT)
             )
             """
@@ -188,7 +187,7 @@ class DbWriter:
             "Name"	TEXT NOT NULL,
             "Description"	TEXT,
             PRIMARY KEY("Id" AUTOINCREMENT),
-            FOREIGN KEY("AnnotationTypeId") REFERENCES "AnnotationTypes"("Id"),
+            FOREIGN KEY("AnnotationTypeId") REFERENCES "AnnotationTypes"("Id") ON DELETE CASCADE,
             UNIQUE("AnnotationTypeId","Name")
             )
             """
@@ -199,7 +198,7 @@ class DbWriter:
             "FrameId"	INTEGER NOT NULL,
             "AnnotationTypeLabelId"	INTEGER NOT NULL,
             FOREIGN KEY("FrameId") REFERENCES "Frames"("Id"),
-            FOREIGN KEY("AnnotationTypeLabelId") REFERENCES "AnnotationTypeLabels"("Id"),
+            FOREIGN KEY("AnnotationTypeLabelId") REFERENCES "AnnotationTypeLabels"("Id") ON DELETE CASCADE,
             UNIQUE("FrameId","AnnotationTypeLabelId")
             )
             """
@@ -210,7 +209,7 @@ class DbWriter:
             "FrameId"	INTEGER NOT NULL,
             "CycleId"	INTEGER NOT NULL,
             "CycleIteration"	INTEGER NOT NULL,
-            FOREIGN KEY("CycleId") REFERENCES "Cycles"("Id"),
+            FOREIGN KEY("CycleId") REFERENCES "Cycles"("Id") ON DELETE CASCADE,
             FOREIGN KEY("FrameId") REFERENCES "Frames"("Id")
             )
             """
@@ -749,7 +748,7 @@ class DbReader:
                 image files, frame location on the image, volumes.
         :rtype: str, [str], [str],[int],[int]
         # TODO : break into functions that get the file locations and the stuff relevant to the frames
-        # TODO : make one " prepare volumes for loading?
+        # TODO : make one " prepare volumes " for loading?
         """
         n_frames = len(frames)
 
@@ -843,7 +842,7 @@ class DbReader:
         # create list of label Ids
         labels_ids = []
         for label_info in conditions:
-            labels_ids.append(self._get_AnnotationLabelId(label_info))
+            labels_ids.append(self._get_Id_from_AnnotationTypeLabels(label_info))
         labels_ids = tuple(labels_ids)
         n_labels = len(labels_ids)
 
@@ -885,7 +884,7 @@ class DbReader:
         # create list of label Ids
         labels_ids = []
         for label_info in conditions:
-            labels_ids.append(self._get_AnnotationLabelId(label_info))
+            labels_ids.append(self._get_Id_from_AnnotationTypeLabels(label_info))
         labels_ids = tuple(labels_ids)
         n_labels = len(labels_ids)
 
@@ -1050,11 +1049,75 @@ class DbReader:
 
         return frame_ids, condition_ids
 
-    def _get_Name_from_AnnotationTypeLabels(self):
+    def get_Names_from_AnnotationTypes(self):
+        """
+        Returns the names of all the available annotations.
+        """
         cursor = self.connection.cursor()
         try:
             # create a parameterised query with variable number of parameters
-            cursor.execute("""SELECT Name FROM AnnotationTypeLabels""")
+            cursor.execute("""SELECT Name FROM AnnotationTypes""")
+            names = [name[0] for name in cursor.fetchall()]
+        except Exception as e:
+            print(f"Could not _get_Name_from_AnnotationTypes because {e}")
+            raise e
+        finally:
+            cursor.close()
+        return names
+
+    def get_Structure_from_Cycle(self, group):
+        """
+        Returns cycle Structure if the annotation has a cycle entry or None otherwise.
+        """
+        group = (group,)
+        cursor = self.connection.cursor()
+        try:
+            # create a parameterised query with variable number of parameters
+            cursor.execute("""SELECT Structure FROM Cycles WHERE AnnotationTypeId = 
+                             (SELECT Id FROM AnnotationTypes WHERE Name = ?)""", group)
+            info = cursor.fetchone()
+            if info:
+                cycle = info[0]
+            else:
+                cycle = None
+        except Exception as e:
+            print(f"Could not get_Structure_from_Cycle because {e}")
+            raise e
+        finally:
+            cursor.close()
+        return cycle
+
+    def get_Name_and_Description_from_AnnotationTypeLabels(self, group):
+        """
+        Returns the Name and description for the labels that correspond to the annotation
+        with the provided group name.
+        """
+        group = (group,)
+        names = []
+        descriptions = {}
+
+        cursor = self.connection.cursor()
+        try:
+            # create a parameterised query with variable number of parameters
+            cursor.execute("""SELECT Name, Description FROM AnnotationTypeLabels WHERE AnnotationTypeId = 
+                             (SELECT Id FROM AnnotationTypes WHERE Name = ?)""", group)
+            info = cursor.fetchall()
+            for row in info:
+                name = row[0]
+                names.append(name)
+                descriptions[name] = row[1]
+        except Exception as e:
+            print(f"Could not get_Name_and_Description_from_AnnotationTypeLabels because {e}")
+            raise e
+        finally:
+            cursor.close()
+        return names, descriptions
+
+    def _get_Names_from_AnnotationTypeLabels(self):
+        cursor = self.connection.cursor()
+        try:
+            # create a parameterised query with variable number of parameters
+            cursor.execute("""SELECT Name FROM AnnotationTypeLabels ORDER BY Id ASC""")
             names = [name[0] for name in cursor.fetchall()]
         except Exception as e:
             print(f"Could not _get_Name_from_AnnotationTypeLabels because {e}")
@@ -1063,12 +1126,31 @@ class DbReader:
             cursor.close()
         return names
 
-    def _get_AnnotationLabelId(self, label_info):
+    def get_Id_map_to_Names_from_AnnotationTypeLabels(self):
         """
-        Returns the AnnotationLabels.Id for a label , searching by its name and group name.
-        :param label_condition: (group, name), where group is the AnnotationType.Name
+        Returns a dictionary with Ids as keys and names as values.
+        """
+        cursor = self.connection.cursor()
+        mapping = {}
+        try:
+            # create a parameterised query with variable number of parameters
+            cursor.execute("""SELECT Id, Name FROM AnnotationTypeLabels ORDER BY Id ASC""")
+            info = cursor.fetchall()
+            for row in info:
+                mapping[row[0]] = row[1]
+        except Exception as e:
+            print(f"Could not get_Id_map_to_Names_from_AnnotationTypeLabels because {e}")
+            raise e
+        finally:
+            cursor.close()
+        return mapping
+
+    def _get_Id_from_AnnotationTypeLabels(self, label_info):
+        """
+        Returns the AnnotationTypeLabels.Id for a label , searching by its name and group name.
+        :param label_info: (group, name), where group is the AnnotationType.Name
                             and name is AnnotationTypeLabels.Name
-        :type label_condition: tuple
+        :type label_info: tuple
         :return: AnnotationLabels.Id
         :rtype: int
         """
@@ -1089,6 +1171,59 @@ class DbReader:
         finally:
             cursor.close()
         return label_id[0]
+
+    def _get_Ids_from_AnnotationTypeLabels(self, group):
+        """
+        Returns the AnnotationTypeLabels.Id for all labels , searching by their group name.
+        :param group: AnnotationType.Name
+        :type group: str
+        :return: AnnotationLabels.Id
+        :rtype: [(int,),(int,) ... ]
+        """
+        group = (group,)
+        cursor = self.connection.cursor()
+        try:
+            # create a parameterised query with variable number of parameters
+            cursor.execute(
+                f"""SELECT Id FROM AnnotationTypeLabels 
+                    WHERE AnnotationTypeId = (SELECT Id from AnnotationTypes WHERE Name = ?)""", group)
+            label_ids = cursor.fetchall()
+            assert label_ids is not None, f"Could not find labels from group {group} " \
+                                          "Are you sure it's been added into the database? "
+        except Exception as e:
+            print(f"Could not _get_AnnotationLabelIds because {e}")
+            raise e
+        finally:
+            cursor.close()
+        return label_ids
+
+    def get_AnnotationTypeLabelId_from_Annotations(self, group):
+        """
+        Returns the AnnotationTypeLabelIds for all labels in the order according to the FrameId,
+         searching by their group name.
+        :param group: AnnotationType.Name
+        :type group: str
+        :return: AnnotationLabels.Id
+        :rtype: [int]
+        """
+        group = (group,)
+        cursor = self.connection.cursor()
+        try:
+            # create a parameterised query with variable number of parameters
+            cursor.execute(
+                f""" SELECT AnnotationTypeLabelId FROM Annotations WHERE AnnotationTypeLabelId IN
+                            (SELECT Id FROM AnnotationTypeLabels 
+                            WHERE AnnotationTypeId = (SELECT Id from AnnotationTypes WHERE Name = ?))
+                            ORDER BY FrameId ASC""", group)
+            label_ids = [label[0] for label in cursor.fetchall()]
+            assert label_ids is not None, f"Could not find labels from group {group} " \
+                                          "Are you sure it's been added into the database? "
+        except Exception as e:
+            print(f"Could not _get_AnnotationTypeLabelId_from_Annotations because {e}")
+            raise e
+        finally:
+            cursor.close()
+        return label_ids
 
     def _get_SliceInVolume_from_Volumes(self, frames):
         """
@@ -1152,11 +1287,32 @@ class DbReader:
         volume_ids = [volume[0] for volume in volume_ids]
         return volume_ids
 
+    def delete_annotation(self, name: str):
+        """
+        Deletes annotation from all the tables.
+        Deletion by "ON DELETE CASCADE" from AnnotationTypes, AnnotationTypeLabels, Annotations,
+        Cycles, CycleIterations.
+        """
+        name = (name,)
+        # get the volumes
+        cursor = self.connection.cursor()
+        try:
+            cursor.execute(
+                f"""DELETE FROM AnnotationTypes 
+                            WHERE Name = ?""", name)
+        except Exception as e:
+            print(f"Could not delete_annotation because {e}")
+            raise e
+        finally:
+            cursor.close()
+
 
 class DbExporter:
     """
     Transforms the information from the database into the core classes.
     """
+
+    # TODO : make it work for annotations
 
     def __init__(self, db_reader: DbReader):
         self.db = db_reader
@@ -1193,36 +1349,68 @@ class DbExporter:
         vm = VolumeManager(fpv, FrameManager(fm), fgf=fgf)
         return vm
 
+    def reconstruct_labels(self, group):
+        """
+        Creates labels corresponding to the specified annotation from the database records.
+        """
+        state_names, state_info = self.db.get_Name_and_Description_from_AnnotationTypeLabels(group)
+        labels = Labels(group, state_names, state_info=state_info)
+        return labels
+
+    def reconstruct_timeline(self, group, labels):
+        import itertools
+        """
+        Creates timeline corresponding to the specified annotation from the database records.
+        """
+        # get the mapping between the names and the Ids
+        label_names = self.db.get_Id_map_to_Names_from_AnnotationTypeLabels()
+        # get all the labels that were used in the annotation ( does not reconstruct unused Labels )
+        labels_per_frame = self.db.get_AnnotationTypeLabelId_from_Annotations(group)
+
+        label_order = []
+        duration = []
+        for label_id, frames in itertools.groupby(labels_per_frame):
+            label_name = label_names[label_id]
+            label_order.append(labels.__getattribute__(label_name))
+            duration.append(sum(1 for _ in frames))
+
+        timeline = Timeline(label_order, duration)
+        return timeline
+
+    def reconstruct_cycle(self, group):
+        """
+        Creates cycle corresponding to the specified annotation from the database records.
+        """
+        cycle_json = self.db.get_Structure_from_Cycle(group)
+        if cycle_json is not None:
+            cycle = Cycle.from_json(cycle_json)
+        else:
+            cycle = None
+        return cycle
+
     def reconstruct_annotations(self):
+
         """
         Creates annotations from the database records.
         """
-        # TODO : implement
-        pass
+        # get the names of all the available annotations from the db
+        annotation_names = self.db.get_Names_from_AnnotationTypes()
+        # get the total number of frames in the recording
+        n_frames = FrameManager(self.reconstruct_file_manager()).n_frames
 
-    # def list_tables(self):
-    #     """
-    #     Shows all the tables in the database
-    #     """
-    #     cursor = self.connection.cursor()
-    #     cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
-    #     print(cursor.fetchall())
-    #     cursor.close()
+        annotations = []
+        for group in annotation_names:
+            # reconstruct Labels for the group
+            labels = self.reconstruct_labels(group)
+            # try to get a cycle
+            cycle = self.reconstruct_cycle(group)
+            # define the annotation type ( Cycle / Timeline)
+            if cycle is not None:
+                annotation = Annotation.from_cycle(n_frames, labels, cycle)
+            else:
+                timeline = self.reconstruct_timeline(group, labels)
+                annotation = Annotation.from_timeline(n_frames, labels, timeline)
 
-    # def table_as_df(self, table_name):
-    #     """
-    #     Returns the whole table as a dataframe
-    #     table_name : name of the table you want to see
-    #     """
-    #
-    #     cursor = self.connection.cursor()
-    #     try:
-    #         query = cursor.execute(f"SELECT * From {table_name}")
-    #         cols = [column[0] for column in query.description]
-    #         df = pd.DataFrame.from_records(data=query.fetchall(), columns=cols)
-    #     except Exception as e:
-    #         print(f"Could not show {table_name} because {e}")
-    #         raise e
-    #     finally:
-    #         cursor.close()
-    #     return df
+            annotations.append(annotation)
+
+        return annotations

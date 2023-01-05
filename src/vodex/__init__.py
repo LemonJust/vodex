@@ -13,4 +13,4 @@ from .dbmethods import *
 from .experiment import *
 
 # Version of the vodex package
-__version__ = "1.0.4"
+__version__ = "1.0.7"

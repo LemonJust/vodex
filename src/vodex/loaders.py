@@ -15,7 +15,7 @@ import numpy as np
 from pathlib import Path
 from tifffile import TiffFile
 from tqdm import tqdm
-from typing import Union, Final, Dict
+from typing import Union, Final, Dict, Tuple, List
 
 
 class TiffLoader:
@@ -30,7 +30,7 @@ class TiffLoader:
             to infer the frame size and data type.
 
     Attributes:
-        frame_size (tuple[int,int]): individual frame size (hight, width).
+        frame_size (Tuple[int,int]): individual frame size (hight, width).
         data_type (np.dtype): datatype.
     """
 
@@ -69,7 +69,7 @@ class TiffLoader:
         return n_frames
 
     @staticmethod
-    def get_frame_size(file: Union[str, Path]) -> tuple[int, int]:
+    def get_frame_size(file: Union[str, Path]) -> Tuple[int, int]:
         """
         Gets frame size ( height , width ) from a tiff file.
 
@@ -106,7 +106,7 @@ class TiffLoader:
         stack.close()
         return data_type
 
-    def load_frames(self, frames: list[int], files: Union[list[str], list[Path]],
+    def load_frames(self, frames: List[int], files: Union[List[str], List[Path]],
                     show_file_names: bool = False, show_progress: bool = True) -> np.ndarray:
         """
         Load frames from files and return as an array (frame, y, x).
@@ -163,7 +163,7 @@ class ImageLoader:
 
     Attributes:
         loader_map: a dictionary that maps the file extensions to their loaders.
-        supported_extension (list[str]): list of all the supported file extensions.
+        supported_extension (List[str]): list of all the supported file extensions.
         file_extension (str): the file extension of the provided file example.
         loader: a loader class initialised using the file example.
 
@@ -219,7 +219,7 @@ class ImageLoader:
         """
         return self.loader.get_frames_in_file(file_name)
 
-    def get_frame_size(self, file_name: Union[str, Path]) -> tuple[int, int]:
+    def get_frame_size(self, file_name: Union[str, Path]) -> Tuple[int, int]:
         """
         Gets frame size ( height , width ) from an image files.
 
@@ -230,7 +230,7 @@ class ImageLoader:
         """
         return self.loader.get_frame_size(file_name)
 
-    def load_frames(self, frames: list[int], files: Union[list[str], list[Path]],
+    def load_frames(self, frames: List[int], files: Union[List[str], List[Path]],
                     show_file_names: bool = False, show_progress: bool = True) -> np.ndarray:
         """
         Loads specified frames from specified files.
@@ -250,9 +250,9 @@ class ImageLoader:
                                        show_progress=show_progress)
 
     def load_volumes(self,
-                     frame_in_file: list[int],
-                     files: Union[list[str], list[Path]],
-                     volumes: list[int],
+                     frame_in_file: List[int],
+                     files: Union[List[str], List[Path]],
+                     volumes: List[int],
                      show_file_names: bool = False, show_progress: bool = True) -> np.ndarray:
         """
         Loads specified frames from specified files and shapes them into volumes.

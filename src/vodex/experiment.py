@@ -1,7 +1,7 @@
 import numpy as np
 import numpy.typing as npt
 from pathlib import Path
-from typing import Union
+from typing import Union, List
 import warnings
 
 from .core import VolumeManager, Annotation
@@ -28,7 +28,7 @@ class Experiment:
         self.loader = None
 
     @classmethod
-    def create(cls, volume_manager: VolumeManager, annotations: list[Annotation], verbose: bool = False):
+    def create(cls, volume_manager: VolumeManager, annotations: List[Annotation], verbose: bool = False):
         """
         Creates a database instance and initialises the experiment.
 
@@ -111,7 +111,7 @@ class Experiment:
 
         return frames
 
-    def choose_volumes(self, conditions: Union[tuple, list[tuple]], logic: str = "and", verbose: bool = False):
+    def choose_volumes(self, conditions: Union[tuple, List[tuple]], logic: str = "and", verbose: bool = False):
         """
         Selects only full volumes that correspond to specified conditions;
         Uses "or" or "and" between the conditions depending on logic.
@@ -147,7 +147,7 @@ class Experiment:
 
         return volumes
 
-    def load_volumes(self, volumes: list[int], verbose: bool = False) -> npt.NDArray:
+    def load_volumes(self, volumes: List[int], verbose: bool = False) -> npt.NDArray:
         """
         Load volumes. Will load the specified full volumes.
         All the returned volumes or slices should have the same number of frames in them.
@@ -191,7 +191,7 @@ class Experiment:
                           f"that don't correspond to a full volume.")
         return volume_list
 
-    def list_conditions_per_cycle(self, annotation_type: str, as_volumes: bool = True) -> (list[int], list[str]):
+    def list_conditions_per_cycle(self, annotation_type: str, as_volumes: bool = True) -> (List[int], List[str]):
         """
         Returns a list of conditions per cycle.
 
@@ -213,11 +213,11 @@ class Experiment:
                                                    " by setting as_volumes=False"
         else:
             _, condition_ids = self.db.get_conditionIds_per_cycle_per_frame(annotation_type)
-        names = self.db._get_Name_from_AnnotationTypeLabels()
+        names = self.db._get_Names_from_AnnotationTypeLabels()
 
         return condition_ids, names
 
-    def list_cycle_iterations(self, annotation_type: str, as_volumes: bool = True) -> list[int]:
+    def list_cycle_iterations(self, annotation_type: str, as_volumes: bool = True) -> List[int]:
         """
         Returns a list of cycle iteratoins.
 

@@ -169,12 +169,27 @@ class TestDbReader(unittest.TestCase):
         self.assertEqual(frame_in_file1, frame_in_file)
         self.assertEqual(volumes1, volumes)
 
-    def test__get_AnnotationLabelId(self):
+    def test__Id_from_AnnotationTypeLabels(self):
         db = DbReader.load(Path(TEST_DATA, "test.db"))
-        label_id = db._get_AnnotationLabelId(("shape", "c"))
+        label_id = db._get_Id_from_AnnotationTypeLabels(("shape", "c"))
         db.connection.close()
 
         self.assertEqual(label_id, 1)
+
+    def test__Ids_from_AnnotationTypeLabels(self):
+        db = DbReader.load(Path(TEST_DATA, "test.db"))
+        label_ids = db._get_Ids_from_AnnotationTypeLabels("light")
+        db.connection.close()
+        self.assertEqual(label_ids, [(7,), (6,)])
+
+    def test__get_AnnotationTypeLabelId_from_Annotations(self):
+        db = DbReader.load(Path(TEST_DATA, "test.db"))
+        label_ids = db.get_AnnotationTypeLabelId_from_Annotations("shape")
+        db.connection.close()
+        shape_ids = [1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+                     1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2,
+                     2, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1]
+        self.assertEqual(label_ids, shape_ids)
 
     def test__get_VolumeId_from_Volumes(self):
         frames1 = [1, 2, 3, 11, 12, 13]
@@ -239,20 +254,41 @@ class TestDbReader(unittest.TestCase):
 
         db.connection.close()
 
-#
-# class TestDbExporter(unittest.TestCase):
-#
-#     def test_reconstruct_file_manager(self):
-#         de = DbExporter.load(Path(TEST_DATA, "test.db"))
-#         fm = de.reconstruct_file_manager()
-#         print(fm)
-#
-#     def test_reconstruct_volume_manager(self):
-#         de = DbExporter.load(Path(TEST_DATA, "test.db"))
-#         vm = de.reconstruct_volume_manager()
-#         print(vm)
+
+class TestDbExporter(unittest.TestCase):
+
+    def test_reconstruct_file_manager(self):
+        de = DbExporter.load(Path(TEST_DATA, "test.db"))
+        fm = de.reconstruct_file_manager()
+        print(fm)
+
+    def test_reconstruct_volume_manager(self):
+        de = DbExporter.load(Path(TEST_DATA, "test.db"))
+        vm = de.reconstruct_volume_manager()
+        print(vm)
+
+    def test_reconstruct_annotations(self):
+        de = DbExporter.load(Path(TEST_DATA, "test.db"))
+        annotations = de.reconstruct_annotations()
+        print(annotations)
+
+    def test_reconstruct_labels(self):
+        de = DbExporter.load(Path(TEST_DATA, "test.db"))
+        labels = de.reconstruct_labels("light")
+        print(labels)
+
+    def test_reconstruct_cycle(self):
+        de = DbExporter.load(Path(TEST_DATA, "test.db"))
+        cycle = de.reconstruct_cycle("shape")
+        print(cycle)
+
+    def test_reconstruct_timeline(self):
+        de = DbExporter.load(Path(TEST_DATA, "test.db"))
+        group = "light"
+        labels = de.reconstruct_labels(group)
+        timeline = de.reconstruct_timeline(group, labels)
+        print(timeline)
 
 
 if __name__ == "__main__":
-    # TODO: test that lists for the db are true int all the time !!!!
     unittest.main()

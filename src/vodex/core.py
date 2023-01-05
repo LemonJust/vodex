@@ -31,7 +31,7 @@ The module contains the following classes:
 import json
 from itertools import groupby
 from pathlib import Path
-from typing import Union
+from typing import Union, List, Tuple
 
 import numpy as np
 
@@ -67,7 +67,7 @@ class FileManager:
     """
 
     def __init__(self, data_dir: Union[str, Path], file_type: str = "TIFF",
-                 file_names: list[str] = None, frames_per_file: list[int] = None):
+                 file_names: List[str] = None, frames_per_file: List[int] = None):
 
         # 1. get data_dir and check it exists
         self.data_dir: Path = Path(data_dir)
@@ -87,13 +87,13 @@ class FileManager:
         # TODO : check in accordance with the file extension/ figure out file type from files when provided
         if file_names is None:
             # if files are not provided , search for tiffs in the data_dir
-            self.file_names: list[str] = self.find_files(file_extensions)
+            self.file_names: List[str] = self.find_files(file_extensions)
         else:
             # if a list of files is provided, check it's in the folder
-            self.file_names: list[str] = self.check_files(file_names)
+            self.file_names: List[str] = self.check_files(file_names)
             if frames_per_file is not None:
                 # not recommended! this information is taken as is and is not verified...
-                self.num_frames: list[int] = frames_per_file
+                self.num_frames: List[int] = frames_per_file
 
         assert len(self.file_names) > 0, f"Error when initialising FileManager:\n" \
                                          f"No files of type {file_type} [extensions {file_extensions}]\n" \
@@ -105,7 +105,7 @@ class FileManager:
         # 4. Get number of frames per file (if it wasn't entered manually)
         if self.num_frames is None:
             # if number of frames not provided , search for tiffs in the data_dir
-            self.num_frames: list[int] = self.get_frames_per_file()
+            self.num_frames: List[int] = self.get_frames_per_file()
 
         # check that the type is int
         assert all(isinstance(n, (int, np.integer)) for n in self.num_frames), \
@@ -139,7 +139,7 @@ class FileManager:
             print(f"__eq__ is Not Implemented for {FileManager} and {type(other)}")
             return NotImplemented
 
-    def find_files(self, file_extensions: tuple[str]) -> list[str]:
+    def find_files(self, file_extensions: Tuple[str]) -> List[str]:
         """
         Searches for files ending with the provided file extension in the data directory.
 
@@ -153,7 +153,7 @@ class FileManager:
         file_names = [file.name for file in files]
         return file_names
 
-    def check_files(self, file_names: list[str]) -> list[str]:
+    def check_files(self, file_names: List[str]) -> List[str]:
         """
         Given a list of files checks that files are in the data directory.
         Throws an error if any of the files are missing.
@@ -170,7 +170,7 @@ class FileManager:
             assert file.is_file(), f"File {file} is not found"
         return file_names
 
-    def get_frames_per_file(self) -> list[int]:
+    def get_frames_per_file(self) -> List[int]:
         """
         Get the number of frames per file.
 
@@ -183,7 +183,7 @@ class FileManager:
             frames_per_file.append(n_frames)
         return frames_per_file
 
-    def change_files_order(self, order: list[int]) -> None:
+    def change_files_order(self, order: List[int]) -> None:
         """
         Changes the order of the files. If you notice that files are in the wrong order, provide the new order.
         If you wish to exclude any files, get rid of them ( don't include their IDs into the new order ).
@@ -308,12 +308,12 @@ class Labels:
     Attributes:
         group (str): the name of the group
         group_info (str): description of what this group is about. Just for storing the information.
-        state_names (list[str]): the state names
-        states (list[TimeLabel]): list of states, each state as a TimeLabel object
+        state_names (List[str]): the state names
+        states (List[TimeLabel]): list of states, each state as a TimeLabel object
 
     """
 
-    def __init__(self, group: str, state_names: list[str], group_info: str = None, state_info: dict = None):
+    def __init__(self, group: str, state_names: List[str], group_info: str = None, state_info: dict = None):
 
         if state_info is None:
             state_info = {}
@@ -368,7 +368,7 @@ class Cycle:
             Note that these are frames, not volumes !
     """
 
-    def __init__(self, label_order: list[TimeLabel], duration: Union[np.array, list[int]]):
+    def __init__(self, label_order: List[TimeLabel], duration: Union[np.array, List[int]]):
         # check that all labels are from the same group
         label_group = label_order[0].group
         for label in label_order:
@@ -401,7 +401,7 @@ class Cycle:
             print(f"__eq__ is Not Implemented for {Cycle} and {type(other)}")
             return NotImplemented
 
-    def get_label_per_frame(self) -> list[TimeLabel]:
+    def get_label_per_frame(self) -> List[TimeLabel]:
         """
         A list of labels per frame for one cycle only.
 
@@ -435,7 +435,7 @@ class Cycle:
         n_cycles = int(np.ceil(n_frames / self.full_length))
         return n_cycles
 
-    def fit_labels_to_frames(self, n_frames: int) -> list[TimeLabel]:
+    def fit_labels_to_frames(self, n_frames: int) -> List[TimeLabel]:
         """
         Create a list of labels corresponding to each frame in the range of n_frames
 
@@ -449,7 +449,7 @@ class Cycle:
         # crop the tail
         return list(label_per_frame_list[0:n_frames])
 
-    def fit_cycles_to_frames(self, n_frames: int) -> list[int]:
+    def fit_cycles_to_frames(self, n_frames: int) -> List[int]:
         """
         Create a list of integers (what cycle iteration it is) corresponding to each frame in the range of n_frames
 
@@ -497,7 +497,7 @@ class Timeline:
             frames, not volumes !
     """
 
-    def __init__(self, label_order: list[TimeLabel], duration: list[int]):
+    def __init__(self, label_order: List[TimeLabel], duration: List[int]):
 
         # check that all labels are from the same group
         label_group = label_order[0].group
@@ -531,7 +531,7 @@ class Timeline:
             print(f"__eq__ is Not Implemented for {Timeline} and {type(other)}")
             return NotImplemented
 
-    def get_label_per_frame(self) -> list[TimeLabel]:
+    def get_label_per_frame(self) -> List[TimeLabel]:
         """
         A list of labels per frame for the duration of the experiment.
 
@@ -564,6 +564,7 @@ class FrameManager:
 
     def __init__(self, file_manager: FileManager):
         self.file_manager = file_manager
+        self.n_frames: int = int(np.sum(self.file_manager.num_frames))
         self.frame_to_file, self.frame_in_file = self.get_frame_mapping()
 
     def __eq__(self, other):
@@ -584,7 +585,7 @@ class FrameManager:
         file_manager = FileManager(data_dir, file_names=file_names, frames_per_file=frames_per_file)
         return cls(file_manager)
 
-    def get_frame_mapping(self) -> (list[int], list[int]):
+    def get_frame_mapping(self) -> (List[int], List[int]):
         """
         Calculates frame range in each file and returns a file index for each frame and frame index in the file.
         Used to figure out in which stack the requested frames is.
@@ -655,8 +656,8 @@ class VolumeManager:
         self.n_tail: int = int(n_tail)
 
         # map frames to slices an full volumes:
-        self.frame_to_z: list[int] = self.get_frames_to_z_mapping()
-        self.frame_to_vol: list[int] = self.get_frames_to_volumes_mapping()
+        self.frame_to_z: List[int] = self.get_frames_to_z_mapping()
+        self.frame_to_vol: List[int] = self.get_frames_to_volumes_mapping()
 
     def __eq__(self, other):
         if isinstance(other, VolumeManager):
@@ -738,8 +739,8 @@ class Annotation:
         n_frames: total number of frames, will be inferred from frame_to_label if not provided
     """
 
-    def __init__(self, n_frames: int, labels: Labels, frame_to_label: list[TimeLabel], info: str = None,
-                 cycle: Cycle = None, frame_to_cycle: list[int] = None):
+    def __init__(self, n_frames: int, labels: Labels, frame_to_label: List[TimeLabel], info: str = None,
+                 cycle: Cycle = None, frame_to_cycle: List[int] = None):
 
         # get total experiment length in frames, check that it is consistent
         if frame_to_label is not None:

@@ -3,29 +3,11 @@ Tests for the `vodex.loaders` module.
 """
 import unittest
 import tifffile as tif
-import json
-import numpy as np
-
-from pathlib import Path
-import matplotlib.pyplot as plt
 
 from vodex import *
 
 package_dir = Path(__file__).parents[1]
 TEST_DATA = Path(package_dir, 'data', 'test')
-
-
-def plot_4_frames(f_img, test_function):
-    """
-    Plots frames. Must be frames number 1,2,41,42
-    Used in TestTiffLoader and TestImageLoader
-    """
-    # checking the exact frames
-    plt.figure(figsize=(4, 10), dpi=160)
-    plt.imshow(f_img.reshape((800, 200)))
-    plt.title(f"{test_function}:\n Must show frames\n1, 2, 41, 42")
-    plt.axis('off')
-    plt.show()
 
 
 class TestTiffLoader(unittest.TestCase):
