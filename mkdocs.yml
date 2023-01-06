@@ -1,12 +1,61 @@
 site_name: VoDEx Docs
-
+copyright: Copyright &copy; 2022 - 2023 Anna Nadtochiy
+repo_url: https://github.com/LemonJust/vodex
+repo_name: LemonJust/vodex
 theme:
-  name: "material"
+  name: material
+  icon:
+    logo: material/Home
+    repo: fontawesome/brands/github
+  features:
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.sections
+    - navigation.indexes
+    # Back-to-top button
+    - navigation.top
+    - toc.follow
+    - toc.integrate
+    # search
+    - search.suggest
+    - search.highlight
+    # footer
+    - navigation.footer
+  palette:
+    # Palette toggle for light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      toggle:
+        icon: material/toggle-switch
+        name: Switch to dark mode
+      primary: blue grey
+
+    # Palette toggle for dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle:
+        icon: material/toggle-switch
+        name: Switch to light mode
+      primary: black
 
 plugins:
   - mkdocstrings
+  - search
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/LemonJust
+      name: LemonJust on GitHub
+
+    - icon: fontawesome/brands/linkedin
+      link: https://www.linkedin.com/in/anna-nadtochiy/
+      name: LemonJust (Anna Nadtochiy) on LinkedIn
 
 nav:
+  - Home2:
+    - home/index.md
+    - Home: home/install.md
   - Home: index.md
   - tutorials.md
   - How-To Guides: how-to-guides.md
