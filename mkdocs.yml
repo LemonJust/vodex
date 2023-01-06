@@ -5,7 +5,7 @@ repo_name: LemonJust/vodex
 theme:
   name: material
   icon:
-    logo: material/Home
+    logo: material/home
     repo: fontawesome/brands/github
   features:
     - navigation.tabs
