@@ -41,7 +41,7 @@ Classes that help construct and store the time annotation:
 import json
 from itertools import groupby
 from pathlib import Path
-from typing import Union, List, Tuple
+from typing import Union, List, Tuple, Dict
 
 import numpy as np
 import numpy.typing as npt

@@ -181,7 +181,7 @@ class Experiment:
         data_dir, file_names, file_ids, frame_in_file, volumes = info
         # make full paths to files ( remember file ids start with 1 )
         files = [Path(data_dir, file_names[file_id - 1]) for file_id in file_ids]
-        if self.loader is None:
+        if not hasattr(self, "loader"):
             self.loader = ImageLoader(Path(data_dir, file_names[0]))
         volumes_img = self.loader.load_volumes(frame_in_file,
                                                files,

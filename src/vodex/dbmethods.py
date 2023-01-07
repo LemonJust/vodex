@@ -1,4 +1,4 @@
-from sqlite3 import connect
+from sqlite3 import connect, Connection
 
 from .core import *
 from .utils import list_of_int
@@ -15,7 +15,7 @@ class DbWriter:
         connection: connection to the SQL database
     """
 
-    def __init__(self, connection: sqlite3.Connection):
+    def __init__(self, connection: Connection):
         self.connection = connection
         self.connection.execute("PRAGMA foreign_keys = 1")
 
