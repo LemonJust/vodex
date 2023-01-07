@@ -15,7 +15,7 @@ class DbWriter:
         connection: connection to the SQL database
     """
 
-    def __init__(self, connection):
+    def __init__(self, connection: sqlite3.Connection):
         self.connection = connection
         self.connection.execute("PRAGMA foreign_keys = 1")
 

@@ -2,12 +2,12 @@
 This module contains core classes that load the data,
 preprocess the information about the experiment data and help construct time annotation.
 
-1. Core class that loads the image data:
+Core class that loads the image data:
 
 - `ImageLoader` - chooses appropriate loader based on the type of the imaging files,
                     collects information about the datatype, number of frames per file and loads data from files.
 
-2. Core classes that preprocess the information about the experiment data:
+Core classes that preprocess the information about the experiment data:
 
 - `FileManager` - a class containing information about the image files:
                     their location, file type, number of frames per file.
@@ -18,7 +18,7 @@ preprocess the information about the experiment data and help construct time ann
 - `VolumeManager` - a class containing information about the image volumes in the experiment:
                     frames per volume, number of full volumes, and mapping of the frames to volumes.
 
-3. Classes that help construct and store the time annotation:
+Classes that help construct and store the time annotation:
 
 - `TimeLabel` - Stores information about a particular time-located event during the experiment: any specific condition,
     described by a group and the label.
@@ -46,7 +46,7 @@ from typing import Union, List, Tuple
 import numpy as np
 import numpy.typing as npt
 
-from .loaders import *
+from .loaders import Loader, TiffLoader
 from .utils import list_of_int
 
 # If adding support to a new file type, add the info here!
@@ -339,7 +339,7 @@ class FileManager:
 
         Args:
             order: The new order in which the files follow. Refer to file by it's position in the original list.
-            Should be the same length as the number of files in the original list or smaller, no duplicates.
+                    Should be the same length as the number of files in the original list or smaller, no duplicates.
         """
         # TODO : test it
         assert len(order) <= self.n_files, \
@@ -401,7 +401,7 @@ class FrameManager:
             frames_per_file: number of frames in each file. Will be used ONLY if the file_names were provided.
 
         Returns:
-            Initialised FileManager object.
+            (FileManager): Initialised FileManager object.
         """
         file_manager = FileManager(data_dir, file_type=file_type,
                                    file_names=file_names, frames_per_file=frames_per_file)
@@ -546,7 +546,8 @@ class VolumeManager:
         return self.__str__()
 
     @classmethod
-    def from_dir(cls, data_dir, fpv, fgf=0, file_type='TIFF', file_names=None, frames_per_file=None):
+    def from_dir(cls, data_dir: Union[str, Path], fpv: int, fgf: int = 0, file_type: str = 'TIFF',
+                 file_names: List[str] = None, frames_per_file: List[int] = None):
         """
         Creates a VolumeManager object from directory.
 
@@ -561,7 +562,7 @@ class VolumeManager:
             frames_per_file: number of frames in each file. Will be used ONLY if the file_names were provided.
 
         Returns:
-            Initialised VolumeManager object.
+            (VolumeManager): Initialised VolumeManager object.
         """
         file_manager = FileManager(data_dir, file_type=file_type, file_names=file_names,
                                    frames_per_file=frames_per_file)
@@ -649,7 +650,7 @@ class TimeLabel:
 
         Returns:
             (TimeLabel): a TimeLabel object with attributes 'name', 'group', 'description'
-            filled from the dictionary fields.
+                    filled from the dictionary fields.
         """
         description = None
         group = None
@@ -662,7 +663,7 @@ class TimeLabel:
 
 class Labels:
     """
-    Stores information about a group of time labels: any specific aspect of the experiment that you want to document.
+    Stores information about a group of time labels. Any specific aspect of the experiment that you want to document.
         For example: temperature|light|sound|image on the screen|drug|behaviour ... etc.
 
     Args:
@@ -855,7 +856,7 @@ class Cycle:
         d = {'timing': self.duration, 'label_order': label_order}
         return d
 
-    def to_json(self):
+    def to_json(self) -> str:
         """
         Put all the information about a Cycle object into a json file.
 
@@ -873,8 +874,8 @@ class Cycle:
             d: dictionary to initialize the cycle.
 
         Returns:
-            (Cycle): a Cycle object with label_order and duration initialised from 'label_order' and
-            'timing' fields of the dictionary.
+            (Cycle): a Cycle object with label_order and duration initialized from 'label_order' and
+                    'timing' fields of the dictionary.
         """
         label_order = [TimeLabel.from_dict(ld) for ld in d['label_order']]
         return cls(label_order, d['timing'])
@@ -889,7 +890,7 @@ class Cycle:
 
         Returns:
             (Cycle): a Cycle object with label_order and duration initialised from 'label_order' and
-            'timing' fields of the json srting.
+                    'timing' fields of the json srting.
         """
         d = json.loads(j)
         return cls.from_dict(d)
@@ -1041,7 +1042,7 @@ class Annotation:
             cycle: the cycle to create annotation from
             info: a short description of the annotation
         Returns:
-            Annotation object
+            (Annotation): Annotation object
         """
         frame_to_label = cycle.fit_labels_to_frames(n_frames)
         frame_to_cycle = cycle.fit_cycles_to_frames(n_frames)
@@ -1059,7 +1060,7 @@ class Annotation:
             timeline: the timeline to create annotation from
             info: a short description of the annotation
         Returns:
-            Annotation object
+            (Annotation): Annotation object
         """
         assert n_frames == timeline.full_length, "number of frames and total timing should be the same"
         # make a fake cycle the length of the whole recording

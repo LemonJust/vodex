@@ -53,15 +53,15 @@ extra:
       name: LemonJust (Anna Nadtochiy) on LinkedIn
 
 nav:
-  - Home2:
-    - home/index.md
-    - Home: home/install.md
   - Home: index.md
   - tutorials.md
   - How-To Guides: how-to-guides.md
-  - 'User Guide':
-      - Overview: reference.md
-      - 'Loaders': loaders.md
-      - 'Core': core.md
-      - 'DataBase methods': dbmethods.md
+  - User Guide:
+      - user_guide/index.md
+      - Loaders: user_guide/loaders.md
+      - Core: user_guide/core.md
+      - DataBase methods: user_guide/dbmethods.md
+  - Napari:
+    - napari/index.md
+    - install: napari/install.md
   - explanation.md
