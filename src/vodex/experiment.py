@@ -1,21 +1,31 @@
+"""
+This module contains 'Experiment' class that summarises the information about the experiment from the File,
+    Frame and Volume managers and Annotations to create the data base. Saves or loads the database.
+    Searches the frames based on volumes/ annotations. Loads the image data using the appropriate loader.
+"""
+
 import numpy as np
 import numpy.typing as npt
 from pathlib import Path
-from typing import Union, List
+from typing import Union, List, Tuple
 import warnings
 
-from .core import VolumeManager, Annotation
-from .loaders import ImageLoader
+from .core import VolumeManager, Annotation, ImageLoader
 from .dbmethods import DbReader, DbWriter
 
 
 class Experiment:
     """
-    Information about the experiment.
-    Will use all the information you provided to figure out what frames to give you based on your request.
+    Summarises the information about the experiment from the File,
+    Frame and Volume managers and Annotations to create the data base. Saves or loads the database.
+    Searches the frames based on volumes/ annotations. Loads the image data using the appropriate ImageLoader.
 
     Args:
-        db_reader: a DbReader object connected to the database with the experiment description
+        db_reader: a DbReader object connected to the database with the experiment description.
+
+    Attributes:
+        db: a DbReader object connected to the database with the experiment description.
+        loader: an ImageLoader object to load metadata and image data from files.
     """
 
     def __init__(self, db_reader: DbReader):
@@ -25,17 +35,20 @@ class Experiment:
         self.db = db_reader
         # will add the loader the first time you are loading anything
         # in load_frames() or load_volumes()
-        self.loader = None
+        self.loader: ImageLoader
 
     @classmethod
     def create(cls, volume_manager: VolumeManager, annotations: List[Annotation], verbose: bool = False):
         """
-        Creates a database instance and initialises the experiment.
+        Creates a database instance from the core classes and initialises the experiment.
 
         Args:
-            volume_manager:
-            annotations:
-            verbose: whether to print the information about Filemanager, Volumemanager and Annotations on the screen.
+            volume_manager: VolumeManager object that summarises the information about the image data.
+            annotations: list of annotations to add to the experiment descriptions.
+            verbose: whether to print the information about Filemanager, VolumeManager and Annotations on the screen.
+
+        Returns:
+            (Experiment): initialised experiment.
         """
         if verbose:
             print(volume_manager.file_manager)
@@ -60,10 +73,10 @@ class Experiment:
         """
         DbWriter(self.db.connection).save(file_name)
 
-    def add_annotations(self, annotations: [Annotation]):
+    def add_annotations(self, annotations: List[Annotation]):
         """
         Adds annotations to existing experiment.
-        Does NOT save the changes to disc! run self.save() to save
+        Does NOT save the changes to disc! run self.save() to save.
 
         Args:
             annotations: a list of annotations to add to the database.
@@ -83,11 +96,13 @@ class Experiment:
 
         Args:
             file_name: full path to a file to database.
+        Return:
+            (Experiment): initialised experiment.
         """
         db_reader = DbReader.load(file_name)
         return cls(db_reader)
 
-    def choose_frames(self, conditions: [tuple], logic: str = "and"):
+    def choose_frames(self, conditions: Union[tuple, List[Tuple[str, str]]], logic: str = "and") -> List[int]:
         """
         Selects the frames that correspond to specified conditions;
         Uses "or" or "and" between the conditions depending on logic.
@@ -111,7 +126,8 @@ class Experiment:
 
         return frames
 
-    def choose_volumes(self, conditions: Union[tuple, List[tuple]], logic: str = "and", verbose: bool = False):
+    def choose_volumes(self, conditions: Union[tuple, List[Tuple[str, str]]], logic: str = "and",
+                       verbose: bool = False) -> List[int]:
         """
         Selects only full volumes that correspond to specified conditions;
         Uses "or" or "and" between the conditions depending on logic.
@@ -124,7 +140,7 @@ class Experiment:
                 and name is the name of the label of that annotation type. For example [('light', 'on'), ('shape','c')]
             logic: "and" or "or" , default is "and".
         Returns:
-            list of volumes and list of frame ids that were chosen.
+            list of volumes that were chosen.
             Remember that frame numbers start at 1, but volumes start at 0.
         """
         # TODO : make all indices start at 1 ?
@@ -191,7 +207,7 @@ class Experiment:
                           f"that don't correspond to a full volume.")
         return volume_list
 
-    def list_conditions_per_cycle(self, annotation_type: str, as_volumes: bool = True) -> (List[int], List[str]):
+    def list_conditions_per_cycle(self, annotation_type: str, as_volumes: bool = True) -> Tuple[List[int], List[str]]:
         """
         Returns a list of conditions per cycle.
 
@@ -219,7 +235,8 @@ class Experiment:
 
     def list_cycle_iterations(self, annotation_type: str, as_volumes: bool = True) -> List[int]:
         """
-        Returns a list of cycle iteratoins.
+        Returns a list of cycle iterations for a specified annotation.
+        The annotation must have been initialised from a cycle.
 
         Args:
             annotation_type: The name of the annotation for which to get the cycle iteratoins list
@@ -253,4 +270,5 @@ class Experiment:
         """
         Prints a detailed description of the experiment.
         """
+        # TODO : implement :)
         raise NotImplementedError

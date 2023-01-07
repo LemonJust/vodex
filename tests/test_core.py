@@ -184,7 +184,7 @@ class TestCycle(unittest.TestCase):
         self.assertNotEqual(cycle4, cycle1)
 
     def test_get_label_per_frame(self):
-        per_frame_label_list = self.shape_cycle.get_label_per_frame()
+        per_frame_label_list = self.shape_cycle._get_label_per_frame()
         self.assertEqual(per_frame_label_list, self.per_frame_label_list)
 
     def test_fit_frames(self):
@@ -242,7 +242,7 @@ class TestFrameManager(unittest.TestCase):
 
     def test_get_frame_mapping(self):
         frame_m = FrameManager(self.file_m)
-        frame_to_file, frame_in_file = frame_m.get_frame_mapping()
+        frame_to_file, frame_in_file = frame_m._get_frame_mapping()
 
         self.assertEqual(frame_to_file, self.frame_to_file)
         self.assertEqual(frame_in_file, self.frame_in_file)
@@ -273,11 +273,11 @@ class TestVolumeManager(unittest.TestCase):
                   0, 1]
 
     def test_get_frames_to_z_mapping(self):
-        frame_to_z = self.volume_m.get_frames_to_z_mapping()
+        frame_to_z = self.volume_m._get_frames_to_z_mapping()
         self.assertEqual(frame_to_z, self.frame_to_z)
 
     def test_get_frames_to_volumes_mapping(self):
-        frame_to_vol = self.volume_m.get_frames_to_volumes_mapping()
+        frame_to_vol = self.volume_m._get_frames_to_volumes_mapping()
         self.assertEqual(frame_to_vol, self.frame_to_vol)
 
     def test_from_dir(self):

@@ -11,13 +11,6 @@ class DbWriter:
     Writes information to the database.
     Database interface that abstracts the SQLite calls.
 
-    Learning resources:
-        sql:
-        https://www.devdungeon.com/content/python-sqlite3-tutorial
-        https://www.sqlitetutorial.net/sqlite-python/creating-tables/
-        try-catch :
-        https://softwareengineering.stackexchange.com/questions/64180/good-use-of-try-catch-blocks
-
     Args:
         connection: connection to the SQL database
     """
