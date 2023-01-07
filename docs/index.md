@@ -31,7 +31,7 @@ To get started with `VoDEx`,
 please see notebooks/examples in [How-To Guides](how-to-guides.md) or on [github](https://github.com/LemonJust/vodex).
 
 ## Reference
-[Reference](reference.md) contains the technical implementation of the `VoDEx` project code.
+[Reference](user_guide/index.md) contains the technical implementation of the `VoDEx` project code.
 
 ## License
 [MIT](https://choosealicense.com/licenses/mit/)
