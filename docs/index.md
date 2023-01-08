@@ -19,13 +19,6 @@ for easy inclusion into analysis pipelines.
   <img src="assets/cover.JPG" alt="cover" width="600"/>
 </p>
 
-## Installation
-
-Use the package manager [pip](https://pypi.org/project/vodex/) to install vodex.
-
-```bash
-pip install vodex
-```
 ## How-To Guides
 To get started with `VoDEx`,
 please see notebooks/examples in [How-To Guides](how-to-guides.md) or on [github](https://github.com/LemonJust/vodex).

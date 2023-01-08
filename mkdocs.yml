@@ -4,6 +4,7 @@ repo_url: https://github.com/LemonJust/vodex
 repo_name: LemonJust/vodex
 theme:
   name: material
+  favicon: img/icons8_layers.ico
   icon:
     logo: material/home
     repo: fontawesome/brands/github
@@ -22,6 +23,7 @@ theme:
     - search.highlight
     # footer
     - navigation.footer
+    - content.code.copy
   palette:
     # Palette toggle for light mode
     - media: "(prefers-color-scheme: light)"
@@ -43,6 +45,13 @@ plugins:
   - mkdocstrings
   - search
 
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+
 extra:
   social:
     - icon: fontawesome/brands/github
@@ -55,7 +64,8 @@ extra:
 
 nav:
   - Home: index.md
-  - tutorials.md
+  - Installation: install.md
+  - Quick Start: qstart/index.md
   - How-To Guides: how-to-guides.md
   - User Guide:
       - user_guide/index.md

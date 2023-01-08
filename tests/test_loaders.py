@@ -6,8 +6,8 @@ import tifffile as tif
 
 from vodex import *
 
-package_dir = Path(__file__).parents[1]
-TEST_DATA = Path(package_dir, 'data', 'test')
+# package_dir = Path(__file__).parents[1]
+# TEST_DATA = Path(package_dir, 'data', 'test')
 
 
 class TestTiffLoader(unittest.TestCase):
