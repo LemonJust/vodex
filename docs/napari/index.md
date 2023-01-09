@@ -22,4 +22,4 @@ Or through napari plugin manager.
 
 ## How-To Guide
 To get started with `napari_vodex` plugin,
-please see details and examples in [How-To Guide](napari/how-to.md).
+please see details and examples in [How-To Guide](https://lemonjust.github.io/vodex/napari/how-to/).
