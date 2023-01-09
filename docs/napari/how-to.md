@@ -1,34 +1,12 @@
-# napari_vodex: A napari plugin for VoDEx.
-A graphical interface for vodex is available as a napari plugin: [napari-vodex](https://www.napari-hub.org/plugins/napari-vodex#installation).
-It allows to create experimental annotation without any coding and to load volumetric data directly into napari viewer.
+# How-To Guide
 
-napari-vodex is written  using PyQt and the source code is available at [LemonJust/napari-vodex](https://github.com/LemonJust/napari-vodex)
+This folder contains instructions how to use napari-vodex.
 
-
-[![License BSD-3](https://img.shields.io/pypi/l/napari-vodex.svg?color=green)](https://github.com/LemonJust/napari-vodex/raw/main/LICENSE)
-[![PyPI](https://img.shields.io/pypi/v/napari-vodex.svg?color=green)](https://pypi.org/project/napari-vodex)
-[![Python Version](https://img.shields.io/pypi/pyversions/napari-vodex.svg?color=green)](https://python.org)
-[![tests](https://github.com/LemonJust/napari-vodex/workflows/tests/badge.svg)](https://github.com/LemonJust/napari-vodex/actions)
-[![codecov](https://codecov.io/gh/LemonJust/napari-vodex/branch/main/graph/badge.svg)](https://codecov.io/gh/LemonJust/napari-vodex)
-[![napari hub](https://img.shields.io/endpoint?url=https://api.napari-hub.org/shields/napari-vodex)](https://napari-hub.org/plugins/napari-vodex)
-
-## Installation
-
-You can install `napari-vodex` via [pip]:
-
-    pip install napari-vodex
-
-Or through napari plugin manager.
-
-## How-To Guide
-
-This section contains instructions how to use napari-vodex.
-
-### Launch napari-vodex
+# Launch napari-vodex
 
 After following the installation instructions, you should see napari-vodex in your napari under `Plugis --> Vodex Data Loader (napari-vodex)`. When you start it, it creates two buttons - `Load Saved Experiment` and `Create New Experiment`
 
-### Create New Experiment
+# Create New Experiment
 
 Let's create the annotation for the toy dataset. Hit `Create New Experiment`. It will initialize three tabs:
 
@@ -38,7 +16,7 @@ The **Time Annotation** tab will contain the information about the time annotati
 
 The **Load/Save Data** tab allows to load individual volumes: based on their ID or based on the time annotation and also allows to save experiment (the information from the **Image Data** and **Time Annotation** tabs) to a database for future use with vodex or napari-vodex.
 
-#### 1. Image Data
+## 1. Image Data
 
 Start with the Image Data tab.
 
@@ -57,7 +35,7 @@ Click `Save File Order` when you are done.
     The data used in these examples is a toy dataset, described in [Data](https://lemonjust.github.io/vodex/data/).
     Examples coming soon.
 
-#### 2. Time Annotation
+## 2. Time Annotation
 
 Switch to Time Annotation tab and click `Add annotation`. You will be asked to create an annotation name: this is the name of the phenomena that you are describing. It could be some kind of stimuli/ drug/ behaviour, etc. After you name the annotation, the tab to enter the labels and the actual annotation of your recording.
 
@@ -73,7 +51,7 @@ One experiment can have multiple annotations. Add as many annotations as you nee
 
     Examples coming soon.
 
-#### 3. Save Experiment to a DataBase
+## 3. Save Experiment to a DataBase
 
 Once you filled out the Image data information and added the annotations, you can save the experiment into a database.
 
@@ -84,15 +62,15 @@ Choose the folder and give your database a name (*.db).
     We recommend using a DB Browser to open the content of the database file.
 
 
-### Load Saved Experiment
+# Load Saved Experiment
 
 To load the experiment, choose `Load Saved Experiment` after launching napari-vodex. Then click the `Load` button to search for the saved database file. Vodex will load the experiment and fill out all the `Image Data` and `Time Annotation` information, that you can see in the corresponding tabs. You can edit and delete time annotations and add more. These changes will not be saved to the original file, remember to save the file to keep the changes.
 
-### Load Volumes into Napari Viewer
+# Load Volumes into Napari Viewer
 
 Finally, you can use napari-vodex to load volumes into napari. To do so you must have experiment created ( or loaded) and head to the `Load/Save Data` tab.
 
-#### Load based on volumes ID
+## Load based on volumes ID
 
 Volume IDs are simply the numbers in which they follow from the beginning of the recording. The volumes numbering starts with 0: the first full volume's ID is 0, the second volume's ID is 1, the third's ID is 2 , etc. Enter the IDs of the volumes at the `Volumes:` edit line on top of the tab and press `Load`. Vodex will load the requested volumes and name them with the same text that you used to request them.
 
@@ -104,7 +82,7 @@ Volume IDs are simply the numbers in which they follow from the beginning of the
 
     Examples coming soon.
 
-#### Load based on experimental conditions
+## Load based on experimental conditions
 
 To load volumes based on conditions, you must have at least one time annotation added to the experiment (make sure you pressed that `Add annotation to the experiment` button).
 

@@ -51,6 +51,9 @@ markdown_extensions:
   - pymdownx.inlinehilite
   - pymdownx.snippets
   - pymdownx.superfences
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
 
 extra:
   social:
@@ -66,13 +69,11 @@ nav:
   - Home: index.md
   - Installation: install.md
   - Quick Start: qstart/index.md
-  - How-To Guides: how-to-guides.md
   - User Guide:
       - user_guide/index.md
       - Loaders: user_guide/loaders.md
       - Core: user_guide/core.md
       - DataBase methods: user_guide/dbmethods.md
-  - Napari:
-    - napari/index.md
-    - install: napari/install.md
-  - explanation.md
+  - Tutorials: how-to-guides.md
+  - Data: data.md
+  - napari_vodex: napari/index.md
