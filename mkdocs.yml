@@ -44,6 +44,7 @@ theme:
 plugins:
   - mkdocstrings
   - search
+  - glightbox
 
 markdown_extensions:
   - pymdownx.highlight:
@@ -54,6 +55,9 @@ markdown_extensions:
   - admonition
   - pymdownx.details
   - pymdownx.superfences
+  # for image alignmnet
+  - attr_list
+  - md_in_html
 
 extra:
   social:
@@ -76,4 +80,6 @@ nav:
       - DataBase methods: user_guide/dbmethods.md
   - Tutorials: how-to-guides.md
   - Data: data.md
-  - napari_vodex: napari/index.md
+  - napari_vodex:
+      - napari/index.md
+      - How-To Guide: napari/how-to.md
