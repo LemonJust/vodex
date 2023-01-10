@@ -18,7 +18,7 @@ The **Load/Save Data** tab allows to load individual volumes: based on their ID 
 
 ![Image Data Tab](how-to/fig01.png){ align=right width=300 } Start with the Image Data tab.
 
-You can see an example of a fully filled out tab for the [Toy Dataset](/data) on the right. For more details on how it was filled out, see the expandable box at the bottom.
+You can see an example of a fully filled out tab for the [Toy Dataset](https://lemonjust.github.io/vodex/data/#toy-dataset) on the right. For more details on how it was filled out, see the expandable box at the bottom.
 
 1. Click `Browse` and choose the folder that contains your recording. The recording could be saved as multiple files.
 2. Choose `file type`. Currently only TIFF files are supported, but if you added the support to your type of files, as described in [Contributions](https://lemonjust.github.io/vodex/contributions/), your file type should appear here.
