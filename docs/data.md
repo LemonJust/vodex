@@ -41,7 +41,7 @@ The movie is split into **3 TIFF files**:
 | s | 10 frames |
 | c | 5 frames |
 
-![Toy Movie](assets/data_annotation_b.png){ align=left width=300}**3. light**: whether the background is bright or dark, with the light being **on** or **off** respectively. The light is off for the first 10 frames, then on for 20 frames and then off again for 12 frames.
+**3. light**: whether the background is bright or dark, with the light being **on** or **off** respectively. The light is off for the first 10 frames, then on for 20 frames and then off again for 12 frames.
 
 | light is a Timeline: |   |
 | ----- | -------- |
@@ -49,4 +49,4 @@ The movie is split into **3 TIFF files**:
 | on | 20 frames |
 | off | 12 frames |
 
-**<-- See a frame-by-frame labels in the image on the left [click on image to zoom in].**
+![Toy Movie](assets/data_annotation_b.png){ align=left width=300}**See a frame-by-frame labels in the image on the left [click on image to zoom in].**

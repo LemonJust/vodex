@@ -32,8 +32,7 @@ Click `Save File Order` when you are done.
 
 ??? example "Toy Dataset: Creating experiment"
 
-    The data used in these examples is a toy dataset, described in [Data](https://lemonjust.github.io/vodex/data/#toy-dataset).
-    Examples coming soon.
+    The data used in these examples is a toy dataset, described in [Data](https://lemonjust.github.io/vodex/data/#toy-dataset). You can download the toy dataset from [GitHub](https://github.com/LemonJust/vodex/tree/main/data/test/test_movie). To create an experiment, we click `Browse`, locate the folder with the three tif files. Choose TIFF from the `file type` drop down menu, and click `Fetch files`. The files are in the proper prder already, so we click `Save File Order`. We enter 10 for `frames per volume` and click `Save Volume Info`. You can see that the total number of frames is 42, which is correct, there are 4 volumes and 2 extra frames at the end, which is also correct. Finally, we click `Create Experiment`.  
 
 ### 2. Time Annotation
 
@@ -53,7 +52,7 @@ Remember that you **must press** the `Add annotation to the experiment` button t
 
 ??? example "Toy Dataset: Adding time annotation"
 
-    ![Time Annotation Tab](how-to/fig02bc.png){ align=right width=400 } The other two annotations for the toy experiment are on the right (click to expand).
+    ![Time Annotation Tab](how-to/fig02bc.png){ align=right width=400 } By following the [time annotation description, for the toy dataset](https://lemonjust.github.io/vodex/data/#time-annotation-structure), we fill out the three annotation types. The other two annotations for the toy experiment are on the right (click to expand).
 
 
 
