@@ -32,14 +32,14 @@ Click `Save File Order` when you are done.
 
 ??? example "Toy Dataset: Creating experiment"
 
-    The data used in these examples is a toy dataset, described in [Data](https://lemonjust.github.io/vodex/data/).
+    The data used in these examples is a toy dataset, described in [Data](https://lemonjust.github.io/vodex/data/#toy-dataset).
     Examples coming soon.
 
 ### 2. Time Annotation
 
 ![Time Annotation Tab](how-to/fig02.png){ align=right width=300 } Start with the Image Data tab. Switch to Time Annotation tab and click `Add annotation`. You will be asked to create an annotation name: this is the name of the phenomena that you are describing. It could be some kind of stimuli/ drug/ behaviour, etc. After you name the annotation, the tab to enter the labels and the actual annotation of your recording.
 
-You can see an example of a filled out tab for `light` annotation for the [Toy Dataset](/data) on the right. For more details on how it was filled out, see the expandable box at the bottom.
+You can see an example of a filled out tab for `light` annotation for the [Toy Dataset](https://lemonjust.github.io/vodex/data/#toy-dataset) on the right. For more details on how it was filled out, see the expandable box at the bottom.
 
 1. Click `Add label` to create a label. A label is a particular condition: a certain state of the phenomena that you are describing. Add as many labels as you need. Double click on the description cell to add the description for each label (optional). You can delete a line by selecting it and clicking `Delete selected`.
 
@@ -61,7 +61,7 @@ Remember that you **must press** the `Add annotation to the experiment` button t
 
 ![Time Annotation Tab](how-to/fig03.png){ align=right width=145} Once you filled out the Image data information and added the annotations, you can save the experiment into a database. While you don't have to save the experiment before loading the volumes, we highly recommend that you do so for your future reference, especially if you plan to use the volumes that were loaded with VoDEx in the subsequent analysis. This will give you the ability to come back to the annotation later and recheck that you did not make any mistakes.
 
-You can see an example of a `Load/Save Data` tab after we saved our [Toy Dataset](/data) annotation on the right [click on image to zoom in]. The bottom line shows the saved file location.
+You can see an example of a `Load/Save Data` tab after we saved our annotation on the right [click on image to zoom in]. The bottom line shows the saved file location.
 
 Go to the `Load/Save Data` tab and click `Save` button at the bottom.
 Choose the folder and give your database a name (*.db).
