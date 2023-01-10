@@ -1,4 +1,5 @@
 # napari_vodex: A napari plugin for VoDEx.
+
 A graphical interface for vodex is available as a napari plugin: [napari-vodex](https://www.napari-hub.org/plugins/napari-vodex#installation).
 It allows to create experimental annotation without any coding and to load volumetric data directly into napari viewer.
 
@@ -21,5 +22,6 @@ You can install `napari-vodex` via [pip]:
 Or through napari plugin manager.
 
 ## How-To Guide
+
 To get started with `napari_vodex` plugin,
 please see details and examples in [How-To Guide ](https://lemonjust.github.io/vodex/napari/how-to/).
