@@ -1,13 +1,14 @@
-import unittest
+"""
+Tests for the `vodex.experiment` module.
+"""
+import pytest
 import tifffile as tif
-
 from vodex import *
 
-package_dir = Path(__file__).parents[1]
-TEST_DATA = Path(package_dir, 'data', 'test')
+TEST_DATA = Path(Path(__file__).parent.resolve(), 'data')
 
 
-class TestExperiment(unittest.TestCase):
+class TestExperiment:
     # data to create an experiment
     data_dir_split = Path(TEST_DATA, "test_movie")
 
@@ -35,7 +36,7 @@ class TestExperiment(unittest.TestCase):
 
     def test_load(self):
         # not sure how to compare really
-        experiment = Experiment.load(Path(TEST_DATA, "test.db"))
+        Experiment.load(Path(TEST_DATA, "test.db"))
 
     def test_choose_frames(self):
         conditions1 = [("light", "on"), ("light", "off")]
@@ -80,30 +81,30 @@ class TestExperiment(unittest.TestCase):
         experiment = Experiment.load(Path(TEST_DATA, "test.db"))
 
         frames = experiment.choose_frames(conditions1, logic="and")
-        self.assertEqual(frames_and1, frames)
+        assert frames_and1 == frames
         frames = experiment.choose_frames(conditions2, logic="and")
-        self.assertEqual(frames_and2, frames)
+        assert frames_and2 == frames
         frames = experiment.choose_frames(conditions3, logic="and")
-        self.assertEqual(frames_and3, frames)
+        assert frames_and3 == frames
         frames = experiment.choose_frames(conditions4, logic="and")
-        self.assertEqual(frames_and4, frames)
+        assert frames_and4 == frames
         frames = experiment.choose_frames(conditions5, logic="and")
-        self.assertEqual(frames_and5, frames)
+        assert frames_and5 == frames
         frames = experiment.choose_frames(conditions6, logic="and")
-        self.assertEqual(frames_and6, frames)
+        assert frames_and6 == frames
 
         frames = experiment.choose_frames(conditions1, logic="or")
-        self.assertEqual(frames_or1, frames)
+        assert frames_or1 == frames
         frames = experiment.choose_frames(conditions2, logic="or")
-        self.assertEqual(frames_or2, frames)
+        assert frames_or2 == frames
         frames = experiment.choose_frames(conditions3, logic="or")
-        self.assertEqual(frames_or3, frames)
+        assert frames_or3 == frames
         frames = experiment.choose_frames(conditions4, logic="or")
-        self.assertEqual(frames_or4, frames)
+        assert frames_or4 == frames
         frames = experiment.choose_frames(conditions5, logic="or")
-        self.assertEqual(frames_or5, frames)
+        assert frames_or5 == frames
         frames = experiment.choose_frames(conditions6, logic="or")
-        self.assertEqual(frames_or6, frames)
+        assert frames_or6 == frames
 
     def test_choose_volumes(self):
         conditions1 = [("light", "on"), ("light", "off")]
@@ -131,30 +132,30 @@ class TestExperiment(unittest.TestCase):
         experiment = Experiment.load(Path(TEST_DATA, "test.db"))
 
         frames = experiment.choose_volumes(conditions1, logic="and")
-        self.assertEqual(volumes_and1, frames)
+        assert volumes_and1 == frames
         frames = experiment.choose_volumes(conditions2, logic="and")
-        self.assertEqual(volumes_and2, frames)
+        assert volumes_and2 == frames
         frames = experiment.choose_volumes(conditions3, logic="and")
-        self.assertEqual(volumes_and3, frames)
+        assert volumes_and3 == frames
         frames = experiment.choose_volumes(conditions4, logic="and")
-        self.assertEqual(volumes_and4, frames)
+        assert volumes_and4 == frames
         frames = experiment.choose_volumes(conditions5, logic="and")
-        self.assertEqual(volumes_and5, frames)
+        assert volumes_and5 == frames
         frames = experiment.choose_volumes(conditions6, logic="and")
-        self.assertEqual(volumes_and6, frames)
+        assert volumes_and6 == frames
 
         frames = experiment.choose_volumes(conditions1, logic="or")
-        self.assertEqual(volumes_or1, frames)
+        assert volumes_or1 == frames
         frames = experiment.choose_volumes(conditions2, logic="or")
-        self.assertEqual(volumes_or2, frames)
+        assert volumes_or2 == frames
         frames = experiment.choose_volumes(conditions3, logic="or")
-        self.assertEqual(volumes_or3, frames)
+        assert volumes_or3 == frames
         frames = experiment.choose_volumes(conditions4, logic="or")
-        self.assertEqual(volumes_or4, frames)
+        assert volumes_or4 == frames
         frames = experiment.choose_volumes(conditions5, logic="or")
-        self.assertEqual(volumes_or5, frames)
+        assert volumes_or5 == frames
         frames = experiment.choose_volumes(conditions6, logic="or")
-        self.assertEqual(volumes_or6, frames)
+        assert volumes_or6 == frames
 
     def test_load_volumes(self):
         volumes1 = [0, 1]
@@ -163,18 +164,12 @@ class TestExperiment(unittest.TestCase):
 
         experiment = Experiment.load(Path(TEST_DATA, "test.db"))
         volumes_img = experiment.load_volumes(volumes1)
-        volumes_0_1 = tif.imread(Path(TEST_DATA, "volumes_1_2.tif"))
-        self.assertTrue(np.all(np.equal(volumes_0_1, volumes_img)))
+        volumes_0_1 = tif.imread(Path(TEST_DATA, 'loader_test', "volumes_1_2.tif"))
+        assert (volumes_0_1 == volumes_img).all()
 
         volumes_img = experiment.load_volumes(volumes2)
-        volumes_tail = tif.imread(Path(TEST_DATA, "volumes_tail.tif"))
-        self.assertTrue(np.all(np.equal(volumes_tail, volumes_img)))
+        volumes_tail = tif.imread(Path(TEST_DATA, 'loader_test', "volumes_tail.tif"))
+        assert (volumes_tail == volumes_img).all()
 
-        with self.assertRaises(AssertionError):
+        with pytest.raises(AssertionError):
             experiment.load_volumes(volumes3)
-
-
-if __name__ == "__main__":
-    # TODO: test that lists for the db are true int all the time !!!!
-    print(TEST_DATA)
-    unittest.main()
