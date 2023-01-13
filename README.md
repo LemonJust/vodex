@@ -1,4 +1,4 @@
-# napari-vodex
+# VoDEx: Volumetric Data and Experiment manager
 
 [![License BSD-3](https://img.shields.io/pypi/l/vodex.svg?color=green)](https://github.com/LemonJust/vodex/raw/main/LICENSE)
 [![PyPI](https://img.shields.io/pypi/v/vodex.svg?color=green)](https://pypi.org/project/vodex)
