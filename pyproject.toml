@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 
 [tool.setuptools_scm]
-write_to = "src/napari_vodex/_version.py"
+write_to = "src/vodex/_version.py"
 
 [tool.black]
 line-length = 79
