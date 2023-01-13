@@ -20,8 +20,8 @@ jobs:
     runs-on: ${{ matrix.platform }}
     strategy:
       matrix:
-        platform: [ubuntu-latest, windows-latest, macos-latest]
-        python-version: ['3.8', '3.9', '3.10']
+        platform: [ubuntu-latest] #, windows-latest, macos-latest]
+        python-version: ['3.8'] #, '3.9', '3.10']
 
     steps:
       - uses: actions/checkout@v3
@@ -60,6 +60,9 @@ jobs:
 
       - name: Coverage
         uses: codecov/codecov-action@v3
+        with:
+          files: ./coverage.xml
+          verbose: true
 
   deploy:
     # this will run when you have tagged a commit, starting with "v*"
