@@ -291,15 +291,18 @@ class FileManager:
     def find_files(self, file_extensions: Tuple[str]) -> List[str]:
         """
         Searches for files ending with the provided file extension in the data directory.
+        Sorts the names alphabetically in ascending order (from A to Z),
+        sorting is case-insensitive (upper case letters are NOT prioritized).
 
         Args:
             file_extensions: extensions of files to search for
         Returns:
-            A list of file names. File names are with the extension, relative to the data directory
+            A sorted list of file names. File names are with the extension, relative to the data directory
             (names only, not full paths to files)
         """
         files = (p.resolve() for p in Path(self.data_dir).glob("**/*") if p.suffix in file_extensions)
         file_names = [file.name for file in files]
+        file_names.sort(key=str.lower)
         return file_names
 
     def check_files(self, file_names: List[str]) -> List[str]:
