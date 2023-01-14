@@ -12,6 +12,13 @@ There are the following tables:
 - `Volumes`: links each frame in the experiment (`FrameId`) to the volume (`VolumeId`) and a slice in that volume (`SliceInVolume`)
 - `CycleIterations`: links each frame in the experiment (`FrameId`) to the cycle (`CycleId`) and the iteration of that cycle (`CycleIteration`)
 - `Annotations`: links each frame in the experiment (`FrameId`) to the label (`AnnotationTypeLabelId`)
+- `Options`: stores some additional information as a `Key` - `Value` pair. Contains the following keys:
+    - `data_dir`: the directory with the image Files
+    - `frames_per_volume`: frames per volume parameter
+    - `num_head_frames`: number of frames at the beginning of the recording that do not form a full volume
+    - `num_tail_frames`: number of frames at the end of the recording that do not form a full volume
+    - `num_full_volumes`: number of full volumes in the recording
+
 
 See diagram for more details.
 
