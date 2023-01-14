@@ -1,3 +1,12 @@
+"""
+This module contains classes that interact with the database.
+
+- `DbWriter` - writes information to the database. Database interface that abstracts the SQLite calls.
+
+- `DbReader` - reads information from the database. Database interface that abstracts the SQLite calls.
+
+- `DbExporter` - Transforms the information from the database into the core classes.
+"""
 from sqlite3 import connect, Connection
 
 from .core import *
