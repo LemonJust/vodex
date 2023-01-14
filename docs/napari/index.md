@@ -21,7 +21,7 @@ You can install `napari-vodex` via [pip]:
 
 Or through napari plugin manager.
 
-## How-To Guide
+## Usage
 
 To get started with `napari_vodex` plugin,
-please see details and examples in [How-To Guide ](https://lemonjust.github.io/vodex/napari/how-to/).
+please see details and examples in [Usage](https://lemonjust.github.io/vodex/napari/how-to/).

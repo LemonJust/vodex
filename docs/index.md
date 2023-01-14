@@ -1,4 +1,4 @@
-# VoDEx: <u>Vo</u>lumetric <u>D</u>ata and <u>Ex</u>periment Manager
+# <u>VoDEx</u>: <u>Vo</u>lumetric <u>D</u>ata and <u>Ex</u>periment Manager
 
 Recent advances in fluorescent microscopy and genetically-encoded calcium indicators made it possible
 to acquire large-scale 3D-time series datasets of brain activity. During these recordings, experimental
@@ -19,12 +19,22 @@ for easy inclusion into analysis pipelines.
   <img src="assets/cover.JPG" alt="cover" width="600"/>
 </p>
 
-## How-To Guides
+## Quick Start
 To get started with `VoDEx`,
-please see notebooks/examples in [How-To Guides](how-to-guides.md) or on [github](https://github.com/LemonJust/vodex).
+please see [Quick Start](https://lemonjust.github.io/vodex/qstart/) and [Examples](https://lemonjust.github.io/vodex/examples/).
 
-## Reference
-[Reference](user_guide/index.md) contains the technical implementation of the `VoDEx` project code.
+## API Reference
+[API](https://lemonjust.github.io/vodex/api/) contains the technical implementation of the `VoDEx` project code.
+
+## Contributing
+
+Contributions are very welcome. Please see [Contributions](https://lemonjust.github.io/vodex/contribute/) for more details.
+
+## Data
+
+Some toy datasets are available in [Data](https://lemonjust.github.io/vodex/data/).
 
 ## License
-[MIT](https://choosealicense.com/licenses/mit/)
+
+Distributed under the terms of the [BSD-3] license,
+`vodex` is free and open source software

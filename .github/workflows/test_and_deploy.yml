@@ -22,6 +22,8 @@ jobs:
       matrix:
         platform: [ubuntu-latest, windows-latest, macos-latest]
         python-version: ['3.8', '3.9', '3.10']
+    # only run the tests when pushing to PYPI
+    if: contains(github.ref, 'tags')
 
     steps:
       - uses: actions/checkout@v3

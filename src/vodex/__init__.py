@@ -15,6 +15,3 @@ from .loaders import *
 from .core import *
 from .dbmethods import *
 from .experiment import *
-
-# Version of the vodex package
-__version__ = "1.0.7"

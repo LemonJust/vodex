@@ -21,7 +21,7 @@ The **Load/Save Data** tab allows to load individual volumes: based on their ID 
 You can see an example of a fully filled out tab for the [Toy Dataset](https://lemonjust.github.io/vodex/data/#toy-dataset) on the right. For more details on how it was filled out, see the expandable box at the bottom.
 
 1. Click `Browse` and choose the folder that contains your recording. The recording could be saved as multiple files.
-2. Choose `file type`. Currently only TIFF files are supported, but if you added the support to your type of files, as described in [Contributions](https://lemonjust.github.io/vodex/contributions/), your file type should appear here.
+2. Choose `file type`. Currently only TIFF files are supported, but if you added the support to your type of files, as described in [Contributions](https://lemonjust.github.io/vodex/contribute/), your file type should appear here.
 3. Hit `Fetch files`. Vodex will search the directory for the files of the type that you choose. The files will appear in the window below.
 4. **Inspect the files carefully!** The files appear in the order (top to bottom) in which they will be read by vodex. It is very important that they are in the correct order, or the rest of the annotations will be off. You can `drag the files to change the order` and delete the files that you don't want by clicking `Delete File` with a file selected.
 Click `Save File Order` when you are done.
@@ -66,7 +66,7 @@ Go to the `Load/Save Data` tab and click `Save` button at the bottom.
 Choose the folder and give your database a name (*.db).
 ??? tip "How to explore the DataBase content"
 
-    The DataBase is using SQLite and we recommend using a [DB Browser for SQLite](https://sqlitebrowser.org/) to explore the DataBase content. It is also a good place to test out your queries if you want to add some functionality to the vodex [dbmethods module](user_guide/dbmethods.md).
+    The DataBase is using SQLite and we recommend using a [DB Browser for SQLite](https://sqlitebrowser.org/) to explore the DataBase content. It is also a good place to test out your queries if you want to add some functionality to the vodex [dbmethods module](https://lemonjust.github.io/vodex/api/dbmethods/).
 
 
 ## Load Saved Experiment

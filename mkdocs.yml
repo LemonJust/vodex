@@ -73,14 +73,21 @@ extra:
 nav:
   - Home: index.md
   - Installation: install.md
-  - Quick Start: qstart/index.md
-  - User Guide:
-      - user_guide/index.md
-      - Loaders: user_guide/loaders.md
-      - Core: user_guide/core.md
-      - DataBase methods: user_guide/dbmethods.md
-  - Tutorials: how-to-guides.md
+  - Quick Start:
+      - qstart/index.md
+      - Create Experiment: qstart/new_experiment.md
+      - Load Experiment: qstart/load_experiment.md
+      - Load Volumes: qstart/load_volumes.md
+  - API:
+      - api/index.md
+      - Loaders: api/loaders.md
+      - Core: api/core.md
+      - Experiment: api/experiment.md
+      - DataBase methods: api/dbmethods.md
+  - Examples: examples.md
+  - Database: db.md
+  - Contributions: contribute.md
   - Data: data.md
   - napari_vodex:
       - napari/index.md
-      - How-To Guide: napari/how-to.md
+      - Usage: napari/how-to.md

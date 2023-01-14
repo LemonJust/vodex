@@ -271,7 +271,7 @@ class FileManager:
         return description
 
     def __repr__(self):
-        return self.__str__
+        return self.__str__()
 
     def __eq__(self, other):
         if isinstance(other, FileManager):
@@ -441,8 +441,8 @@ class FrameManager:
 
 class VolumeManager:
     """
-    A class containing information about the image volumes in the experiment:
-                    frames per volume, number of full volumes, and mapping of the frames to volumes.
+    A class containing information about the image volumes in the experiment: frames per volume,
+    number of full volumes, and mapping of the frames to volumes.
 
     Args:
         fpv: frames per volume, number of frames in one volume
