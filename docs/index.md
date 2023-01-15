@@ -1,5 +1,12 @@
 # <u>VoDEx</u>: <u>Vo</u>lumetric <u>D</u>ata and <u>Ex</u>periment Manager
 
+[![License BSD-3](https://img.shields.io/pypi/l/vodex.svg?color=green)](https://github.com/LemonJust/vodex/raw/main/LICENSE)
+[![PyPI](https://img.shields.io/pypi/v/vodex.svg?color=green)](https://pypi.org/project/vodex)
+[![Python Version](https://img.shields.io/pypi/pyversions/vodex.svg?color=green)](https://python.org)
+[![tests](https://github.com/LemonJust/vodex/workflows/tests/badge.svg)](https://github.com/LemonJust/vodex/actions)
+[![codecov](https://codecov.io/gh/LemonJust/vodex/branch/main/graph/badge.svg)](https://codecov.io/gh/LemonJust/vodex)
+[![napari hub](https://img.shields.io/endpoint?url=https://api.napari-hub.org/shields/napari-vodex)](https://napari-hub.org/plugins/napari-vodex)
+
 Recent advances in fluorescent microscopy and genetically-encoded calcium indicators made it possible
 to acquire large-scale 3D-time series datasets of brain activity. During these recordings, experimental
 conditions can vary: subjects can be presented with different stimuli and/or demonstrate different
