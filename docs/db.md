@@ -22,4 +22,4 @@ There are the following tables:
 
 See diagram for more details.
 
-You can explore each table in more details using the [database for the Toy Dataset]([GitHub](https://github.com/LemonJust/vodex/blob/main/src/vodex/_tests/data/test.db)). We recommend using a [DB Browser for SQLite](https://sqlitebrowser.org/) to explore the database content. It is also a good place to test out your queries if you want to add some functionality to the [dbmethods module](https://lemonjust.github.io/vodex/api/dbmethods/).
+You can explore each table in more details using the [database for the Toy Dataset](https://github.com/LemonJust/vodex/blob/main/src/vodex/_tests/data/test.db). We recommend using a [DB Browser for SQLite](https://sqlitebrowser.org/) to explore the database content. It is also a good place to test out your queries if you want to add some functionality to the [dbmethods module](https://lemonjust.github.io/vodex/api/dbmethods/).
