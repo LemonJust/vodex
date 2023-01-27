@@ -1,42 +1,23 @@
 """
-This module contains core classes that load the data,
-preprocess the information about the experiment data and help construct time annotation.
+This module provides the core classes for loading, preprocessing, and constructing time annotations for imaging data.
 
-Core class that loads the image data:
+'ImageLoader' is the core class that loads the image data and selects the appropriate loader based on the file type. It
+also collects information about the data type and number of frames per file.
 
-- `ImageLoader` - chooses appropriate loader based on the type of the imaging files,
-                    collects information about the datatype, number of frames per file and loads data from files.
+'FileManager', 'FrameManager', and 'VolumeManager' are core classes that preprocess information about the experiment
+data. The 'FileManager' class contains information about the location and file type of the image files,
+while the 'FrameManager' class contains information about the number of frames in the experiment and the mapping of
+frames to files. The 'VolumeManager' class contains information about the image volumes in the experiment,
+including the number of frames per volume and the mapping of frames to volumes.
 
-Core classes that preprocess the information about the experiment data:
-
-- `FileManager` - a class containing information about the image files:
-                    their location, file type, number of frames per file.
-
-- `FrameManager` - a class containing information about the image frames in the experiment:
-                    total number of frames, and mapping of the frames to files.
-
-- `VolumeManager` - a class containing information about the image volumes in the experiment:
-                    frames per volume, number of full volumes, and mapping of the frames to volumes.
-
-Classes that help construct and store the time annotation:
-
-- `TimeLabel` - Stores information about a particular time-located event during the experiment: any specific condition,
-    described by a group and the label.
-    For example: group 'light', label 'on': the light was on; group 'light', label 'off': the light was off.
-
-- `Labels` - Stores information about a group of time labels: any specific aspect of the experiment that you want to document.
-        For example: temperature|light|sound|image on the screen|drug|behaviour ... etc.
-
-- `Cycle` - Stores and preprocesses information about the repeated cycle of labels.
-    Use it to create annotation when you have some periodic conditions.
-    For example: light on for 10 frames, light off for 20 frames, light on for 10 frames... and so on.
-
-- `Timeline` - Stores and preprocesses information about the sequence of labels.
-    Use it to create annotation when you have some non-periodic conditions.
-    For example: light on for 10 frames, light off for 20 frames, light on for 25 frames.
-
-- `Annotation` - Stores and preprocesses information about the time annotation of the experiment.
-    Uses Cycle or Timeline to initialise the annotation.
+'TimeLabel', 'Labels', 'Cycle', 'Timeline', and 'Annotation' classes help to construct and store time annotations. The
+'TimeLabel' class stores information about specific time-located events during the experiment, such as a specific
+condition described by a group and label. The 'Labels' class stores information about a group of time labels,
+such as temperature, light, sound, image on the screen, drug, or behavior. The 'Cycle' class stores and preprocesses
+information about repeated cycles of labels, useful for creating annotations for periodic conditions. The 'Timeline'
+class stores and preprocesses information about the sequence of labels, useful for creating annotations for
+non-periodic conditions. Finally, the 'Annotation' class stores and preprocesses information about the time annotation
+of the experiment; it uses either the 'Cycle' or 'Timeline' classes to initialize the annotation.
 """
 import json
 from itertools import groupby
@@ -49,44 +30,50 @@ import numpy.typing as npt
 from .loaders import Loader, TiffLoader
 from .utils import list_of_int
 
-# If adding support to a new file type, add the info here!
+# This section of the code is related to adding support for new file types. ___________________________________________
 
-# A list of supported formats. Create mapping from file formats to loaders.
-# (Currently only supports files with tif extensions)
-# Expand this dictionary to add support for other file formats.
-# 1. *.tif and *.tiff support is implemented using tifffile package
-# 2. ...
-
-# dictionary that contains the supported file types and corresponding extensions
-# please add extensions as tuples, even if is a single entry ( Ex. : { ... , 'MyFileType': ('.mytag') } ):
+# 'VX_SUPPORTED_TYPES' is a dictionary that lists the supported file formats and their corresponding extensions.
+# Currently, only files in TIFF format are supported using the tifffile package.
+# To add support for other file formats, additional entries should be added to this dictionary in the form of
+# 'FileType': ('.extension') or 'FileType': ('.extension1', '.extension2', '.extension3').
 VX_SUPPORTED_TYPES: Dict[str, tuple] = {'TIFF': ('.tif', '.tiff')}
 
-# dictionary that contains the supported file suffixes types and corresponding file types
-# please add extensions for each suffix individually:
+# 'VX_EXTENSION_TO_TYPE' is a dictionary that maps file extensions to their corresponding file formats.
+# For example, it maps the '.tif' and '.tiff' extensions to the 'TIFF' file type.
+# To add support for other file formats, additional entries should be added to this dictionary in the form of
+# 'extension': 'FileType' or 'extension1': 'FileType', 'extension2': 'FileType', 'extension3': 'FileType'.
 VX_EXTENSION_TO_TYPE: Dict[str, str] = {'tif': 'TIFF', 'tiff': 'TIFF'}
 
-# dictionary that contains the supported file suffixes types and corresponding loader classes
-# please add extensions for each suffix individually:
+# 'VX_EXTENSION_TO_LOADER' is a dictionary that maps file extensions to the corresponding loader classes. For example,
+# it maps the '.tif' and '.tiff' extensions to the TiffLoader class.
+# To add support for other file formats, additional entries should be added to this dictionary in the form of
+# 'extension': 'LoaderClass' or 'extension1': 'LoaderClass', 'extension2': 'LoaderClass', 'extension3': 'LoaderClass'.
 VX_EXTENSION_TO_LOADER: Dict[str, type] = {'tif': TiffLoader, 'tiff': TiffLoader}
+
+# _____________________________________________________________________________________________________________________
 
 
 class ImageLoader:
     """
-    Chooses appropriate loader based on the type of the imaging files,
-    collects information about the datatype, number of frames per file and loads data from files.
+    The 'ImageLoader' class is responsible for choosing the appropriate loader for a given imaging file, collecting
+    information about the data type, number of frames per file, and loading data from files.
 
     Args:
-        file_example : the path to a file example (one file from the whole dataaset).
-            needed to get file type and initialise the corresponding data loader.
+        file_example : The path to a file example (one file from the whole dataset).
+                    This is used to determine the file type and initialize the corresponding data loader.
 
     Attributes:
-        supported_extensions: list of all the supported file extensions.
-        file_extension: the file extension of the provided file example.
-        loader: a loader class initialised using the file example.
+        supported_extensions: A list of all the supported file extensions.
+        file_extension: The file extension of the provided file example.
+        loader:  The loader class initialized using the file example.
 
     """
 
     def __init__(self, file_example: Path):
+        """
+        Initializes the ImageLoader class by determining the file extension, checking that it is a supported format,
+        and initializing the appropriate loader class.
+        """
 
         self.supported_extensions: List[str] = list(VX_EXTENSION_TO_LOADER.keys())
         # suffix has the dot at the beginning, need to strip
@@ -101,6 +88,9 @@ class ImageLoader:
         self.loader: Loader = VX_EXTENSION_TO_LOADER[self.file_extension](file_example)
 
     def __eq__(self, other):
+        """
+        Compares two ImageLoader instances to see if they are equal.
+        """
         if isinstance(other, ImageLoader):
             is_same = [
                 self.supported_extensions == other.supported_extensions,
@@ -126,7 +116,7 @@ class ImageLoader:
 
     def get_frame_size(self, file_name: Union[str, Path]) -> Tuple[int, int]:
         """
-        Gets frame size ( height , width ) from an image files.
+        Returns the size of an individual frame in pixels (height and width).
 
         Args:
             file_name: the path to the file to get the size of the frame for.
@@ -138,7 +128,7 @@ class ImageLoader:
     def load_frames(self, frames: List[int], files: Union[List[str], List[Path]],
                     show_file_names: bool = False, show_progress: bool = True) -> npt.NDArray:
         """
-        Loads specified frames from specified files.
+         Loads specified frames from specified files, and returns as a 3D array of shape (n_frames, height, width).
 
         Args:
             frames: list of frames IN FILES to load.
@@ -160,7 +150,8 @@ class ImageLoader:
                      volumes: List[int],
                      show_file_names: bool = False, show_progress: bool = True) -> npt.NDArray:
         """
-        Loads specified frames from specified files and shapes them into volumes.
+         Loads specific volumes of data, where a volume is defined as a set of frames.
+         This method returns a 4D array of shape (n_volumes, n_frames_per_volume, height, width).
 
         Args:
             frame_in_file: list of frames IN FILES to load
@@ -174,9 +165,6 @@ class ImageLoader:
         Returns:
             4D array of shape (number of volumes, zslices, height, width)
         """
-        # TODO : do I need to check anything else here???
-        #  Like that the frames are in increasing order per file
-        #  ( maybe not here but in the experiment ,before we turn them into frames_in_file )
         # get frames and info
         frames = self.loader.load_frames(frame_in_file, files,
                                          show_file_names=show_file_names,
@@ -185,7 +173,7 @@ class ImageLoader:
 
         # get volume information
         i_volume, count = np.unique(volumes, return_counts=True)
-        # you can use this method to load portions of the volumes, so fpv will be smaller
+        # you can use this method to load portions of the volumes (slices), so fpv will be smaller than a full volume
         n_volumes, fpv = len(i_volume), count[0]
         assert np.all(count == fpv), "Can't have different number of frames per volume!"
 
@@ -195,11 +183,13 @@ class ImageLoader:
 
 class FileManager:
     """
-    A class containing information about the image files: their location, file type, number of frames per file.
-    Collects and stores the information about all the image files.
-    By default, it will search for all the files with the provided file extension
-    in the provided data director and order them alphabetically.
-    If a list of file names is provided, will use these files in the provided order.
+    The 'FileManager' class is used to collect and store information about image files, including their location,
+    file type, and number of frames per file. It can either search for all files with a specific file extension in a
+    provided data directory (order them alphabetically), or use a provided list of file names (in the provided order).
+    The class initializes an 'ImageLoader' to calculate the number of frames per file if it is not provided.
+
+    The class raises an error if the data directory does not exist, no files of the specified file type are found,
+    or if the number of frames per file is not provided or is not a list of integers.
 
     Args:
         data_dir: path to the folder with the files, ends with "/" or "\\"
@@ -210,7 +200,6 @@ class FileManager:
     Attributes:
         data_dir: the directory with all the imaging data
         file_names: names of files relative to the data_dir
-        loader: initialised image loader (see loaders.ImageLoader for more details)
         num_frames: a number of frames per file
         n_files: total number of image files
     """
@@ -222,14 +211,17 @@ class FileManager:
         self.data_dir: Path = Path(data_dir)
         assert self.data_dir.is_dir(), f"No directory {self.data_dir}"
 
-        # 2. get files
+        # 2. get files and file type
         if file_names is not None:
             tags = [name.split(".")[-1] for name in file_names]
             # check that all the elements of the list are same
-            assert len(set(tags)) == 1, "Error initializing FileManager: " \
-                                        f"file_names must be files with the same resolution, but got {set(tags)}"
+            assert len(set(tags)) == 1, f"File_names must be files with the same extension, " \
+                                        f"but got {', '.join(set(tags))}"
+            assert tags[0] in VX_EXTENSION_TO_TYPE, f'Extension "{tags[0]}" is not supported.'
             file_type = VX_EXTENSION_TO_TYPE[tags[0]]
+
         self.file_type = file_type
+        assert self.file_type in VX_SUPPORTED_TYPES, f'File type "{self.file_type}" is not supported.'
         file_extensions = VX_SUPPORTED_TYPES[self.file_type]
 
         self.num_frames = None
@@ -244,23 +236,32 @@ class FileManager:
                 # not recommended! this information is taken as is and is not verified...
                 self.num_frames: List[int] = frames_per_file
 
-        assert len(self.file_names) > 0, f"Error when initialising FileManager:\n" \
-                                         f"No files of type {file_type} [extensions {file_extensions}]\n" \
+        assert len(self.file_names) > 0, f"No files of type {file_type} [extensions {file_extensions}]\n" \
                                          f" in {data_dir}"
-        # 3. Initialise ImageLoader
-        #    will pick the image loader that works with the provided file type
-        self.loader: ImageLoader = ImageLoader(self.data_dir.joinpath(self.file_names[0]))
 
-        # 4. Get number of frames per file (if it wasn't entered manually)
+        # 3. Get number of frames per file (if it wasn't entered manually)
         if self.num_frames is None:
             # if number of frames not provided , search for tiffs in the data_dir
             self.num_frames: List[int] = self.get_frames_per_file()
 
-        # check that the type is int
-        assert all(isinstance(n, (int, np.integer)) for n in self.num_frames), \
-            "self.num_frames should be a list of int"
-
         self.n_files: int = len(self.file_names)
+
+    def __eq__(self, other):
+        """
+        Compares two FileManager instances to see if they are equal.
+        """
+        if isinstance(other, FileManager):
+            is_same = [
+                self.data_dir == other.data_dir,
+                self.file_names == other.file_names,
+                self.num_frames == other.num_frames,
+                self.n_files == other.n_files
+            ]
+
+            return np.all(is_same)
+        else:
+            print(f"__eq__ is Not Implemented for {FileManager} and {type(other)}")
+            return NotImplemented
 
     def __str__(self):
         description = f"Image files information :\n\n"
@@ -272,21 +273,6 @@ class FileManager:
 
     def __repr__(self):
         return self.__str__()
-
-    def __eq__(self, other):
-        if isinstance(other, FileManager):
-            is_same = [
-                self.data_dir == other.data_dir,
-                self.file_names == other.file_names,
-                self.loader == other.loader,
-                self.num_frames == other.num_frames,
-                self.n_files == other.n_files
-            ]
-
-            return np.all(is_same)
-        else:
-            print(f"__eq__ is Not Implemented for {FileManager} and {type(other)}")
-            return NotImplemented
 
     def find_files(self, file_extensions: Tuple[str]) -> List[str]:
         """
@@ -300,7 +286,7 @@ class FileManager:
             A sorted list of file names. File names are with the extension, relative to the data directory
             (names only, not full paths to files)
         """
-        files = (p.resolve() for p in Path(self.data_dir).glob("**/*") if p.suffix in file_extensions)
+        files = (p.resolve() for p in Path(self.data_dir).glob('*') if p.suffix in file_extensions)
         file_names = [file.name for file in files]
         file_names.sort(key=str.lower)
         return file_names
@@ -330,8 +316,11 @@ class FileManager:
             a list with number of frames per file.
         """
         frames_per_file = []
+        #    Initialise ImageLoader:
+        #    will pick the image loader that works with the provided file type
+        loader: ImageLoader = ImageLoader(self.data_dir.joinpath(self.file_names[0]))
         for file in self.file_names:
-            n_frames = self.loader.get_frames_in_file(self.data_dir.joinpath(file))
+            n_frames = loader.get_frames_in_file(self.data_dir.joinpath(file))
             frames_per_file.append(n_frames)
         return frames_per_file
 
@@ -344,11 +333,12 @@ class FileManager:
             order: The new order in which the files follow. Refer to file by it's position in the original list.
                     Should be the same length as the number of files in the original list or smaller, no duplicates.
         """
-        # TODO : test it
         assert len(order) <= self.n_files, \
             "Number of files is smaller than elements in the new order list! "
         assert len(order) == len(set(order)), \
             "All elements in the new order list must be unique! "
+        assert set(order).issubset(list(range(self.n_files))), \
+            f"All elements in the new order list must be present in the original order: {list(range(self.n_files))}! "
 
         self.file_names = [self.file_names[i] for i in order]
         self.num_frames = [self.num_frames[i] for i in order]

@@ -7,20 +7,11 @@
 [![codecov](https://codecov.io/gh/LemonJust/vodex/branch/main/graph/badge.svg)](https://codecov.io/gh/LemonJust/vodex)
 [![napari hub](https://img.shields.io/endpoint?url=https://api.napari-hub.org/shields/napari-vodex)](https://napari-hub.org/plugins/napari-vodex)
 
-Recent advances in fluorescent microscopy and genetically-encoded calcium indicators made it possible
-to acquire large-scale 3D-time series datasets of brain activity. During these recordings, experimental
-conditions can vary: subjects can be presented with different stimuli and/or demonstrate different
-behavior. It is then required to annotate the data based on these experimental conditions and select the
-recording time of interest for the subsequent analysis. Data annotation is usually done manually or using
-a custom code deeply integrated with the analysis pipeline. Manual annotation is prone to error and is
-hard to document. Custom code often requires loading the whole dataset into the memory or depends
-on the exact file representation of data on a disc, which is not optimal for large datasets.
-
-We introduce VoDEx, volumetric data and experiment manager, a data management tool that integrates
-the information about the individual image frames, volumes, volume slices, and experimental conditions
-and allows retrieval of sub-portions of the 3D-time series datasets based on any of these identifiers. It is
-implemented as a napari plugin for interactive usage with a GUI and as an open-source Python package
-for easy inclusion into analysis pipelines.
+Vodex is a Python library that aims to simplify the process of synchronizing volumetric imaging data with experimental conditions, behavior and physiological data.
+It provides tools for automating the process of collecting, storing and retrieving information about the experiment in a structured way and helps to reduce errors and improve reproducibility.
+The library is open-source and is designed to be easy to integrate into existing analysis pipelines.
+It also includes a [napari](https://napari-hub.org/plugins/napari-vodex) plugin for interactive usage with a GUI.
+Overall, it aims to make the process of handling and analyzing functional volumetric imaging data more efficient and reliable.
 
 <p align="center">
   <img src="assets/cover.JPG" alt="cover" width="600"/>

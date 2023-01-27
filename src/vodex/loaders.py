@@ -1,14 +1,14 @@
 """
-This module contains classes to load and collect information from specific file types.
+This module contains classes for loading and collecting information from various file types.
 
-The module contains the following classes:
+It includes:
 
-- `Loader` - A generic loader class. Overwrite the methods to create your own loader.
+'Loader' - A generic class for loading files. Can be subclassed to create custom loaders for different file types.
 
-- `TiffLoader` - A class to work with tiff image files. Subclass of Loader.
-Used to get the datatype of the images, get the number of frames in each tiff file and load frames from tiff files.
-You can create your own loaders to work with other file types (see Contributions).
+'TiffLoader' - A class for working with TIFF image files. A subclass of Loader, it can be used to determine the data
+type of the images, the number of frames in each TIFF file, and load frames from TIFF files.
 
+Additional loaders can be created to work with other file types. See  Contributions for details.
 """
 
 import numpy as np
@@ -22,16 +22,17 @@ from typing import Union, Final, Dict, Tuple, List
 
 class Loader:
     """
-    A generic loader class.
-    Overwrite the methods to create your own loader.
+    The Loader class is a generic class that serves as a template for loading image data from specific file types.
+    The class contains basic methods that need to be overwritten to create a custom loader for a specific file type.
+
+    Any loader must be initialised by providing an example file from the dataset.
 
     Args:
-        file_example: An example file from the dataset
-            to infer the frame size and data type.
+        file_example: an example file from the dataset to infer the frame size and data type.
 
     Attributes:
-        frame_size: individual frame size (hight, width).
-        data_type: datatype.
+        frame_size: a tuple containing the individual frame size (height, width)
+        data_type: the datatype of the image frames.
     """
 
     def __init__(self, file_example: Union[str, Path]):
@@ -40,6 +41,9 @@ class Loader:
         self.data_type: np.dtype = self.get_frame_dtype(file_example)
 
     def __eq__(self, other):
+        """
+        Compares two loader instances for equality."
+        """
         print(f"__eq__ is Not Implemented for {type(self)} and {type(other)}")
 
         return NotImplemented
@@ -47,7 +51,7 @@ class Loader:
     @staticmethod
     def get_frames_in_file(file: Union[str, Path]) -> int:
         """
-        Compute and return the number of frames in a file.
+        Computes and returns the number of frames in a file.
 
         Args:
             file: the path to the file to get the number of frames for.
@@ -59,7 +63,7 @@ class Loader:
     @staticmethod
     def get_frame_size(file: Union[str, Path]) -> Tuple[int, int]:
         """
-        Gets frame size ( height , width ) from a tiff file.
+        Returns the size of an individual frame (height, width) in pixels.
 
         Args:
             file: the path to the file to get the size of the frame for.
@@ -71,7 +75,7 @@ class Loader:
     @staticmethod
     def get_frame_dtype(file: Union[str, Path]) -> np.dtype:
         """
-        Gets the datatype of the frame.
+        Returns the datatype of the image frames.
 
         Args:
             file: the path to the file to get the datatype of the frame for.
@@ -83,7 +87,7 @@ class Loader:
     def load_frames(self, frames: List[int], files: Union[List[str], List[Path]],
                     show_file_names: bool = False, show_progress: bool = True) -> npt.NDArray:
         """
-        Load frames from files and return as an array (frame, y, x).
+        Loads the specified frames from the given files and returns them as a 3D array (frame, y, x).
 
         Args:
             frames: list of frames inside corresponding files to load

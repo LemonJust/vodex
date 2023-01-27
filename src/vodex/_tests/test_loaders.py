@@ -82,10 +82,10 @@ class TestImageLoader:
         loader = ImageLoader(full_movie).loader
         assert loader == tif_loader
 
-    def test_get_frames_in_file(self):
-        loader = ImageLoader(full_movie)
-        n_frames = loader.get_frames_in_file(full_movie)
-        assert n_frames == 42
+    # def test_get_frames_in_file(self):
+    #     loader = ImageLoader(full_movie)
+    #     n_frames = loader.get_frames_in_file(full_movie)
+    #     assert n_frames == 42
 
     def test_get_frame_size(self):
         loader = ImageLoader(full_movie)

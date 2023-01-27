@@ -1,5 +1,5 @@
 """
-Tests for the `vodex.сщку` module.
+Tests for the `vodex.core` module.
 """
 import json
 from pathlib import Path

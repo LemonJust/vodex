@@ -14,3 +14,7 @@ notebooks/.ipynb_checkpoints/
 data/learning/packaging_tools/
 
 src/vodex/__pycache__/
+
+src/vodex/_tests/__pycache__/
+
+.coverage

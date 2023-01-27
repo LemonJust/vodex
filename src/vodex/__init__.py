@@ -9,7 +9,8 @@ Modules exported by this package:
 """
 __all__ = ["ImageLoader", "FileManager", "FrameManager", "VolumeManager",
            "TimeLabel", "Labels", "Cycle", "Timeline", "Annotation",
-           "TiffLoader", "DbWriter", "DbReader", "DbExporter", "Experiment"]
+           "TiffLoader", "DbWriter", "DbReader", "DbExporter", "Experiment",
+           "VX_SUPPORTED_TYPES"]
 
 from .loaders import *
 from .core import *

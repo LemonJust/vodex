@@ -1,12 +1,17 @@
 """
-This module contains classes that interact with the database.
+This module contains classes that provide a consistent and easy-to-use interface for interacting
+with the SQLite database.
 
-- `DbWriter` - writes information to the database. Database interface that abstracts the SQLite calls.
+DbWriter - A class that writes information to the database. It abstracts the SQLite calls and allows for easy
+creation, population, and saving of the database.
 
-- `DbReader` - reads information from the database. Database interface that abstracts the SQLite calls.
+DbReader - A class that reads information from the database. It abstracts the SQLite calls and allows for easy
+querying and retrieval of data from the database.
 
-- `DbExporter` - Transforms the information from the database into the core classes.
+DbExporter - A class that transforms the information from the database into the core classes, such as 'FileManager',
+'VolumeManager', 'Labels', 'Timeline', 'Cycle' and 'Annotation', making it easier to view and edit with the data.
 """
+
 from sqlite3 import connect, Connection
 
 from .core import *
@@ -235,7 +240,7 @@ class DbWriter:
         """
         Populates the Options table (a dictionary with key - value pairs).
         Learning resources:
-            another way of dealing with Errors : ( more pretty ??? )
+            another way of dealing with Errors :
             https://www.w3resource.com/python-exercises/sqlite/python-sqlite-exercise-6.php
         Args:
             file_manager: FileManager object that provides the data to populate the tables.
@@ -1391,7 +1396,6 @@ class DbExporter:
         return cycle
 
     def reconstruct_annotations(self):
-
         """
         Creates annotations from the database records.
         """

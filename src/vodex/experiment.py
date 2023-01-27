@@ -1,7 +1,8 @@
 """
-This module contains 'Experiment' class that summarises the information about the experiment from the File,
-    Frame and Volume managers and Annotations to create the data base. Saves or loads the database.
-    Searches the frames based on volumes/ annotations. Loads the image data using the appropriate loader.
+This module contains the 'Experiment' class, which provides a summary of the information about an experiment. The
+class can initialise, save, and load the database, search for frames based on volumes or annotations, and load image
+data using the appropriate loader. To initialise the database, it integrates the information from the FileManager,
+FrameManager, VolumeManager, as well as Annotations, to create a database.
 """
 
 import numpy as np
@@ -16,9 +17,9 @@ from .dbmethods import DbReader, DbWriter
 
 class Experiment:
     """
-    Summarises the information about the experiment from the File,
-    Frame and Volume managers and Annotations to create the data base. Saves or loads the database.
-    Searches the frames based on volumes/ annotations. Loads the image data using the appropriate ImageLoader.
+    The class can initialise, save, and load the database, search for frames based on volumes or annotations, and load image
+    data using the appropriate loader. To initialise the database, it integrates the information from the File, Frame,
+    and Volume managers, as well as Annotations, to create a database.
 
     Args:
         db_reader: a DbReader object connected to the database with the experiment description.
@@ -29,6 +30,9 @@ class Experiment:
     """
 
     def __init__(self, db_reader: DbReader):
+        """
+        Initialize the experiment with the given DbReader object.
+        """
 
         assert isinstance(db_reader, DbReader), "Need DbReader to initialise the Experiment"
 
@@ -247,28 +251,15 @@ class Experiment:
         Returns:
             list of the condition ids (cycle iterations per frame or per volume)
         """
-        # TODO : check if empty
         if as_volumes:
             _, cycle_its, count = self.db.get_cycleIterations_per_volumes(annotation_type)
             fpv = self.db.get_fpv()
-            assert np.all(np.array(count) == fpv), "Can't list_cycle_iteratoins with as_volumes=True: " \
-                                                   "some iteratoins don't cover the whole volume." \
-                                                   "You might want to get iteratoins per frame," \
+            assert np.all(np.array(count) == fpv), "Can't list_cycle_iterations with as_volumes=True: " \
+                                                   "some iterations don't cover the whole volume." \
+                                                   "You might want to get iterations per frame," \
                                                    " by setting as_volumes=False"
         else:
             _, cycle_its = self.db.get_cycleIterations_per_frame(annotation_type)
 
         return cycle_its
 
-    def __str__(self):
-        pass
-
-    def __repr__(self):
-        return self.__str__()
-
-    def summary(self):
-        """
-        Prints a detailed description of the experiment.
-        """
-        # TODO : implement :)
-        raise NotImplementedError
