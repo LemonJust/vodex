@@ -55,7 +55,6 @@ class DbWriter:
         """
         Creates an empty DB for the experiment in memory.
         """
-        # TODO : figure out how to type-annotate classmethod
         # For an in-memory only database:
         memory_db = connect(':memory:')
         return cls(memory_db)
@@ -80,9 +79,6 @@ class DbWriter:
             volumes: mapping of frames to volumes, and to slices in volumes, frames per volume
             annotations: mapping of frames to labels, list of annotations
         """
-        # TODO : add warnings when you are trying to write the same data again
-        # TODO : How to type annotate vodex classes from core ?
-
         # will only create if they don't exist
         self._create_tables()
         # TODO : write cases for files and frames not None
@@ -113,9 +109,10 @@ class DbWriter:
                 self._populate_Cycles(annotation)
                 self._populate_CycleIterations(annotation)
 
-    def get_n_frames(self) -> int:
+    def _get_n_frames(self) -> int:
         """
         Queries and returns the total number of frames in the experiment.
+        Used when creating Annotations and Cycles.
         """
         cursor = self.connection.cursor()
         try:
@@ -172,6 +169,7 @@ class DbWriter:
             "FileId"	INTEGER NOT NULL,
             PRIMARY KEY("Id" AUTOINCREMENT),
             FOREIGN KEY("FileId") REFERENCES "Files"("Id")
+            UNIQUE("FrameInFile", "FileId")
             )
             """
         db_cursor.execute(sql_create_Frames_table)
@@ -218,6 +216,7 @@ class DbWriter:
             "CycleIteration"	INTEGER NOT NULL,
             FOREIGN KEY("CycleId") REFERENCES "Cycles"("Id") ON DELETE CASCADE,
             FOREIGN KEY("FrameId") REFERENCES "Frames"("Id")
+            UNIQUE("FrameId","CycleId")
             )
             """
         db_cursor.execute(sql_create_CycleIterations_table)
@@ -381,7 +380,7 @@ class DbWriter:
             cursor.close()
 
     def _populate_Annotations(self, annotation):
-        n_frames = self.get_n_frames()
+        n_frames = self._get_n_frames()
         assert n_frames == annotation.n_frames, f"Number of frames in the annotation, {annotation.n_frames}," \
                                                 f"doesn't match" \
                                                 f" the expected number of frames {n_frames}"
@@ -407,6 +406,7 @@ class DbWriter:
     def _populate_Cycles(self, annotation):
         """
         """
+        assert annotation.cycle is not None, "Annotation is not a Cycle"
         row_data = (annotation.name, annotation.cycle.to_json())
         cursor = self.connection.cursor()
         try:
@@ -422,7 +422,7 @@ class DbWriter:
             cursor.close()
 
     def _populate_CycleIterations(self, annotation):
-        n_frames = self.get_n_frames()
+        n_frames = self._get_n_frames()
         assert n_frames == annotation.n_frames, f"Number of frames in the annotation, {annotation.n_frames}," \
                                                 f"doesn't match" \
                                                 f" the expected number of frames {n_frames}"
@@ -432,12 +432,13 @@ class DbWriter:
             "SELECT Id FROM Cycles " +
             "WHERE AnnotationTypeId = (SELECT Id FROM AnnotationTypes " +
             "WHERE Name = ?)", (annotation.name,))
-        cycle_id = cursor.fetchone()[0]
+        cycle_id = cursor.fetchone()
+        assert cycle_id is not None, "Fill out AnnotationTypes and Cycles first."
         cursor.close()
 
         # prepare rows
         frames = range(n_frames)
-        row_data = [(frame + 1, cycle_id, iteration)
+        row_data = [(frame + 1, cycle_id[0], iteration)
                     for frame, iteration in zip(frames, annotation.frame_to_cycle)]
 
         # insert into CycleIterations

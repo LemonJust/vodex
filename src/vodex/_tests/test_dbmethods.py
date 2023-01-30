@@ -7,6 +7,7 @@ from pathlib import Path
 
 TEST_DATA = Path(Path(__file__).parent.resolve(), 'data')
 
+
 class TestDbWriter:
     data_dir_split = Path(TEST_DATA, "test_movie")
 

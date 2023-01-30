@@ -50,6 +50,7 @@ VX_EXTENSION_TO_TYPE: Dict[str, str] = {'tif': 'TIFF', 'tiff': 'TIFF'}
 # 'extension': 'LoaderClass' or 'extension1': 'LoaderClass', 'extension2': 'LoaderClass', 'extension3': 'LoaderClass'.
 VX_EXTENSION_TO_LOADER: Dict[str, type] = {'tif': TiffLoader, 'tiff': TiffLoader}
 
+
 # _____________________________________________________________________________________________________________________
 
 
@@ -216,7 +217,7 @@ class FileManager:
             tags = [name.split(".")[-1] for name in file_names]
             # check that all the elements of the list are same
             assert len(set(tags)) == 1, f"File_names must be files with the same extension, " \
-                                        f"but got {', '.join(set(tags))}"
+                                        f"but got {', '.join(sorted(set(tags)))}"
             assert tags[0] in VX_EXTENSION_TO_TYPE, f'Extension "{tags[0]}" is not supported.'
             file_type = VX_EXTENSION_TO_TYPE[tags[0]]
 
@@ -737,12 +738,14 @@ class Cycle:
         per_frame_list: mapping of frames to corresponding frames for one full cycle only.
     """
 
-    def __init__(self, label_order: List[TimeLabel], duration: Union[np.array, List[int]]):
+    def __init__(self, label_order: List[TimeLabel], duration: Union[npt.NDArray, List[int]]):
         # check that all labels are from the same group
         label_group = label_order[0].group
         for label in label_order:
             assert label.group == label_group, \
                 f"All labels should be from the same group, but got {label.group} and {label_group}"
+        assert label_group is not None, \
+            f"All labels should be from the same group, label group can not be None"
 
         # check that timing is int
         assert all(isinstance(n, (int, np.integer)) for n in duration), "timing should be a list of int"
@@ -798,12 +801,13 @@ class Cycle:
         Assumes the cycle starts at the beginning of the recording.
 
         Args:
-            n_frames: number of frames to cover
+            n_frames: number of frames to cover, must be >= 0.
 
         Returns:
             number of cycles (n_cycles) necessary to cover n_frames:
             n_cycles*self.cycle_length >= n_frames
         """
+        assert n_frames >= 0, "n_frames must be positive"
         n_cycles = int(np.ceil(n_frames / self.cycle_length))
         return n_cycles
 
@@ -812,7 +816,7 @@ class Cycle:
         Create a list of labels corresponding to each frame in the range of n_frames
 
         Args:
-            n_frames: number of frames to fit labels to
+            n_frames: number of frames to fit labels to, must be >= 0.
 
         Returns:
             labels per frame for each frame in range of n_frames
@@ -827,7 +831,7 @@ class Cycle:
         Create a list of cycle ids (what cycle iteration it is) corresponding to each frame in the range of n_frames
 
         Args:
-            n_frames: number of frames to fit cycle iterations to
+            n_frames: number of frames to fit cycle iterations to, must be >= 0.
         Returns:
             cycle id per frame for each frame in range of n_frames
         """
@@ -899,20 +903,22 @@ class Timeline:
             frames, not volumes !
     """
 
-    def __init__(self, label_order: List[TimeLabel], duration: List[int]):
+    def __init__(self, label_order: List[TimeLabel], duration: Union[npt.NDArray, List[int]]):
 
         # check that all labels are from the same group
         label_group = label_order[0].group
         for label in label_order:
             assert label.group == label_group, \
                 f"All labels should be from the same group, but got {label.group} and {label_group}"
+        assert label_group is not None, \
+            f"All labels should be from the same group, label group can not be None"
 
         # check that timing is int
-        assert all(isinstance(n, int) for n in duration), "duration should be a list of int"
+        assert all(isinstance(n, (int, np.integer)) for n in duration), "timing should be a list of int"
 
         self.name = label_group
         self.label_order = label_order
-        self.duration = list(duration)
+        self.duration = list_of_int(duration)
         self.full_length = sum(self.duration)
         # list the length of the cycle, each element is the TimeLabel
         # TODO : turn it into an index ?

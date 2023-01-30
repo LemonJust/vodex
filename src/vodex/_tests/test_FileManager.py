@@ -66,7 +66,7 @@ def test_init_with_file_names():
 
     with pytest.raises(AssertionError) as e:
         FileManager(data_dir=FULL_MOVIE_DIR, file_names=["test_movie.avi", "test_movie.tif"])
-    assert str(e.value) == "File_names must be files with the same extension, but got tif, avi"
+    assert str(e.value) == "File_names must be files with the same extension, but got avi, tif"
 
     with pytest.raises(AssertionError) as e:
         FileManager(data_dir=FULL_MOVIE_DIR, file_names=["test_movie.avi"])
