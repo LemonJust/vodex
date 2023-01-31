@@ -9,8 +9,6 @@ from vodex import *
 TEST_DATA = Path(Path(__file__).parent.resolve(), 'data')
 
 
-
-
 class TestFrameManager:
     data_dir_split = Path(TEST_DATA, "test_movie")
     file_m = FileManager(data_dir_split)
@@ -26,6 +24,7 @@ class TestFrameManager:
         frame_m2 = FrameManager(self.file_m)
         assert frame_m1 == frame_m2
         assert frame_m2 == frame_m1
+        assert frame_m1.__eq__("FrameManager") == NotImplemented
 
     def test_get_frame_mapping(self):
         frame_m = FrameManager(self.file_m)
@@ -38,6 +37,14 @@ class TestFrameManager:
         frame_m1 = FrameManager(self.file_m)
         frame_m2 = FrameManager.from_dir(self.data_dir_split)
         assert frame_m1 == frame_m2
+
+    def test_str(self):
+        frame_m1 = FrameManager(self.file_m)
+        assert str(frame_m1) == "Total 42 frames."
+
+    def test_repr(self):
+        frame_m1 = FrameManager(self.file_m)
+        assert repr(frame_m1) == "Total 42 frames."
 
 
 class TestVolumeManager:
@@ -70,6 +77,13 @@ class TestVolumeManager:
     def test_from_dir(self):
         volume_m = VolumeManager.from_dir(self.data_dir_split, 10, fgf=0)
         assert self.volume_m == volume_m
+
+    def test_eq(self):
+        assert self.volume_m.__eq__("VolumeManager") == NotImplemented
+
+    def test_repr(self):
+        assert repr(
+            self.volume_m) == 'Total frames : 42\nVolumes start on frame : 0\nTotal good volumes : 4\nFrames per volume : 10\nTailing frames (not a full volume , at the end) : 2\n'
 
 
 class TestAnnotation:
@@ -121,3 +135,23 @@ class TestAnnotation:
         assert a3 != a2
         assert a2 != a3
 
+    def test_eq(self):
+        a1 = Annotation.from_cycle(42, self.shape, self.shape_cycle)
+        a2 = Annotation.from_cycle(42, self.shape, self.shape_cycle)
+
+        assert a1 == a2
+        assert a2 == a1
+        assert a1.__eq__("Annotation") == NotImplemented
+
+    def test_cycle_info(self):
+        # TODO: throw an error instead
+        a = Annotation.from_timeline(42, self.shape, self.shape_timeline)
+        assert a.cycle_info() == "Annotation doesn't have a cycle"
+
+    def test_str(self):
+        a1 = Annotation(42, self.shape, self.shape_frame_to_label, info="This is info")
+        assert str(a1) == 'Annotation type: shape\nThis is info\nTotal frames : 42\n'
+
+    def test_repr(self):
+        a1 = Annotation(42, self.shape, self.shape_frame_to_label, info="This is info")
+        assert repr(a1) == 'Annotation type: shape\nThis is info\nTotal frames : 42\n'

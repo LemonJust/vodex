@@ -109,6 +109,29 @@ class DbWriter:
                 self._populate_Cycles(annotation)
                 self._populate_CycleIterations(annotation)
 
+    def delete_annotation(self, name: str):
+        """
+        Deletes annotation from all the tables.
+        Deletion by "ON DELETE CASCADE" from AnnotationTypes, AnnotationTypeLabels, Annotations,
+        Cycles, CycleIterations.
+        """
+        name = (name,)
+        # get the volumes
+        cursor = self.connection.cursor()
+        try:
+            cursor.execute("""SELECT * FROM AnnotationTypes WHERE Name = ?""", name)
+            result = cursor.fetchall()
+            assert len(result) == 1, f"No annotation {name} in the database."
+
+            cursor.execute(
+                f"""DELETE FROM AnnotationTypes 
+                            WHERE Name = ?""", name)
+        except Exception as e:
+            print(f"Could not delete_annotation because {e}")
+            raise e
+        finally:
+            cursor.close()
+
     def _get_n_frames(self) -> int:
         """
         Queries and returns the total number of frames in the experiment.
@@ -460,6 +483,13 @@ class DbReader:
     Reads information from the database.
     Database interface that abstracts the SQLite calls.
     """
+
+    # TODO : get rid of list of tuples?
+    #  can do using `con.row_factory = sqlite3.Row`;
+    #  will get Row objects instead of tuples, and you can use row[0] like always or
+    #  row['column_name'] (case insensitive)
+    #  https://docs.python.org/2/library/sqlite3.html#sqlite3.Connection.row_factory
+    #  https://docs.python.org/2/library/sqlite3.html#accessing-columns-by-name-instead-of-by-index
 
     def __init__(self, connection):
         self.connection = connection
@@ -829,8 +859,6 @@ class DbReader:
             raise e
         finally:
             cursor.close()
-        # TODO : get rid of list of tuples?
-        #  https://www.reddit.com/r/Python/comments/2iiqri/quick_question_why_are_sqlite_fields_returned_as/
         frame_ids = [frame[0] for frame in frame_ids]
         return frame_ids
 
@@ -847,16 +875,17 @@ class DbReader:
         :return: list of frame Ids that satisfy all the conditions, if there are no such frames, an empty list
         :rtype: list
         """
-        # create list of label Ids
-        labels_ids = []
-        for label_info in conditions:
-            labels_ids.append(self._get_Id_from_AnnotationTypeLabels(label_info))
-        labels_ids = tuple(labels_ids)
-        n_labels = len(labels_ids)
 
         # get the frames
         cursor = self.connection.cursor()
         try:
+            # create list of label Ids
+            labels_ids = []
+            for label_info in conditions:
+                labels_ids.append(self._get_Id_from_AnnotationTypeLabels(label_info))
+            labels_ids = tuple(labels_ids)
+            n_labels = len(labels_ids)
+
             # create a parameterised query with variable number of parameters
             cursor.execute(
                 f"""SELECT FrameId FROM 
@@ -871,8 +900,6 @@ class DbReader:
             raise e
         finally:
             cursor.close()
-        # TODO : get rid of list of tuples?
-        #  https://www.reddit.com/r/Python/comments/2iiqri/quick_question_why_are_sqlite_fields_returned_as/
         frame_ids = [frame[0] for frame in frame_ids]
         return frame_ids
 
@@ -889,16 +916,17 @@ class DbReader:
         :return:
         :rtype:
         """
-        # create list of label Ids
-        labels_ids = []
-        for label_info in conditions:
-            labels_ids.append(self._get_Id_from_AnnotationTypeLabels(label_info))
-        labels_ids = tuple(labels_ids)
-        n_labels = len(labels_ids)
 
         # get the frames
         cursor = self.connection.cursor()
         try:
+            # create list of label Ids
+            labels_ids = []
+            for label_info in conditions:
+                labels_ids.append(self._get_Id_from_AnnotationTypeLabels(label_info))
+            labels_ids = tuple(labels_ids)
+            n_labels = len(labels_ids)
+
             # create a parameterised query with variable number of parameters
             cursor.execute(
                 f"""SELECT FrameId FROM Annotations 
@@ -910,20 +938,26 @@ class DbReader:
             raise e
         finally:
             cursor.close()
-        # TODO : get rid of list of tuples?
-        #  https://www.reddit.com/r/Python/comments/2iiqri/quick_question_why_are_sqlite_fields_returned_as/
         frame_ids = [frame[0] for frame in frame_ids]
         return frame_ids
 
     def get_conditionIds_per_cycle_per_volumes(self, annotation_name):
         """
-        Returns a list of condition IDs that correspond to each volume, list of corresponding volumes
-        and a count of the volume-condition pairs
-        annotation_name: str
+        For the first cycle of a given annotation, returns a list of condition IDs that correspond to each volume:
+        volume Index, condition that happens during that volume, how many frames that condition lasts in that volume.
+        Warning: does not maintain the order of conditions within the volume!
+
+        Args:
+            annotation_name: str
         """
-        # TODO : check if empty
         cursor = self.connection.cursor()
         try:
+            # check that the annotation is a cycle
+            cursor.execute(
+                f"""SELECT Id FROM Cycles 
+                WHERE AnnotationTypeId = (SELECT Id from AnnotationTypes WHERE Name = ?)""", (annotation_name,))
+            assert len(cursor.fetchall()) == 1, f"No Cycle for {annotation_name}"
+
             # create a parameterised query with variable number of parameters
             cursor.execute(
                 f"""SELECT VolumeId, AnnotationTypeLabelId, count(VolumeId) FROM
@@ -940,13 +974,12 @@ class DbReader:
                     GROUP BY VolumeId, AnnotationTypeLabelId
                     ORDER BY VolumeId""", (annotation_name, annotation_name))
             info = cursor.fetchall()
-            # TODO : check if empty
             volume_ids = [row[0] for row in info]
             condition_ids = [row[1] for row in info]
             count = [row[2] for row in info]
 
         except Exception as e:
-            print(f"Could not get_conditions_per_cycle_per_volumes because {e}")
+            print(f"Could not get_conditionIds_per_cycle_per_volumes because {e}")
             raise e
         finally:
             cursor.close()
@@ -961,6 +994,13 @@ class DbReader:
         # TODO : check if empty
         cursor = self.connection.cursor()
         try:
+            # check that the annotation is a cycle
+            cursor.execute(
+                f"""SELECT Id FROM Cycles 
+                            WHERE AnnotationTypeId = (SELECT Id from AnnotationTypes WHERE Name = ?)""",
+                (annotation_name,))
+            assert len(cursor.fetchall()) == 1, f"No Cycle for {annotation_name}"
+
             # create a parameterised query with variable number of parameters
             cursor.execute(
                 f"""SELECT CycleIterations.FrameId, AnnotationTypeLabelId FROM
@@ -993,9 +1033,15 @@ class DbReader:
         and a count of the volume-iteration pairs
         annotation_name: str
         """
-        # TODO : check if empty
         cursor = self.connection.cursor()
         try:
+            # check that the annotation is a cycle
+            cursor.execute(
+                f"""SELECT Id FROM Cycles 
+                                    WHERE AnnotationTypeId = (SELECT Id from AnnotationTypes WHERE Name = ?)""",
+                (annotation_name,))
+            assert len(cursor.fetchall()) == 1, f"No Cycle for {annotation_name}"
+
             # create a parameterised query with variable number of parameters
             cursor.execute(
                 f"""SELECT VolumeId, CycleIteration, count(VolumeId) FROM
@@ -1011,7 +1057,6 @@ class DbReader:
                     GROUP BY VolumeId
                     ORDER BY VolumeId""", (annotation_name, annotation_name))
             info = cursor.fetchall()
-            # TODO : check if empty
             volume_ids = [row[0] for row in info]
             cycle_its = [row[1] for row in info]
             count = [row[2] for row in info]
@@ -1029,9 +1074,15 @@ class DbReader:
         Returns a list of cycle iterations that correspond to each frame, list of corresponding frames.
         annotation_name: str
         """
-        # TODO : check if empty
         cursor = self.connection.cursor()
         try:
+            # check that the annotation is a cycle
+            cursor.execute(
+                f"""SELECT Id FROM Cycles 
+                                                WHERE AnnotationTypeId = (SELECT Id from AnnotationTypes WHERE Name = ?)""",
+                (annotation_name,))
+            assert len(cursor.fetchall()) == 1, f"No Cycle for {annotation_name}"
+
             # create a parameterised query with variable number of parameters
             cursor.execute(
                 f"""SELECT CycleIterations.FrameId, CycleIteration FROM
@@ -1045,9 +1096,8 @@ class DbReader:
                     AND CycleId = (SELECT Id from AnnotationTypes WHERE Name = ?)
                     ORDER BY CycleIterations.FrameId""", (annotation_name, annotation_name))
             info = cursor.fetchall()
-            # TODO : check if empty
             frame_ids = [row[0] for row in info]
-            condition_ids = [row[1] for row in info]
+            cycle_its = [row[1] for row in info]
 
         except Exception as e:
             print(f"Could not get_conditionIds_per_cycle_per_frame because {e}")
@@ -1055,7 +1105,7 @@ class DbReader:
         finally:
             cursor.close()
 
-        return frame_ids, condition_ids
+        return frame_ids, cycle_its
 
     def get_Names_from_AnnotationTypes(self):
         """
@@ -1064,7 +1114,7 @@ class DbReader:
         cursor = self.connection.cursor()
         try:
             # create a parameterised query with variable number of parameters
-            cursor.execute("""SELECT Name FROM AnnotationTypes""")
+            cursor.execute("""SELECT Name FROM AnnotationTypes ORDER BY Id""")
             names = [name[0] for name in cursor.fetchall()]
         except Exception as e:
             print(f"Could not _get_Name_from_AnnotationTypes because {e}")
@@ -1073,16 +1123,16 @@ class DbReader:
             cursor.close()
         return names
 
-    def get_Structure_from_Cycle(self, group):
+    def get_Structure_from_Cycle(self, annotation_name):
         """
         Returns cycle Structure if the annotation has a cycle entry or None otherwise.
         """
-        group = (group,)
+        annotation_name = (annotation_name,)
         cursor = self.connection.cursor()
         try:
             # create a parameterised query with variable number of parameters
             cursor.execute("""SELECT Structure FROM Cycles WHERE AnnotationTypeId = 
-                             (SELECT Id FROM AnnotationTypes WHERE Name = ?)""", group)
+                             (SELECT Id FROM AnnotationTypes WHERE Name = ?)""", annotation_name)
             info = cursor.fetchone()
             if info:
                 cycle = info[0]
@@ -1095,12 +1145,12 @@ class DbReader:
             cursor.close()
         return cycle
 
-    def get_Name_and_Description_from_AnnotationTypeLabels(self, group):
+    def get_Name_and_Description_from_AnnotationTypeLabels(self, annotation_name):
         """
         Returns the Name and description for the labels that correspond to the annotation
         with the provided group name.
         """
-        group = (group,)
+        annotation_name = (annotation_name,)
         names = []
         descriptions = {}
 
@@ -1108,7 +1158,7 @@ class DbReader:
         try:
             # create a parameterised query with variable number of parameters
             cursor.execute("""SELECT Name, Description FROM AnnotationTypeLabels WHERE AnnotationTypeId = 
-                             (SELECT Id FROM AnnotationTypes WHERE Name = ?)""", group)
+                             (SELECT Id FROM AnnotationTypes WHERE Name = ?)""", annotation_name)
             info = cursor.fetchall()
             for row in info:
                 name = row[0]
@@ -1156,7 +1206,7 @@ class DbReader:
     def _get_Id_from_AnnotationTypeLabels(self, label_info):
         """
         Returns the AnnotationTypeLabels.Id for a label , searching by its name and group name.
-        :param label_info: (group, name), where group is the AnnotationType.Name
+        :param label_info: (annotation_name, label_name), where group is the AnnotationType.Name
                             and name is AnnotationTypeLabels.Name
         :type label_info: tuple
         :return: AnnotationLabels.Id
@@ -1180,24 +1230,25 @@ class DbReader:
             cursor.close()
         return label_id[0]
 
-    def _get_Ids_from_AnnotationTypeLabels(self, group):
+    def _get_Ids_from_AnnotationTypeLabels(self, annotation_name: str) -> List[int]:
         """
         Returns the AnnotationTypeLabels.Id for all labels , searching by their group name.
-        :param group: AnnotationType.Name
-        :type group: str
-        :return: AnnotationLabels.Id
-        :rtype: [(int,),(int,) ... ]
+
+        Args:
+        annotation_name: AnnotationType.Name
+        Returns:
+            list of AnnotationLabels.Id
         """
-        group = (group,)
+        annotation_name = (annotation_name,)
         cursor = self.connection.cursor()
         try:
             # create a parameterised query with variable number of parameters
             cursor.execute(
                 f"""SELECT Id FROM AnnotationTypeLabels 
-                    WHERE AnnotationTypeId = (SELECT Id from AnnotationTypes WHERE Name = ?)""", group)
+                    WHERE AnnotationTypeId = (SELECT Id from AnnotationTypes WHERE Name = ?)""", annotation_name)
             label_ids = cursor.fetchall()
-            assert label_ids is not None, f"Could not find labels from group {group} " \
-                                          "Are you sure it's been added into the database? "
+            assert len(label_ids) > 0, f"Could not find labels from group {annotation_name} " \
+                                       "Are you sure it's been added into the database?"
         except Exception as e:
             print(f"Could not _get_AnnotationLabelIds because {e}")
             raise e
@@ -1205,16 +1256,16 @@ class DbReader:
             cursor.close()
         return label_ids
 
-    def get_AnnotationTypeLabelId_from_Annotations(self, group):
+    def get_AnnotationTypeLabelId_from_Annotations(self, annotation_name):
         """
         Returns the AnnotationTypeLabelIds for all labels in the order according to the FrameId,
          searching by their group name.
-        :param group: AnnotationType.Name
-        :type group: str
+        :param annotation_name: AnnotationType.Name
+        :type annotation_name: str
         :return: AnnotationLabels.Id
         :rtype: [int]
         """
-        group = (group,)
+        annotation_name = (annotation_name,)
         cursor = self.connection.cursor()
         try:
             # create a parameterised query with variable number of parameters
@@ -1222,10 +1273,10 @@ class DbReader:
                 f""" SELECT AnnotationTypeLabelId FROM Annotations WHERE AnnotationTypeLabelId IN
                             (SELECT Id FROM AnnotationTypeLabels 
                             WHERE AnnotationTypeId = (SELECT Id from AnnotationTypes WHERE Name = ?))
-                            ORDER BY FrameId ASC""", group)
+                            ORDER BY FrameId ASC""", annotation_name)
             label_ids = [label[0] for label in cursor.fetchall()]
-            assert label_ids is not None, f"Could not find labels from group {group} " \
-                                          "Are you sure it's been added into the database? "
+            assert len(label_ids) > 0, f"Could not find labels from group {annotation_name} " \
+                                          "Are you sure it's been added into the database?"
         except Exception as e:
             print(f"Could not _get_AnnotationTypeLabelId_from_Annotations because {e}")
             raise e
@@ -1233,16 +1284,18 @@ class DbReader:
             cursor.close()
         return label_ids
 
-    def _get_SliceInVolume_from_Volumes(self, frames):
+    def _get_SliceInVolume_from_Volumes(self, frames: List[int]) -> List[int]:
         """
         Chooses the slices that correspond to the specified frames.
-        The order of the frames is not preserved!
+        Warning!: The order of the frames is not preserved!
         the volume correspond to frames sorted in increasing order !
+        Frames are numbered from 1, slices are numbered from 0.
 
-        :param frames: a list of frame IDs
-        :type frames: [int]
-        :return: volume IDs
-        :rtype: [int]
+        Args:
+            frames: a list of frame IDs
+        Returns:
+            volume IDs
+
         """
         # create list of frame Ids
         frame_ids = tuple(frames)
@@ -1256,6 +1309,8 @@ class DbReader:
                 f"""SELECT SliceInVolume FROM Volumes 
                     WHERE FrameId IN ({', '.join(['?'] * n_frames)})""", frame_ids)
             slice_ids = cursor.fetchall()
+            assert len(slice_ids) == len(frame_ids), \
+                f"Only {len(slice_ids)} of {len(frame_ids)} frames are in the database"
         except Exception as e:
             print(f"Could not _get_SliceInVolume_from_Volumes because {e}")
             raise e
@@ -1267,7 +1322,7 @@ class DbReader:
     def _get_VolumeId_from_Volumes(self, frames):
         """
         Chooses the volumes that correspond to the specified frames.
-        The order is not preserved!
+        Warning: The order is not preserved!
         the volume correspond to sorted frames in increasing order !
 
         :param frames: a list of frame IDs
@@ -1294,25 +1349,6 @@ class DbReader:
             cursor.close()
         volume_ids = [volume[0] for volume in volume_ids]
         return volume_ids
-
-    def delete_annotation(self, name: str):
-        """
-        Deletes annotation from all the tables.
-        Deletion by "ON DELETE CASCADE" from AnnotationTypes, AnnotationTypeLabels, Annotations,
-        Cycles, CycleIterations.
-        """
-        name = (name,)
-        # get the volumes
-        cursor = self.connection.cursor()
-        try:
-            cursor.execute(
-                f"""DELETE FROM AnnotationTypes 
-                            WHERE Name = ?""", name)
-        except Exception as e:
-            print(f"Could not delete_annotation because {e}")
-            raise e
-        finally:
-            cursor.close()
 
 
 class DbExporter:
@@ -1365,7 +1401,8 @@ class DbExporter:
         labels = Labels(group, state_names, state_info=state_info)
         return labels
 
-    def reconstruct_timeline(self, group, labels):
+    def reconstruct_timeline(self, group):
+        labels = self.reconstruct_labels(group)
         import itertools
         """
         Creates timeline corresponding to the specified annotation from the database records.
@@ -1415,7 +1452,7 @@ class DbExporter:
             if cycle is not None:
                 annotation = Annotation.from_cycle(n_frames, labels, cycle)
             else:
-                timeline = self.reconstruct_timeline(group, labels)
+                timeline = self.reconstruct_timeline(group)
                 annotation = Annotation.from_timeline(n_frames, labels, timeline)
 
             annotations.append(annotation)

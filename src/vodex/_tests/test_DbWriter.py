@@ -104,9 +104,57 @@ def test_add_annotations(db_writer):
     cursor.close()
 
 
-def test_get_n_frames(db_writer_loaded):
-    # Add some frames to the database
+def test_delete_annotation(db_writer_loaded):
+    # check that shape is in the database
+    cursor = db_writer_loaded.connection.cursor()
+    cursor.execute("SELECT * FROM AnnotationTypes WHERE Name = 'shape'")
+    result = cursor.fetchall()
+    assert len(result) == 1
+    cursor.execute("SELECT * FROM AnnotationTypeLabels WHERE AnnotationTypeId = 1")
+    result = cursor.fetchall()
+    assert len(result) == 2
+    cursor.execute("SELECT * FROM Annotations WHERE AnnotationTypeLabelId in (1,2)")
+    result = cursor.fetchall()
+    assert len(result) == 42
+    cursor.execute("SELECT * FROM Cycles WHERE AnnotationTypeId = 1")
+    result = cursor.fetchall()
+    assert len(result) == 1
+    cursor.execute("SELECT * FROM CycleIterations WHERE CycleId = 1")
+    result = cursor.fetchall()
+    assert len(result) == 42
+    cursor.close()
+
+    db_writer_loaded.delete_annotation("shape")
+    # check that it's been deleted from all the tables
+    cursor = db_writer_loaded.connection.cursor()
+    cursor.execute("SELECT * FROM AnnotationTypes WHERE Name = 'shape'")
+    result = cursor.fetchall()
+    assert len(result) == 0
+    cursor.execute("SELECT * FROM AnnotationTypeLabels WHERE AnnotationTypeId = 1")
+    result = cursor.fetchall()
+    assert len(result) == 0
+    cursor.execute("SELECT * FROM Annotations WHERE AnnotationTypeLabelId in (1,2)")
+    result = cursor.fetchall()
+    assert len(result) == 0
+    cursor.execute("SELECT * FROM Cycles WHERE AnnotationTypeId = 1")
+    result = cursor.fetchall()
+    assert len(result) == 0
+    cursor.execute("SELECT * FROM CycleIterations WHERE CycleId = 1")
+    result = cursor.fetchall()
+    assert len(result) == 0
+    cursor.close()
+
+    with pytest.raises(Exception) as e:
+        db_writer_loaded.delete_annotation("shape")
+    assert str(e.value) == "No annotation ('shape',) in the database."
+
+
+def test_get_n_frames(db_writer_loaded, db_writer):
+    # Get n frames from the database
     assert db_writer_loaded._get_n_frames() == 42
+    with pytest.raises(Exception) as e:
+        db_writer._get_n_frames()
+    assert str(e.value) == "no such table: Frames"
 
 
 def test_create_tables(db_writer):

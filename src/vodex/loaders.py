@@ -46,7 +46,7 @@ class Loader:
         """
         print(f"__eq__ is Not Implemented for {type(self)} and {type(other)}")
 
-        return NotImplemented
+        raise NotImplementedError("__eq__ method is not implemented!")
 
     @staticmethod
     def get_frames_in_file(file: Union[str, Path]) -> int:
@@ -58,7 +58,7 @@ class Loader:
         Returns:
             the number of frames in the file.
         """
-        raise NotImplementedError
+        raise NotImplementedError("get_frames_in_file method is not implemented!")
 
     @staticmethod
     def get_frame_size(file: Union[str, Path]) -> Tuple[int, int]:
@@ -70,7 +70,7 @@ class Loader:
         Returns:
             ( height , width ) height and width of an individual frame in pixels.
         """
-        raise NotImplementedError
+        raise NotImplementedError("get_frame_size method is not implemented!")
 
     @staticmethod
     def get_frame_dtype(file: Union[str, Path]) -> np.dtype:
@@ -82,7 +82,7 @@ class Loader:
         Returns:
             datatype of the frame.
         """
-        raise NotImplementedError
+        raise NotImplementedError("get_frame_dtype method is not implemented!")
 
     def load_frames(self, frames: List[int], files: Union[List[str], List[Path]],
                     show_file_names: bool = False, show_progress: bool = True) -> npt.NDArray:
@@ -97,7 +97,7 @@ class Loader:
         Returns:
             3D array of requested frames (frame, y, x)
         """
-        raise NotImplementedError
+        raise NotImplementedError("load_frames method is not implemented!")
 
 
 class TiffLoader(Loader):

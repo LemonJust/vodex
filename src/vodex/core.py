@@ -605,7 +605,7 @@ class TimeLabel:
 
     def __hash__(self):
         # necessary for instances to behave sanely in dicts and sets.
-        return hash((self.name, self.description))
+        return hash((self.name, self.group))
 
     def __eq__(self, other):
         if isinstance(other, TimeLabel):

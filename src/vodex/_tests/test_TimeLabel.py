@@ -9,7 +9,6 @@ def time_label():
     return TimeLabel("on", "The light is on", "light")
 
 
-
 def test_time_label_init(time_label):
     assert time_label.name == "on"
     assert time_label.description == "The light is on"
@@ -22,6 +21,10 @@ def test_time_label_str(time_label):
 
 def test_time_label_repr(time_label):
     assert repr(time_label) == "on : The light is on. Group: light"
+
+
+def test_hash(time_label):
+    assert hash(time_label) == hash(("on", "light"))
 
 
 def test_time_label_eq(time_label):
@@ -50,4 +53,3 @@ def test_time_label_from_dict():
     assert time_label == TimeLabel("on", description="The light is on")
     time_label = TimeLabel.from_dict({'name': 'on', 'group': 'light'})
     assert time_label == TimeLabel("on", group="light")
-

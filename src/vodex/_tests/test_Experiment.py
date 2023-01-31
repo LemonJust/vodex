@@ -253,6 +253,12 @@ def test_list_conditions_per_cycle(experiment):
     assert ids == shape_id_per_cycle
     assert names == ["c", "s", 'c1', 'c2', 'c3', "on", "off"]
 
+    ids, names = experiment.list_conditions_per_cycle("c label", as_volumes=False)
+    assert ids == [3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+                   4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
+                   5, 5, 5, 5, 5, 5, 5, 5, 5, 5]
+    assert names == ["c", "s", 'c1', 'c2', 'c3', "on", "off"]
+
     ids, names = experiment.list_conditions_per_cycle("c label", as_volumes=True)
     assert ids == [3, 4, 5]
     assert names == ["c", "s", 'c1', 'c2', 'c3', "on", "off"]
@@ -264,6 +270,6 @@ def test_list_cycle_iterations(experiment):
 
     ids = experiment.list_cycle_iterations("shape", as_volumes=False)
     cycle_per_frame = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                  1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-                  2, 2]
+                       1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                       2, 2]
     assert ids == cycle_per_frame

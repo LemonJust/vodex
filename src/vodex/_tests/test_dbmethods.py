@@ -7,50 +7,6 @@ from pathlib import Path
 
 TEST_DATA = Path(Path(__file__).parent.resolve(), 'data')
 
-
-class TestDbWriter:
-    data_dir_split = Path(TEST_DATA, "test_movie")
-
-    shape = Labels("shape", ["c", "s"],
-                   state_info={"c": "circle on the screen", "s": "square on the screen"})
-    light = Labels("light", ["on", "off"], group_info="Information about the light",
-                   state_info={"on": "the intensity of the background is high",
-                               "off": "the intensity of the background is low"})
-    cnum = Labels("c label", ['c1', 'c2', 'c3'], state_info={'c1': 'written c1', 'c2': 'written c1'})
-
-    shape_cycle = Cycle([shape.c, shape.s, shape.c], [5, 10, 5])
-    cnum_cycle = Cycle([cnum.c1, cnum.c2, cnum.c3], [10, 10, 10])
-    light_order = [light.off, light.on, light.off]
-    light_timing = [10, 20, 12]
-
-    shape_an = Annotation.from_cycle(42, shape, shape_cycle)
-    cnum_an = Annotation.from_cycle(42, cnum, cnum_cycle)
-    light_an = Annotation.from_timeline(42, light, Timeline(light_order, light_timing))
-
-    def test_save(self):
-        # not sure how to test this maybe just look at the saved database for now? >_<
-        pass
-
-    def test_create(self):
-        # not sure how to test this
-        db = DbWriter.create()
-        db.connection.close()
-
-    def test_load(self):
-        # not sure how to test this
-        db = DbWriter.load(Path(TEST_DATA, "test.db"))
-        db.connection.close()
-
-    def test_populate(self):
-        # TODO: test that lists for the db are true int all the time !!!!
-        # TODO: test what happens when volume manager and annotation have different number of frames
-        volume_m = VolumeManager.from_dir(self.data_dir_split, 10, fgf=0)
-        db = DbWriter.create()
-        db.populate(volumes=volume_m, annotations=[self.shape_an, self.cnum_an, self.light_an])
-        db.save(Path(TEST_DATA, "test.db"))
-        db.connection.close()
-
-
 class TestDbReader:
 
     def test_get_n_frames(self):
@@ -234,62 +190,5 @@ class TestDbReader:
 
         db.connection.close()
 
-    def test_choose_full_volumes(self):
-        frames1 = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
-                   11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
-                   21, 22, 23]
-
-        chosen_frames1 = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
-                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
-        chosen_volumes1 = [0, 1]
-
-        frames2 = [2, 6, 12, 16, 17, 22, 26, 27]
-        chosen_frames2 = []
-        chosen_volumes2 = []
-
-        db = DbReader.load(Path(TEST_DATA, "test.db"))
-
-        chosen_volumes, chosen_frames = db.choose_full_volumes(frames1)
-        assert chosen_frames1 == chosen_frames
-        assert chosen_volumes1 == chosen_volumes
-
-        chosen_volumes, chosen_frames = db.choose_full_volumes(frames2)
-        assert chosen_frames2 == chosen_frames
-        assert chosen_volumes2 == chosen_volumes
-
-        db.connection.close()
 
 
-class TestDbExporter:
-    # TODO:  finish tests
-    def test_reconstruct_file_manager(self):
-        de = DbExporter.load(Path(TEST_DATA, "test.db"))
-        fm = de.reconstruct_file_manager()
-        print(fm)
-
-    def test_reconstruct_volume_manager(self):
-        de = DbExporter.load(Path(TEST_DATA, "test.db"))
-        vm = de.reconstruct_volume_manager()
-        print(vm)
-
-    def test_reconstruct_annotations(self):
-        de = DbExporter.load(Path(TEST_DATA, "test.db"))
-        annotations = de.reconstruct_annotations()
-        print(annotations)
-
-    def test_reconstruct_labels(self):
-        de = DbExporter.load(Path(TEST_DATA, "test.db"))
-        labels = de.reconstruct_labels("light")
-        print(labels)
-
-    def test_reconstruct_cycle(self):
-        de = DbExporter.load(Path(TEST_DATA, "test.db"))
-        cycle = de.reconstruct_cycle("shape")
-        print(cycle)
-
-    def test_reconstruct_timeline(self):
-        de = DbExporter.load(Path(TEST_DATA, "test.db"))
-        group = "light"
-        labels = de.reconstruct_labels(group)
-        timeline = de.reconstruct_timeline(group, labels)
-        print(timeline)
