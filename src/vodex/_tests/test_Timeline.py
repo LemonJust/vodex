@@ -3,7 +3,6 @@ Tests for the `vodex.Timeline` module.
 """
 
 import pytest
-from typing import List
 from vodex import TimeLabel, Timeline
 import numpy as np
 

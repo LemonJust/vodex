@@ -1,39 +1,11 @@
 import pytest
 from pathlib import Path
-from sqlite3 import connect, Connection
-from vodex import DbWriter, DbReader, Annotation, Labels, Cycle, Timeline
-
-TEST_DATA = Path(Path(__file__).parent.resolve(), 'data')
-# test data movie, where all the data is split into 3 files
-SPLIT_MOVIE_DIR = Path(TEST_DATA, "test_movie")
-SPLIT_MOVIE_NAMES = ["mov0.tif", "mov1.tif", "mov2.tif"]
-SPLIT_MOVIE_FRAMES = [7, 18, 17]
+from vodex import DbWriter, DbReader
+from .conftest import (TEST_DATA,
+                       SPLIT_MOVIE_DIR,
+                       SPLIT_MOVIE_NAMES,
+                       SPLIT_MOVIE_FRAMES)
 # TODO: test on a full movie too ?
-
-TEST_DB = Path(TEST_DATA, "test.db")
-
-
-# annotations to create an experiment
-def prepare_annotations():
-    shape = Labels("shape", ["c", "s"],
-                   state_info={"c": "circle on the screen", "s": "square on the screen"})
-    light = Labels("light", ["on", "off"], group_info="Information about the light",
-                   state_info={"on": "the intensity of the background is high",
-                               "off": "the intensity of the background is low"})
-    cnum = Labels("c label", ['c1', 'c2', 'c3'], state_info={'c1': 'written c1', 'c2': 'written c2'})
-
-    shape_cycle = Cycle([shape.c, shape.s, shape.c], [5, 10, 5])
-    cnum_cycle = Cycle([cnum.c1, cnum.c2, cnum.c3], [10, 10, 10])
-    light_tml = Timeline([light.off, light.on, light.off], [10, 20, 12])
-
-    shape_an = Annotation.from_cycle(42, shape, shape_cycle)
-    cnum_an = Annotation.from_cycle(42, cnum, cnum_cycle)
-    light_an = Annotation.from_timeline(42, light, light_tml)
-
-    return shape_an, cnum_an, light_an
-
-
-SHAPE_AN, CNUM_AN, LIGHT_AN = prepare_annotations()
 
 
 @pytest.fixture
@@ -43,7 +15,7 @@ def db_reader_empty() -> DbReader:
 
 
 @pytest.fixture
-def db_reader() -> DbReader:
+def db_reader(TEST_DB) -> DbReader:
     return DbReader.load(TEST_DB)
 
 

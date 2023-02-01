@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 from pathlib import Path
-from typing import List, Tuple, Union, Type
+from typing import List, Tuple, Union
 from vodex import Loader
 
 

@@ -1,25 +1,16 @@
 """
 Tests for the `vodex.core` module.
 """
-import json
 from pathlib import Path
 import pytest
 
 from vodex import FileManager
-
-TEST_DATA = Path(Path(__file__).parent.resolve(), 'data')
-# test data movie, where all the data is split into 3 files
-SPLIT_MOVIE_DIR = Path(TEST_DATA, "test_movie")
-SPLIT_MOVIE_NAMES = ["mov0.tif", "mov1.tif", "mov2.tif"]
-SPLIT_MOVIE = [Path(SPLIT_MOVIE_DIR, mov) for mov in SPLIT_MOVIE_NAMES]
-SPLIT_MOVIE_FRAMES = [7, 18, 17]
-
-# test data movie, where all the data is in one file
-FULL_MOVIE_DIR = TEST_DATA
-FULL_MOVIE_NAMES = ["test_movie.tif"]
-FULL_MOVIE = Path(TEST_DATA, FULL_MOVIE_NAMES[0])
-FULL_MOVIE_FRAMES = [42]
-
+from .conftest import (SPLIT_MOVIE_DIR,
+                       SPLIT_MOVIE_NAMES,
+                       SPLIT_MOVIE_FRAMES,
+                       FULL_MOVIE_DIR,
+                       FULL_MOVIE_NAMES,
+                       FULL_MOVIE_FRAMES)
 
 @pytest.fixture
 def file_manager():

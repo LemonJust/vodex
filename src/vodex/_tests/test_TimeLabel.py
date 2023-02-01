@@ -1,7 +1,5 @@
-import json
-from pathlib import Path
 import pytest
-from vodex import TimeLabel, Labels
+from vodex import TimeLabel
 
 
 @pytest.fixture

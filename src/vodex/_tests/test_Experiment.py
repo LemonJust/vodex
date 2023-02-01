@@ -3,41 +3,11 @@ Tests for the `vodex.experiment` module.
 """
 import pytest
 import sqlite3
-import tifffile as tif
 from vodex import *
 from pathlib import Path
 
-TEST_DATA = Path(Path(__file__).parent.resolve(), 'data')
-SPLIT_MOVIE_DIR = Path(TEST_DATA, "test_movie")
-TEST_DB = Path(TEST_DATA, "test.db")
-# saved images of volumes 0 and 1 and the last two frames (tail)
-VOLUMES_0_1 = tif.imread(Path(TEST_DATA, 'loader_test', "volumes_1_2.tif"))
-VOLUMES_TAIL = tif.imread(Path(TEST_DATA, 'loader_test', "volumes_tail.tif"))
-
-VOLUME_M = VolumeManager.from_dir(SPLIT_MOVIE_DIR, 10, fgf=0)
-
-
-# annotations to create an experiment
-def prepare_annotations():
-    shape = Labels("shape", ["c", "s"],
-                   state_info={"c": "circle on the screen", "s": "square on the screen"})
-    light = Labels("light", ["on", "off"], group_info="Information about the light",
-                   state_info={"on": "the intensity of the background is high",
-                               "off": "the intensity of the background is low"})
-    cnum = Labels("c label", ['c1', 'c2', 'c3'], state_info={'c1': 'written c1', 'c2': 'written c1'})
-
-    shape_cycle = Cycle([shape.c, shape.s, shape.c], [5, 10, 5])
-    cnum_cycle = Cycle([cnum.c1, cnum.c2, cnum.c3], [10, 10, 10])
-    light_tml = Timeline([light.off, light.on, light.off], [10, 20, 12])
-
-    shape_an = Annotation.from_cycle(42, shape, shape_cycle)
-    cnum_an = Annotation.from_cycle(42, cnum, cnum_cycle)
-    light_an = Annotation.from_timeline(42, light, light_tml)
-
-    return shape_an, cnum_an, light_an
-
-
-SHAPE_AN, CNUM_AN, LIGHT_AN = prepare_annotations()
+from .conftest import TEST_DATA, VOLUMES_0_1, \
+    VOLUMES_TAIL, VOLUME_M, SHAPE_AN, CNUM_AN, LIGHT_AN
 
 
 # Fixture to create an Experiment instance in agreement with the test database
@@ -100,7 +70,7 @@ def test_close(experiment_no_annotations):
         experiment_no_annotations.db.connection.execute("SELECT * FROM Options LIMIT 1;")
 
 
-def test_load():
+def test_load(TEST_DB):
     experiment = Experiment.load(TEST_DB)
     assert isinstance(experiment, Experiment)
     assert isinstance(experiment.db, DbReader)

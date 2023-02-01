@@ -1,5 +1,4 @@
 import pytest
-from pathlib import Path
 from vodex import (DbExporter,
                    FileManager,
                    TimeLabel,
@@ -9,17 +8,11 @@ from vodex import (DbExporter,
                    Timeline,
                    Cycle)
 
-TEST_DATA = Path(Path(__file__).parent.resolve(), 'data')
-# test data movie, where all the data is split into 3 files
-SPLIT_MOVIE_DIR = Path(TEST_DATA, "test_movie")
-SPLIT_MOVIE_NAMES = ["mov0.tif", "mov1.tif", "mov2.tif"]
-SPLIT_MOVIE_FRAMES = [7, 18, 17]
-
-TEST_DB = Path(TEST_DATA, "test.db")
+from .conftest import SPLIT_MOVIE_DIR, SPLIT_MOVIE_NAMES, SPLIT_MOVIE_FRAMES
 
 
 @pytest.fixture
-def db_exporter():
+def db_exporter(TEST_DB):
     return DbExporter.load(TEST_DB)
 
 

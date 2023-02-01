@@ -1,39 +1,14 @@
 import pytest
 from pathlib import Path
-from sqlite3 import connect, Connection
-from vodex import DbWriter, VolumeManager, Annotation, Labels, Cycle, Timeline
+from vodex import DbWriter
 
-TEST_DATA = Path(Path(__file__).parent.resolve(), 'data')
-SPLIT_MOVIE_DIR = Path(TEST_DATA, "test_movie")
-TEST_DB = Path(TEST_DATA, "test.db")
-
-VOLUME_M = VolumeManager.from_dir(SPLIT_MOVIE_DIR, 10, fgf=0)
-FILE_M = VOLUME_M.file_manager
-FRAME_M = VOLUME_M.frame_manager
-N_FRAMES = 42
-
-
-# annotations to create an experiment
-def prepare_annotations():
-    shape = Labels("shape", ["c", "s"],
-                   state_info={"c": "circle on the screen", "s": "square on the screen"})
-    light = Labels("light", ["on", "off"], group_info="Information about the light",
-                   state_info={"on": "the intensity of the background is high",
-                               "off": "the intensity of the background is low"})
-    cnum = Labels("c label", ['c1', 'c2', 'c3'], state_info={'c1': 'written c1', 'c2': 'written c2'})
-
-    shape_cycle = Cycle([shape.c, shape.s, shape.c], [5, 10, 5])
-    cnum_cycle = Cycle([cnum.c1, cnum.c2, cnum.c3], [10, 10, 10])
-    light_tml = Timeline([light.off, light.on, light.off], [10, 20, 12])
-
-    shape_an = Annotation.from_cycle(42, shape, shape_cycle)
-    cnum_an = Annotation.from_cycle(42, cnum, cnum_cycle)
-    light_an = Annotation.from_timeline(42, light, light_tml)
-
-    return shape_an, cnum_an, light_an
-
-
-SHAPE_AN, CNUM_AN, LIGHT_AN = prepare_annotations()
+from .conftest import (CNUM_AN,
+                       LIGHT_AN,
+                       SHAPE_AN,
+                       VOLUME_M,
+                       FILE_M,
+                       FRAME_M,
+                       SPLIT_MOVIE_DIR)
 
 
 @pytest.fixture
@@ -42,7 +17,7 @@ def db_writer() -> DbWriter:
 
 
 @pytest.fixture
-def db_writer_loaded() -> DbWriter:
+def db_writer_loaded(TEST_DB) -> DbWriter:
     return DbWriter.load(TEST_DB)
 
 

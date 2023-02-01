@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 from vodex import *
 
-TEST_DATA = Path(Path(__file__).parent.resolve(), 'data')
+from .conftest import TEST_DATA
 
 
 class TestFrameManager:
