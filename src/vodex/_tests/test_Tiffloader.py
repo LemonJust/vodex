@@ -14,7 +14,7 @@ TEST_DATA = Path(Path(__file__).parent.resolve(), 'data')
 FULL_MOVIE = Path(TEST_DATA, "test_movie.tif")
 SPLIT_MOVIES = [Path(TEST_DATA, "test_movie", mov) for mov in
                 ["mov0.tif", "mov1.tif", "mov2.tif"]]
-FRAMES_1_2_41_42 = tif.imread(Path(TEST_DATA, 'loader_test', "FRAMES_1_2_41_42.tif").as_posix())
+FRAMES_1_2_41_42 = tif.imread(Path(TEST_DATA, 'loader_test', "frames_1_2_41_42.tif").as_posix())
 VOLUMES_0_1 = tif.imread(Path(TEST_DATA, 'loader_test', "volumes_1_2.tif").as_posix())
 HALF_VOLUMES_0_1 = tif.imread(Path(TEST_DATA, 'loader_test', "half_volumes_1_2.tif").as_posix())
 
