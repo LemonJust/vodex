@@ -14,7 +14,7 @@ It also includes a [napari](https://napari-hub.org/plugins/napari-vodex) plugin 
 Overall, it aims to make the process of handling and analyzing functional volumetric imaging data more efficient and reliable.
 
 <p align="center">
-  <img src="assets/cover.JPG" alt="cover" width="600"/>
+  <img src="assets/vodex_infographics.PNG" alt="cover" width="800"/>
 </p>
 
 ## Quick Start
