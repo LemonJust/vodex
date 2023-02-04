@@ -63,6 +63,49 @@ def test_add_annotations(experiment_no_annotations):
     assert labels == [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35]
 
 
+def test_delete_annotations(experiment):
+    cursor = experiment.db.connection.execute(
+        "SELECT FrameId FROM Annotations WHERE AnnotationTypeLabelId = 1;")
+    assert len(cursor.fetchall()) == 22
+    cursor = experiment.db.connection.execute(
+        "SELECT FrameId FROM Annotations WHERE AnnotationTypeLabelId = 2;")
+    assert len(cursor.fetchall()) == 20
+
+    cursor = experiment.db.connection.execute(
+        "SELECT FrameId FROM Annotations WHERE AnnotationTypeLabelId = 6;")
+    assert len(cursor.fetchall()) == 20
+
+    cursor = experiment.db.connection.execute(
+        "SELECT FrameId FROM Annotations WHERE AnnotationTypeLabelId = 3;")
+    assert len(cursor.fetchall()) == 20
+    cursor = experiment.db.connection.execute(
+        "SELECT FrameId FROM Annotations WHERE AnnotationTypeLabelId = 4;")
+    assert len(cursor.fetchall()) == 12
+
+    experiment.delete_annotations(["shape", "light"])
+
+    # Test that the annotations have been deleted
+    cursor = experiment.db.connection.execute(
+        "SELECT FrameId FROM Annotations WHERE AnnotationTypeLabelId = 1;")
+    assert len(cursor.fetchall()) == 0
+    cursor = experiment.db.connection.execute(
+        "SELECT FrameId FROM Annotations WHERE AnnotationTypeLabelId = 2;")
+    assert len(cursor.fetchall()) == 0
+
+    cursor = experiment.db.connection.execute(
+        "SELECT FrameId FROM Annotations WHERE AnnotationTypeLabelId = 6;")
+    assert len(cursor.fetchall()) == 0
+
+    # c-label annotation should stay untouched:
+    # (if it was added successfully, there should be exactly 20 such rows)
+    cursor = experiment.db.connection.execute(
+        "SELECT FrameId FROM Annotations WHERE AnnotationTypeLabelId = 3;")
+    assert len(cursor.fetchall()) == 20
+    cursor = experiment.db.connection.execute(
+        "SELECT FrameId FROM Annotations WHERE AnnotationTypeLabelId = 4;")
+    assert len(cursor.fetchall()) == 12
+
+
 def test_close(experiment_no_annotations):
     experiment_no_annotations.close()
     # Test that the connection has been closed

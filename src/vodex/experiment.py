@@ -87,6 +87,17 @@ class Experiment:
         """
         DbWriter(self.db.connection).add_annotations(annotations)
 
+    def delete_annotations(self, annotation_names: List[str]):
+        """
+        Deletes annotations from existing experiment.
+        Does NOT save the changes to disc! run self.save() to save.
+
+        Args:
+            annotation_names: a list of annotation names to delete from the database.
+        """
+        for name in annotation_names:
+            DbWriter(self.db.connection).delete_annotation(name)
+
     def close(self):
         """
         Close database connection.
