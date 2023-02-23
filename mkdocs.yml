@@ -5,6 +5,7 @@ repo_name: LemonJust/vodex
 theme:
   name: material
   favicon: img/icons8_layers.ico
+  # logo: assets/vodex_white_logo_transparent.png
   icon:
     logo: material/home
     repo: fontawesome/brands/github
