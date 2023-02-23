@@ -26,7 +26,7 @@ Recent advances in fluorescent microscopy and genetically-encoded calcium indica
 We introduce VoDEx, volumetric data and experiment manager, a data management tool that integrates the information about the individual image frames, volumes, volume slices, and experimental conditions and allows retrieval of sub-portions of the 3D-time series datasets based on any of these identifiers. It is implemented as a [napari plugin](https://napari-hub.org/plugins/napari-vodex) for interactive usage with a GUI and as an open-source [Python package](https://pypi.org/project/vodex) for easy inclusion into analysis pipelines.
 
 <p align="center">
-  <img src="img/vodex_infographics.PNG" alt="cover" width="600"/>
+  <img src="docs/assets/vodex_infographics_w_data_and_labels.PNG" alt="cover" width="1200"/>
 </p>
 
 ## Contributing
