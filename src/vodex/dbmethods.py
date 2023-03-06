@@ -833,18 +833,26 @@ class DbReader:
 
         return data_dir, file_names, file_ids, frame_in_file, volumes
 
-    def get_frames_per_volumes(self, volume_ids):
+    def get_frames_per_volumes(self, volume_ids: List[int],
+                               slices: List[int] = None):
         """
         Finds all the frames that correspond to the specified volumes.
         The order is not preserved!
         the volume correspond to sorted volumes in increasing order !
 
-        :param volume_ids: a list of volume IDs
-        :type volume_ids: [int]
-        :return: frame IDs
-        :rtype: [int]
+        Args:
+            volume_ids: a list of volume IDs
+            slices: a list of slice IDs ( Not Implemented Yet!!!)
+
+        Returns:
+            a list of frame IDs that correspond to the specified volumes and
+            slices (if specified) ( Not Implemented Yet!!!) .
+            order will not be preserved: frames will be sorted in increasing order
         """
         ids = list_of_int(volume_ids)
+        # TODO : implement slices
+        if slices is not None:
+            slices = list_of_int(slices)
 
         # get the frames
         cursor = self.connection.cursor()

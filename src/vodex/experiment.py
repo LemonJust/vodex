@@ -205,6 +205,37 @@ class Experiment:
                                                show_progress=verbose)
         return volumes_img
 
+    def load_slices(self, slices: List[int], volumes: List[int] = None, verbose: bool = False) -> npt.NDArray:
+        """
+        Load volumes. Will load the specified full volumes.
+        All the returned volumes or slices should have the same number of frames in them.
+
+        Args:
+            slices: the indexes of slices in the volumes to load.
+            volumes: the indexes of volumes to load. If None, will load slices for all volumes.
+            verbose: Whether to print the information about the loading
+        Returns:
+            4D array with the loaded slices for selected volumes.
+        """
+        if volumes is None:
+            volumes = self.db.get_volume_list()
+
+        frames = self.db.get_frames_per_volumes(volumes, slices = slices)
+
+        info = self.db.prepare_frames_for_loading(frames)
+        # unpack
+        data_dir, file_names, file_ids, frame_in_file, volumes = info
+        # make full paths to files ( remember file ids start with 1 )
+        files = [Path(data_dir, file_names[file_id - 1]) for file_id in file_ids]
+        if not hasattr(self, "loader"):
+            self.loader = ImageLoader(Path(data_dir, file_names[0]))
+        volumes_img = self.loader.load_volumes(frame_in_file,
+                                               files,
+                                               volumes,
+                                               show_file_names=False,
+                                               show_progress=verbose)
+        return volumes_img
+
     def list_volumes(self) -> npt.NDArray[int]:
         """
         Returns a list of all the volumes IDs in the experiment.
