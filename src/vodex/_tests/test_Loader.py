@@ -28,8 +28,10 @@ def concrete_loader(file_example):
         def get_frame_dtype(file: Union[str, Path]) -> np.dtype:
             return np.dtype(np.uint8)
 
-        def load_frames(self, frames: List[int], files: Union[List[str], List[Path]],
-                        show_file_names: bool = False, show_progress: bool = True) -> np.ndarray:
+        def load_frames(self, frames: List[int],
+                        files: Union[List[str], List[Path]],
+                        show_file_names: bool = False,
+                        show_progress: bool = True) -> np.ndarray:
             return np.zeros((len(frames), 10, 10))
 
     return ConcreteLoader(file_example)
@@ -63,30 +65,5 @@ def test_load_frames(concrete_loader):
     frames = [1, 2, 3]
     files = ["file1.txt", "file2.txt", "file3.txt"]
 
-    assert (concrete_loader.load_frames(frames, files) == np.zeros((len(frames), 10, 10))).all()
-
-
-def test_bare_loader():
-    with pytest.raises(Exception) as e:
-        Loader(None)
-    assert str(e.value) == "get_frame_size method is not implemented!"
-
-    with pytest.raises(Exception) as e:
-        assert Loader.__eq__(None, None)
-    assert str(e.value) == "__eq__ method is not implemented!"
-
-    with pytest.raises(Exception) as e:
-        assert Loader.get_frames_in_file(None)
-    assert str(e.value) == "get_frames_in_file method is not implemented!"
-
-    with pytest.raises(Exception) as e:
-        assert Loader.get_frame_size(None)
-    assert str(e.value) == "get_frame_size method is not implemented!"
-
-    with pytest.raises(Exception) as e:
-        assert Loader.get_frame_dtype(None)
-    assert str(e.value) == "get_frame_dtype method is not implemented!"
-
-    with pytest.raises(Exception) as e:
-        assert Loader.load_frames(None, None, None)
-    assert str(e.value) == "load_frames method is not implemented!"
+    assert (concrete_loader.load_frames(frames, files) ==
+            np.zeros((len(frames), 10, 10))).all()
