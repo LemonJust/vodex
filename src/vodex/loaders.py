@@ -14,21 +14,25 @@ Additional loaders can be created to work with other file types. See  Contributi
 import numpy as np
 import numpy.typing as npt
 
+from abc import ABC, abstractmethod
 from pathlib import Path
 from tifffile import TiffFile
 from tqdm import tqdm
 from typing import Union, Final, Dict, Tuple, List
 
 
-class Loader:
+class Loader(ABC):
     """
-    The Loader class is a generic class that serves as a template for loading image data from specific file types.
-    The class contains basic methods that need to be overwritten to create a custom loader for a specific file type.
+    The Loader class is a generic class that serves as a template for
+    loading image data from specific file types. The class contains basic
+    methods that need to be overwritten to create a custom loader for a
+    specific file type.
 
-    Any loader must be initialised by providing an example file from the dataset.
+    Any loader must be initialised by providing an example file from the
+    dataset.
 
-    Args:
-        file_example: an example file from the dataset to infer the frame size and data type.
+    Args: file_example: an example file from the dataset to infer the frame
+    size and data type.
 
     Attributes:
         frame_size: a tuple containing the individual frame size (height, width)
@@ -46,9 +50,8 @@ class Loader:
         """
         print(f"__eq__ is Not Implemented for {type(self)} and {type(other)}")
 
-        raise NotImplementedError("__eq__ method is not implemented!")
-
     @staticmethod
+    @abstractmethod
     def get_frames_in_file(file: Union[str, Path]) -> int:
         """
         Computes and returns the number of frames in a file.
@@ -58,9 +61,9 @@ class Loader:
         Returns:
             the number of frames in the file.
         """
-        raise NotImplementedError("get_frames_in_file method is not implemented!")
 
     @staticmethod
+    @abstractmethod
     def get_frame_size(file: Union[str, Path]) -> Tuple[int, int]:
         """
         Returns the size of an individual frame (height, width) in pixels.
@@ -70,9 +73,9 @@ class Loader:
         Returns:
             ( height , width ) height and width of an individual frame in pixels.
         """
-        raise NotImplementedError("get_frame_size method is not implemented!")
 
     @staticmethod
+    @abstractmethod
     def get_frame_dtype(file: Union[str, Path]) -> np.dtype:
         """
         Returns the datatype of the image frames.
@@ -82,8 +85,8 @@ class Loader:
         Returns:
             datatype of the frame.
         """
-        raise NotImplementedError("get_frame_dtype method is not implemented!")
 
+    @abstractmethod
     def load_frames(self, frames: List[int], files: Union[List[str], List[Path]],
                     show_file_names: bool = False, show_progress: bool = True) -> npt.NDArray:
         """
@@ -97,7 +100,6 @@ class Loader:
         Returns:
             3D array of requested frames (frame, y, x)
         """
-        raise NotImplementedError("load_frames method is not implemented!")
 
 
 class TiffLoader(Loader):
@@ -115,12 +117,6 @@ class TiffLoader(Loader):
         frame_size: individual frame size (hight, width).
         data_type: datatype.
     """
-
-    def __init__(self, file_example: Union[str, Path]):
-        super().__init__(file_example)
-
-        self.frame_size: Tuple[int, int] = self.get_frame_size(file_example)
-        self.data_type: np.dtype = self.get_frame_dtype(file_example)
 
     def __eq__(self, other):
         if isinstance(other, TiffLoader):
