@@ -69,6 +69,16 @@ HALF_VOLUMES_0_1 = tif.imread(Path(TEST_DATA, 'loader_test', "half_volumes_1_2.t
 FRAMES = [0, 1, 40, 41]
 FRAMES_1_2_41_42 = tif.imread(Path(TEST_DATA, 'loader_test', "frames_1_2_41_42.tif").as_posix())
 
+# for testing loading of the slices
+VOLUMES_0_TAIL_SLICES_0_1 = tif.imread(Path(TEST_DATA, 'loader_test', "volumes_0_tail_slices_0_1.tif").as_posix())
+SLICES_0_1 = tif.imread(Path(TEST_DATA, 'loader_test', "slices_0_1.tif").as_posix())
+SLICES_0 = tif.imread(Path(TEST_DATA, 'loader_test', "slices_0.tif").as_posix())
+SLICES_2 = tif.imread(Path(TEST_DATA, 'loader_test', "slices_2.tif").as_posix())
+# reshape into 4D array
+VOLUMES_0_TAIL_SLICES_0_1 = VOLUMES_0_TAIL_SLICES_0_1.reshape((2, 2, 200, 200))
+SLICES_0_1 = SLICES_0_1.reshape((5, 2, 200, 200))
+SLICES_0 = SLICES_0.reshape((5, 1, 200, 200))
+SLICES_2 = SLICES_2.reshape((4, 1, 200, 200))
 
 # before tests run, will create database with this name:
 @pytest.fixture(autouse=True, scope='session')

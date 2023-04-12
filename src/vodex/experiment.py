@@ -11,7 +11,8 @@ from pathlib import Path
 from typing import Union, List, Tuple
 import warnings
 
-from .core import VolumeManager, Annotation, ImageLoader
+from .core import VolumeManager, ImageLoader
+from .annotation import Annotation
 from .dbmethods import DbReader, DbWriter
 
 
@@ -187,53 +188,79 @@ class Experiment:
             volumes: the indexes of volumes to load.
             verbose: Whether to print the information about the loading
         Returns:
-            4D array with the loaded volumes.
+            4D array with the loaded volumes. TZYX order.
         """
         frames = self.db.get_frames_per_volumes(volumes)
 
         info = self.db.prepare_frames_for_loading(frames)
         # unpack
-        data_dir, file_names, file_ids, frame_in_file, volumes = info
+        data_dir, file_names, file_ids, frame_in_file, volumes_per_frame = info
+        # get unique volumes and check that they are the same as the ones we asked for
+        assert set(volumes_per_frame) == set(volumes), "Requested volumes" \
+                                                       f" {set(volumes).difference(set(volumes_per_frame))} " \
+                                                       "can not be found"
         # make full paths to files ( remember file ids start with 1 )
         files = [Path(data_dir, file_names[file_id - 1]) for file_id in file_ids]
         if not hasattr(self, "loader"):
             self.loader = ImageLoader(Path(data_dir, file_names[0]))
         volumes_img = self.loader.load_volumes(frame_in_file,
                                                files,
-                                               volumes,
+                                               volumes_per_frame,
                                                show_file_names=False,
                                                show_progress=verbose)
         return volumes_img
 
-    def load_slices(self, slices: List[int], volumes: List[int] = None, verbose: bool = False) -> npt.NDArray:
+    def load_slices(self, slices: List[int], volumes: List[int] = None,
+                    skip_missing: bool = False, verbose: bool = False) -> npt.NDArray:
         """
         Load volumes. Will load the specified full volumes.
         All the returned volumes or slices should have the same number of frames in them.
 
         Args:
             slices: the indexes of slices in the volumes to load.
-            volumes: the indexes of volumes to load. If None, will load slices for all volumes.
+            volumes: the indexes of volumes to load slices for. If None, will load slices for all volumes.
+            skip_missing: Whether to skip missing volumes.
+                If False, will raise an error if a slice is missing for any volume.
             verbose: Whether to print the information about the loading
         Returns:
-            4D array with the loaded slices for selected volumes.
+            4D array with the loaded slices for selected volumes. TZYX order.
         """
         if volumes is None:
             volumes = self.db.get_volume_list()
 
-        frames = self.db.get_frames_per_volumes(volumes, slices = slices)
-
+        frames = self.db.get_frames_per_volumes(volumes, slices=slices)
         info = self.db.prepare_frames_for_loading(frames)
-        # unpack
-        data_dir, file_names, file_ids, frame_in_file, volumes = info
+
+        # unpack and load
+        data_dir, file_names, file_ids, frame_in_file, volumes_per_frame = info
+
+        # get unique volumes and check that they are the same as the ones we asked for
+        if skip_missing:  # throw a warning
+            if set(volumes_per_frame) != set(volumes):
+                warnings.warn(f"Requested volumes {set(volumes).difference(set(volumes_per_frame))} " +
+                              f"are not present in the slices {slices}. " +
+                              f"Loaded slices for {set(volumes_per_frame)} volumes.")
+        else:  # throw an error
+            assert set(volumes_per_frame) == set(volumes), \
+                f"Requested volumes {set(volumes).difference(set(volumes_per_frame))} " \
+                f"are not present in the slices {slices}. "
+
         # make full paths to files ( remember file ids start with 1 )
         files = [Path(data_dir, file_names[file_id - 1]) for file_id in file_ids]
         if not hasattr(self, "loader"):
             self.loader = ImageLoader(Path(data_dir, file_names[0]))
+
         volumes_img = self.loader.load_volumes(frame_in_file,
                                                files,
-                                               volumes,
+                                               volumes_per_frame,
                                                show_file_names=False,
                                                show_progress=verbose)
+
+        # if the z dimension is smaller than the number of slices, throw a warning
+        if volumes_img.shape[1] < len(slices):
+            warnings.warn(f"Some of the requested slices {slices} are not present in the volumes. " +
+                          f"Loaded {volumes_img.shape[1]} slices instead of {len(slices)}")
+
         return volumes_img
 
     def list_volumes(self) -> npt.NDArray[int]:
@@ -304,4 +331,3 @@ class Experiment:
             _, cycle_its = self.db.get_cycleIterations_per_frame(annotation_type)
 
         return cycle_its
-

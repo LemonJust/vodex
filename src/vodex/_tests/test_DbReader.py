@@ -5,6 +5,8 @@ from .conftest import (TEST_DATA,
                        SPLIT_MOVIE_DIR,
                        SPLIT_MOVIE_NAMES,
                        SPLIT_MOVIE_FRAMES)
+
+
 # TODO: test on a full movie too ?
 
 
@@ -152,7 +154,8 @@ def test_prepare_frames_for_loading(db_reader, db_reader_empty):
     assert str(e.value) == "no such table: Options"
 
 
-def test_get_frames_per_volumes(db_reader, db_reader_empty):
+def test_get_frames_per_volumes_without_slices(db_reader, db_reader_empty):
+    # test get_frames_per_volumes with no slices specified
     assert db_reader.get_frames_per_volumes([0]) == [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
     assert db_reader.get_frames_per_volumes([0, 1]) == [1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
                                                         11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
@@ -161,6 +164,28 @@ def test_get_frames_per_volumes(db_reader, db_reader_empty):
                                                            11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
     with pytest.raises(Exception) as e:
         db_reader_empty.get_frames_per_volumes([0])
+    assert str(e.value) == "no such table: Volumes"
+
+
+def test_get_frames_per_volumes_with_slices(db_reader, db_reader_empty):
+    # test get_frames_per_volumes with slices specified
+    assert db_reader.get_frames_per_volumes([0], slices=[0, 1]) == [1, 2]
+
+    # !!! NOTE : the order of the volumes and the order of slices doesn't matter !!!
+    assert db_reader.get_frames_per_volumes([0, 1], slices=[0, 1]) == [1, 2, 11, 12]
+    assert db_reader.get_frames_per_volumes([0, 1], slices=[1, 0]) == [1, 2, 11, 12]
+    assert db_reader.get_frames_per_volumes([1, 0], slices=[0, 1]) == [1, 2, 11, 12]
+
+    assert db_reader.get_frames_per_volumes([0, 1, -2], slices=[0, 1]) == [1, 2, 11, 12, 41, 42]
+
+    assert db_reader.get_frames_per_volumes([0], slices=[2, 3, 4]) == [3, 4, 5]
+    assert db_reader.get_frames_per_volumes([0, 1], slices=[2, 3, 4]) == [3, 4, 5, 13, 14, 15]
+
+    assert db_reader.get_frames_per_volumes([0, -2], slices=[2, 3, 4]) == [3, 4, 5]
+    assert db_reader.get_frames_per_volumes([0, -2], slices=[1, 2]) == [2, 3, 42]
+
+    with pytest.raises(Exception) as e:
+        db_reader_empty.get_frames_per_volumes([0, -2], slices=[1, 2])
     assert str(e.value) == "no such table: Volumes"
 
 

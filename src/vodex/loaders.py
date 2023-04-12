@@ -48,7 +48,7 @@ class Loader(ABC):
         """
         Compares two loader instances for equality."
         """
-        print(f"__eq__ is Not Implemented for {type(self)} and {type(other)}")
+        raise TypeError(f"__eq__ is Not Implemented for {type(self).__name__} and {type(other).__name__}")
 
     @staticmethod
     @abstractmethod

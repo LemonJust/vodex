@@ -5,8 +5,13 @@ import pytest
 import sqlite3
 from vodex import *
 from pathlib import Path
+# TODO : REMOVE AFTER TESTING IS DONE
+from icecream import ic
+import numpy as np
+from matplotlib import pyplot as plt
 
-from .conftest import TEST_DATA, VOLUMES_0_1, \
+from .conftest import TEST_DATA, \
+    VOLUMES_0_1, HALF_VOLUMES_0_1, VOLUMES_0_TAIL_SLICES_0_1, SLICES_0_1, SLICES_0, SLICES_2, \
     VOLUMES_TAIL, VOLUME_M, SHAPE_AN, CNUM_AN, LIGHT_AN
 
 
@@ -247,6 +252,44 @@ def test_load_volumes(experiment_no_annotations):
 
     with pytest.raises(AssertionError):
         experiment_no_annotations.load_volumes([1, -2])
+
+
+def test_load_slices(experiment_no_annotations):
+    volumes_img = experiment_no_annotations.load_slices([0, 1, 2, 3, 4], volumes=[0, 1])
+    assert (HALF_VOLUMES_0_1 == volumes_img).all()
+
+    volumes_img = experiment_no_annotations.load_slices([0, 1], volumes=[-2])
+    assert (VOLUMES_TAIL == volumes_img).all()
+
+    volumes_img = experiment_no_annotations.load_slices([0, 1], volumes=[0, -2])
+    assert (VOLUMES_0_TAIL_SLICES_0_1 == volumes_img).all()
+
+    volumes_img = experiment_no_annotations.load_slices([0])
+    assert (SLICES_0 == volumes_img).all()
+
+    volumes_img = experiment_no_annotations.load_slices([0, 1])
+    assert (SLICES_0_1 == volumes_img).all()
+
+    with pytest.raises(AssertionError) as e:
+        volumes_img = experiment_no_annotations.load_slices([2])
+    assert str(e.value) == "Requested volumes {-2} are not present in the slices [2]. "
+
+    with pytest.warns(UserWarning) as record:
+        volumes_img = experiment_no_annotations.load_slices([2], skip_missing=True)
+        assert (SLICES_2 == volumes_img).all()
+    assert str(record[0].message) == \
+           "Requested volumes {-2} are not present in the slices [2]. Loaded slices for {0, 1, 2, 3} volumes."
+
+    with pytest.raises(AssertionError) as e:
+        experiment_no_annotations.load_slices([1, 2], volumes=[1, -2])
+    assert str(e.value) == "Can't have different number of frames per volume!"
+
+    # test that the warning is called
+    with pytest.warns(UserWarning) as record:
+        volumes_img = experiment_no_annotations.load_slices([0, 15])
+        assert (SLICES_0 == volumes_img).all()
+    assert str(record[0].message) == \
+           "Some of the requested slices [0, 15] are not present in the volumes. Loaded 1 slices instead of 2"
 
 
 def test_list_volumes(experiment_no_annotations):

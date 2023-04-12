@@ -67,3 +67,10 @@ def test_load_frames(concrete_loader):
 
     assert (concrete_loader.load_frames(frames, files) ==
             np.zeros((len(frames), 10, 10))).all()
+
+
+def test_eq(concrete_loader):
+    # Test the __eq__ method
+    with pytest.raises(TypeError) as e:
+        concrete_loader == concrete_loader
+    assert str(e.value) == "__eq__ is Not Implemented for ConcreteLoader and ConcreteLoader"

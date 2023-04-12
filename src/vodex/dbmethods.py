@@ -15,9 +15,12 @@ DbExporter - A class that transforms the information from the database into the 
 from sqlite3 import connect, Connection
 
 from .core import *
+from .annotation import *
 from .utils import list_of_int
 
-from typing import Union, List
+from typing import Union, List, Tuple, Dict, Optional, Any
+
+from icecream import ic
 
 
 class DbWriter:
@@ -713,7 +716,7 @@ class DbReader:
 
         return volume_ids, frame_ids
 
-    def choose_frames_per_slices(self, frames, slices):
+    def choose_frames_per_slices(self, frames: List[int], slices: List[int]) -> List[int]:
         """
         Chooses the frames from specified frames, that also correspond to the same slices (continuously)
         in different volumes.
@@ -724,13 +727,13 @@ class DbReader:
 
         The order of the frames is not preserved!
         The result will correspond to frames sorted in increasing order !
-
-        :param frames: a list of frame IDs
-        :type frames: [int]
-        :param slices: a list of slice IDs, order will not be preserved: will be sorted in increasing order
-        :type slices: [int]
-        :return: frames IDs from frames. corresponding to slices
-        :rtype: [int]
+        
+        Args:
+            frames: a list of frame IDs
+            slices: a list of slice IDs, order will not be preserved: will be sorted in increasing order
+            
+        Returns:
+            frames IDs from frames. corresponding to slices
         """
         # create list of frame Ids
         frame_ids = tuple(frames)
@@ -768,7 +771,8 @@ class DbReader:
         frame_ids = [frame[0] for frame in frame_ids]
         return frame_ids
 
-    def prepare_frames_for_loading(self, frames):
+    def prepare_frames_for_loading(self, frames: List[int]) -> \
+            Tuple[str, List[str], List[str], List[int], List[int]]:
         """
         Finds all the information needed
         1) to load the frames
@@ -779,15 +783,16 @@ class DbReader:
         The order is not preserved!
         the volume correspond to sorted volumes in increasing order !
 
-        :param frames: a list of frame IDs
-        :type frames: [int]
-        :return: three lists, the length of the frames :
-                data directory, file names,
-                image files, frame location on the image, volumes.
-        :rtype: str, [str], [str],[int],[int]
+        Args:
+            frames: a list of frame IDs
+
+        Returns:
+             three lists, the length of the frames : data directory, file names,
+             image files, frame location on the image, volumes.
+        """
         # TODO : break into functions that get the file locations and the stuff relevant to the frames
         # TODO : make one " prepare volumes " for loading?
-        """
+
         n_frames = len(frames)
 
         # get the frames
@@ -833,8 +838,7 @@ class DbReader:
 
         return data_dir, file_names, file_ids, frame_in_file, volumes
 
-    def get_frames_per_volumes(self, volume_ids: List[int],
-                               slices: List[int] = None):
+    def get_frames_per_volumes(self, volume_ids: List[int], slices: List[int] = None):
         """
         Finds all the frames that correspond to the specified volumes.
         The order is not preserved!
@@ -842,32 +846,52 @@ class DbReader:
 
         Args:
             volume_ids: a list of volume IDs
-            slices: a list of slice IDs ( Not Implemented Yet!!!)
+            slices: a list of slice IDs, order will not be preserved: will be sorted in increasing order
 
         Returns:
             a list of frame IDs that correspond to the specified volumes and
-            slices (if specified) ( Not Implemented Yet!!!) .
+            slices (if specified).
             order will not be preserved: frames will be sorted in increasing order
         """
         ids = list_of_int(volume_ids)
-        # TODO : implement slices
+
         if slices is not None:
             slices = list_of_int(slices)
+            ids.extend(slices)
 
-        # get the frames
-        cursor = self.connection.cursor()
-        try:
-            # create a parameterised query with variable number of parameters
-            cursor.execute(
-                f"""SELECT FrameId FROM Volumes 
-                    WHERE VolumeId IN ({', '.join(['?'] * len(ids))})""", tuple(ids))
-            frame_ids = cursor.fetchall()
-        except Exception as e:
-            print(f"Could not _get_FrameId_from_Volumes because {e}")
-            raise e
-        finally:
-            cursor.close()
+            # get the frames
+            cursor = self.connection.cursor()
+            try:
+                # create a parameterised query with variable number of parameters
+                cursor.execute(
+                    f"""SELECT FrameId FROM Volumes 
+                                    WHERE VolumeId IN ({', '.join(['?'] * len(volume_ids))}) 
+                                    AND SliceInVolume IN  ({', '.join(['?'] * len(slices))})""",
+                    tuple(ids))
+                frame_ids = cursor.fetchall()
+            except Exception as e:
+                print(f"Could not get_frames_per_volumes because {e}")
+                raise e
+            finally:
+                cursor.close()
+        else:
+            # get the frames
+            cursor = self.connection.cursor()
+            try:
+                # create a parameterised query with variable number of parameters
+                cursor.execute(
+                    f"""SELECT FrameId FROM Volumes 
+                        WHERE VolumeId IN ({', '.join(['?'] * len(ids))})""", tuple(ids))
+                frame_ids = cursor.fetchall()
+            except Exception as e:
+                print(f"Could not get_frames_per_volumes because {e}")
+                raise e
+            finally:
+                cursor.close()
         frame_ids = [frame[0] for frame in frame_ids]
+        # sort the frames: this is important when having -2 and -1 as volume ids. Otherwise -2 will be first.
+        frame_ids.sort()
+
         return frame_ids
 
     def get_and_frames_per_annotations(self, conditions):
@@ -1284,7 +1308,7 @@ class DbReader:
                             ORDER BY FrameId ASC""", annotation_name)
             label_ids = [label[0] for label in cursor.fetchall()]
             assert len(label_ids) > 0, f"Could not find labels from group {annotation_name} " \
-                                          "Are you sure it's been added into the database?"
+                                       "Are you sure it's been added into the database?"
         except Exception as e:
             print(f"Could not _get_AnnotationTypeLabelId_from_Annotations because {e}")
             raise e
