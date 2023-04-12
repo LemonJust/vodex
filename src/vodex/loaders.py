@@ -18,7 +18,7 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from tifffile import TiffFile
 from tqdm import tqdm
-from typing import Union, Final, Dict, Tuple, List
+from typing import Union, Tuple, List
 
 
 class Loader(ABC):

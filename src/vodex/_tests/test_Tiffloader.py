@@ -2,7 +2,6 @@
 Tests for the `vodex.loaders` module.
 """
 import numpy as np
-from pathlib import Path
 import pytest
 from vodex import TiffLoader
 from .conftest import (FULL_MOVIE,

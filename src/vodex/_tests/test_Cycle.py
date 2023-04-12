@@ -3,13 +3,11 @@ Tests for the `vodex.core` module.
 """
 import json
 from pathlib import Path
-import pytest
-from vodex import TimeLabel, Labels, Cycle
+from vodex import TimeLabel, Cycle
 
 TEST_DATA = Path(Path(__file__).parent.resolve(), 'data')
 
 import pytest
-from typing import List, Union
 import numpy as np
 
 

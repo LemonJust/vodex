@@ -10,8 +10,6 @@ while the 'FrameManager' class contains information about the number of frames i
 frames to files. The 'VolumeManager' class contains information about the image volumes in the experiment,
 including the number of frames per volume and the mapping of frames to volumes.
 """
-import json
-from itertools import groupby
 from pathlib import Path
 from typing import Union, List, Tuple, Dict
 
@@ -19,7 +17,6 @@ import numpy as np
 import numpy.typing as npt
 
 from .loaders import Loader, TiffLoader
-import icecream as ic
 
 
 # This section of the code is related to adding support for new file types. ___________________________________________

@@ -5,10 +5,6 @@ import pytest
 import sqlite3
 from vodex import *
 from pathlib import Path
-# TODO : REMOVE AFTER TESTING IS DONE
-from icecream import ic
-import numpy as np
-from matplotlib import pyplot as plt
 
 from .conftest import TEST_DATA, \
     VOLUMES_0_1, HALF_VOLUMES_0_1, VOLUMES_0_TAIL_SLICES_0_1, SLICES_0_1, SLICES_0, SLICES_2, \
