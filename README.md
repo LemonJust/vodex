@@ -14,6 +14,10 @@ VoDEx is an open-source Python library that streamlines the management and analy
 You can install `vodex` via [pip](https://pypi.org/project/vodex):
 
     pip install vodex
+    
+or via conda:
+
+    conda install vodex -c conda-forge
 
 ## Documentation
 
