@@ -81,10 +81,11 @@ nav:
       - Load Volumes: qstart/load_volumes.md
   - API:
       - api/index.md
-      - Loaders: api/loaders.md
       - Core: api/core.md
+      - Annotation : api/annotation.md
+      - Dbmethods: api/dbmethods.md
+      - Loaders: api/loaders.md
       - Experiment: api/experiment.md
-      - DataBase methods: api/dbmethods.md
   - Examples: examples.md
   - Database: db.md
   - Contributions: contribute.md
