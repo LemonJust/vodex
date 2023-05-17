@@ -2,11 +2,15 @@
 
 We recommend that you run these commands in a [virtual environment](https://conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html).
 
-## From PyPI
+## From PyPI or conda
 
 If you simply plan to use `vodex` as is, you can install the latest version via [pip](https://pypi.org/project/vodex/):
 ```bash
 pip install vodex
+```
+or conda:
+```bash
+conda install vodex -c conda-forge
 ```
 
 ## From source
