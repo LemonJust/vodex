@@ -325,6 +325,20 @@ class Cycle:
         """
         return json.dumps(self.to_dict())
 
+    def to_df(self) -> pd.DataFrame:
+        """
+        Put all the information about a Cycle object into a dataframe.
+
+        Returns:
+            a dataframe with fields 'group', 'name', 'timing' and 'description' .
+        """
+        df = pd.DataFrame(columns=['timing', 'name', 'group', 'description'])
+        df['timing'] = self.duration
+        df['name'] = [label.name for label in self.label_order]
+        df['group'] = [label.group for label in self.label_order]
+        df['description'] = [label.description for label in self.label_order]
+        return df
+
     @classmethod
     def from_dict(cls, d: dict):
         """
@@ -447,6 +461,40 @@ class Timeline:
 
     def __repr__(self):
         return self.__str__()
+
+    def to_dict(self) -> dict:
+        """
+        Put all the information about a Timeline object into a dictionary.
+
+        Returns:
+            a dictionary with fields 'label_order' and 'timing' .
+        """
+        return {'timing': self.duration,
+                'label_order': [label.to_dict() for label in self.label_order],
+                }
+
+    def to_json(self) -> str:
+        """
+        Put all the information about a Timeline object into a json string.
+
+        Returns:
+            a json string with fields 'label_order' and 'timing' .
+        """
+        return json.dumps(self.to_dict())
+
+    def to_df(self) -> pd.DataFrame:
+        """
+        Put all the information about a Timeline object into a dataframe.
+
+        Returns:
+            a dataframe with columns 'group', 'name', 'timing' and 'description'.
+        """
+        df = pd.DataFrame(columns=['timing', 'name', 'group', 'description'])
+        df['timing'] = self.duration
+        df['name'] = [label.name for label in self.label_order]
+        df['group'] = [label.group for label in self.label_order]
+        df['description'] = [label.description for label in self.label_order]
+        return df
 
     @classmethod
     def from_dict(cls, d: dict):

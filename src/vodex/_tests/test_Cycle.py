@@ -152,6 +152,16 @@ def test_cycle_to_json(cycle):
                                                           {'name': 'name1', 'group': 'group1'}]})
 
 
+def test_cycle_to_df(cycle):
+    df = pd.DataFrame({'timing': [1, 2, 3],
+                       'name': ['name1', 'name2', 'name1'],
+                       'group': ['group1', 'group1', 'group1'],
+                       'description': [None, None, None]})
+    print(cycle.to_df())
+    print(df)
+    assert cycle.to_df().equals(df)
+
+
 def test_cycle_from_dict(cycle):
     d = {'timing': [1, 2, 3],
          'label_order': [{'name': 'name1', 'group': 'group1'},

@@ -142,3 +142,25 @@ def test_from_df(timeline, label_order, duration):
     assert df1_timeline.label_order[0].description == label_order[0].description
     assert df1_timeline.label_order[1].description == label_order[1].description
     assert df1_timeline.label_order[2].description == label_order[2].description
+
+
+def test_to_dict(timeline):
+    assert timeline.to_dict() == {'timing': [1, 2, 3],
+                                  'label_order': [{'name': 'name1', 'group': 'group1'},
+                                                  {'name': 'name2', 'group': 'group1'},
+                                                  {'name': 'name1', 'group': 'group1'}]}
+
+
+def test_to_json(timeline):
+    assert timeline.to_json() == json.dumps({'timing': [1, 2, 3],
+                                             'label_order': [{'name': 'name1', 'group': 'group1'},
+                                                             {'name': 'name2', 'group': 'group1'},
+                                                             {'name': 'name1', 'group': 'group1'}]})
+
+
+def test_to_df(timeline):
+    df = pd.DataFrame({'timing': [1, 2, 3],
+                       'name': ['name1', 'name2', 'name1'],
+                       'group': ['group1', 'group1', 'group1'],
+                       'description': [None, None, None]})
+    assert timeline.to_df().equals(df)
