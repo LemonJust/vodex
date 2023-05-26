@@ -9,6 +9,7 @@ TEST_DATA = Path(Path(__file__).parent.resolve(), 'data')
 
 import pytest
 import numpy as np
+import pandas as pd
 
 
 @pytest.fixture
@@ -154,8 +155,8 @@ def test_cycle_to_json(cycle):
 def test_cycle_from_dict(cycle):
     d = {'timing': [1, 2, 3],
          'label_order': [{'name': 'name1', 'group': 'group1'},
-                                    {'name': 'name2', 'group': 'group1'},
-                                    {'name': 'name1', 'group': 'group1'}]}
+                         {'name': 'name2', 'group': 'group1'},
+                         {'name': 'name1', 'group': 'group1'}]}
     assert Cycle.from_dict(d) == cycle
 
 
@@ -165,3 +166,28 @@ def test_cycle_from_json(cycle):
                                     {'name': 'name2', 'group': 'group1'},
                                     {'name': 'name1', 'group': 'group1'}]})
     assert Cycle.from_json(j) == cycle
+
+
+def test_cycle_from_df(cycle):
+    df1 = pd.DataFrame({'timing': [1, 2, 3],
+                        'name': ['name1', 'name2', 'name1'],
+                        'group': ['group1', 'group1', 'group1'],
+                        'description': ['description1', None, 'description3']})
+
+    df1_cycle = Cycle.from_df(df1)
+    assert df1_cycle == cycle
+
+    assert df1_cycle.label_order[0].description == 'description1'
+    assert df1_cycle.label_order[1].description is None
+    assert df1_cycle.label_order[2].description == 'description3'
+
+    df2 = pd.DataFrame({'timing': [1, 2, 3],
+                        'name': ['name1', 'name2', 'name1'],
+                        'group': ['group1', 'group1', 'group1']})
+
+    df2_cycle = Cycle.from_df(df2)
+    assert df2_cycle == cycle
+
+    assert df2_cycle.label_order[0].description is None
+    assert df2_cycle.label_order[1].description is None
+    assert df2_cycle.label_order[2].description is None

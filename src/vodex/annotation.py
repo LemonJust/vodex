@@ -16,6 +16,7 @@ from typing import Union, List
 
 import numpy as np
 import numpy.typing as npt
+import pandas as pd
 
 from .utils import list_of_int
 
@@ -354,6 +355,27 @@ class Cycle:
         d = json.loads(j)
         return cls.from_dict(d)
 
+    @classmethod
+    def from_df(cls, df: pd.DataFrame):
+        """
+        Create a Cycle object from a dataframe.
+
+        Args:
+            df : dataframe to initialise the cycle. Must have columns 'group', 'name', 'timing' and 'description'.
+
+        Returns:
+            (Cycle): a Cycle object with labels and duration initialised from 'group', 'name', 'description' and
+                    'timing' fields of the dataframe. In the order in which they appear in the dataframe.
+        """
+        label_order = []
+        for _, row in df.iterrows():
+            label_order.append(TimeLabel(row['name'],
+                                         group=row['group'],
+                                         description=row.get('description')
+                                         )
+                               )
+        return cls(label_order, df['timing'].values)
+
 
 class Timeline:
     """
@@ -426,6 +448,57 @@ class Timeline:
     def __repr__(self):
         return self.__str__()
 
+    @classmethod
+    def from_dict(cls, d: dict):
+        """
+        Create a Timeline object from a dictionary.
+
+        Args:
+            d: dictionary to initialize the timeline.
+
+        Returns:
+            (Timeline): a Timeline object with label_order and duration initialized from 'label_order' and
+                    'timing' fields of the dictionary.
+        """
+        label_order = [TimeLabel.from_dict(ld) for ld in d['label_order']]
+        return cls(label_order, d['timing'])
+
+    @classmethod
+    def from_json(cls, j: str):
+        """
+        Create a Timeline object from a json string.
+
+        Args:
+            j : json string to initialise the cycle
+
+        Returns:
+            (Timeline): a Timeline object with label_order and duration initialised from 'label_order' and
+                    'timing' fields of the json srting.
+        """
+        d = json.loads(j)
+        return cls.from_dict(d)
+
+    @classmethod
+    def from_df(cls, df: pd.DataFrame):
+        """
+        Create a Timeline object from a dataframe.
+
+        Args:
+            df : dataframe to initialise the timeline. Must have columns 'group', 'name', 'timing' and 'description'.
+
+        Returns:
+            (Timeline): a Timeline object with labels and duration initialised from 'group', 'name', 'description' and
+                    'timing' fields of the dataframe. In the order in which they appear in the dataframe.
+        """
+        label_order = []
+        for _, row in df.iterrows():
+            label_order.append(TimeLabel(row['name'],
+                                         group=row['group'],
+                                         description=row.get('description')
+                                         )
+                               )
+        return cls(label_order, df['timing'].values)
+
 
 class Annotation:
     """
@@ -463,8 +536,8 @@ class Annotation:
 
         # None if the annotation is not from a cycle
         assert (frame_to_cycle is None) == (
-                    cycle is None), "Creating Annotation: " \
-                                    "You have to provide both cycle and frame_to_cycle."
+                cycle is None), "Creating Annotation: " \
+                                "You have to provide both cycle and frame_to_cycle."
         # if cycle is provided , check the input and add the info
         if cycle is not None and frame_to_cycle is not None:
             # check that frame_to_cycle is int

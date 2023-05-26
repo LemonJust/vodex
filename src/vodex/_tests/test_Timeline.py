@@ -5,6 +5,8 @@ Tests for the `vodex.Timeline` module.
 import pytest
 from vodex import TimeLabel, Timeline
 import numpy as np
+import pandas as pd
+import json
 
 
 @pytest.fixture
@@ -109,3 +111,34 @@ def test_repr(timeline):
                               'Label name1: for 1 frames\n'
                               'Label name2: for 2 frames\n'
                               'Label name1: for 3 frames\n')
+
+
+def test_from_dict(timeline, label_order, duration):
+    d = {'timing': duration,
+         'label_order': [{'name': label.name,
+                          'group': label.group,
+                          'description': label.description} for label in label_order]
+         }
+    assert Timeline.from_dict(d) == timeline
+
+
+def test_from_json(timeline, label_order, duration):
+    j = json.dumps({'timing': duration,
+                    'label_order': [{'name': label.name,
+                                     'group': label.group,
+                                     'description': label.description} for label in label_order]})
+    assert Timeline.from_json(j) == timeline
+
+
+def test_from_df(timeline, label_order, duration):
+    df1 = pd.DataFrame({'timing': duration,
+                        'name': [label.name for label in label_order],
+                        'group': [label.group for label in label_order],
+                        'description': [label.description for label in label_order]})
+
+    df1_timeline = Timeline.from_df(df1)
+    assert df1_timeline == timeline
+
+    assert df1_timeline.label_order[0].description == label_order[0].description
+    assert df1_timeline.label_order[1].description == label_order[1].description
+    assert df1_timeline.label_order[2].description == label_order[2].description
