@@ -153,13 +153,26 @@ def test_cycle_to_json(cycle):
 
 
 def test_cycle_to_df(cycle):
-    df = pd.DataFrame({'timing': [1, 2, 3],
+    df = pd.DataFrame({'duration_frames': [1, 2, 3],
                        'name': ['name1', 'name2', 'name1'],
                        'group': ['group1', 'group1', 'group1'],
                        'description': [None, None, None]})
-    print(cycle.to_df())
-    print(df)
-    assert cycle.to_df().equals(df)
+    pd.testing.assert_frame_equal(cycle.to_df(), df, check_dtype=False)
+
+
+def test_cycle_to_df_timing_conversion(cycle):
+    df = pd.DataFrame({'duration_frames': [1, 2, 3],
+                       'duration_volumes': [10, 20, 30],
+                       'duration_seconds': [0.1, 0.2, 0.3],
+                       'name': ['name1', 'name2', 'name1'],
+                       'group': ['group1', 'group1', 'group1'],
+                       'description': [None, None, None]})
+    pd.testing.assert_frame_equal(cycle.to_df(timing_conversion={'frames': 10, 'volumes': 100, 'seconds': 1}),
+                                  df, check_dtype=False)
+
+    with pytest.raises(AssertionError) as e:
+        cycle.to_df(timing_conversion={'seconds': 10, 'volumes': 100})
+    assert str(e.value) == "frames must be in the timing_conversion dictionary"
 
 
 def test_cycle_from_dict(cycle):
@@ -179,7 +192,7 @@ def test_cycle_from_json(cycle):
 
 
 def test_cycle_from_df(cycle):
-    df1 = pd.DataFrame({'timing': [1, 2, 3],
+    df1 = pd.DataFrame({'duration_frames': [1, 2, 3],
                         'name': ['name1', 'name2', 'name1'],
                         'group': ['group1', 'group1', 'group1'],
                         'description': ['description1', None, 'description3']})
@@ -191,7 +204,7 @@ def test_cycle_from_df(cycle):
     assert df1_cycle.label_order[1].description is None
     assert df1_cycle.label_order[2].description == 'description3'
 
-    df2 = pd.DataFrame({'timing': [1, 2, 3],
+    df2 = pd.DataFrame({'duration_frames': [1, 2, 3],
                         'name': ['name1', 'name2', 'name1'],
                         'group': ['group1', 'group1', 'group1']})
 
@@ -201,3 +214,34 @@ def test_cycle_from_df(cycle):
     assert df2_cycle.label_order[0].description is None
     assert df2_cycle.label_order[1].description is None
     assert df2_cycle.label_order[2].description is None
+
+
+def test_cycle_from_df_timing_conversion(cycle):
+    df2 = pd.DataFrame({'duration_volumes': [1, 2, 3],
+                        'name': ['name1', 'name2', 'name1'],
+                        'group': ['group1', 'group1', 'group1'],
+                        'description': ['description1', None, 'description3']})
+
+    with pytest.raises(AssertionError) as e:
+        Cycle.from_df(df2)
+    assert str(e.value) == 'if duration_frames is not in the dataframe, timing_conversion must be provided'
+
+    with pytest.raises(AssertionError) as e:
+        Cycle.from_df(df2, timing_conversion=1)
+    assert str(e.value) == "timing_conversion must be a dictionary"
+
+    with pytest.raises(AssertionError) as e:
+        Cycle.from_df(df2, timing_conversion={'volumes': 1})
+    assert str(e.value) == "frames must be in the timing_conversion dictionary"
+
+    with pytest.raises(AssertionError) as e:
+        Cycle.from_df(df2, timing_conversion={'frames': 1})
+    assert str(e.value) == "timing_conversion dictionary must have at " \
+                           "least one of the following keys in addition to 'frames': volumes"
+
+    df2_timeline = Cycle.from_df(df2, timing_conversion={'frames': 1, 'volumes': 1})
+    assert df2_timeline == cycle
+
+    with pytest.raises(AssertionError) as e:
+        Cycle.from_df(df2, timing_conversion={'frames': 1, 'volumes': 2})
+    assert str(e.value) == 'duration in frames must be integer after conversion from volumes'

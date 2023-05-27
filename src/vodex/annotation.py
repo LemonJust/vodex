@@ -12,7 +12,7 @@ of the experiment; it uses either the 'Cycle' or 'Timeline' classes to initializ
 """
 import json
 from itertools import groupby
-from typing import Union, List
+from typing import Union, List, Optional, Tuple, Dict, Any
 
 import numpy as np
 import numpy.typing as npt
@@ -133,7 +133,7 @@ class Labels:
     """
 
     def __init__(self, group: str, state_names: List[str],
-                 group_info: str = None, state_info: dict = None):
+                 group_info: str = None, state_info: Optional[dict] = None):
 
         if state_info is None:
             state_info = {}
@@ -325,15 +325,50 @@ class Cycle:
         """
         return json.dumps(self.to_dict())
 
-    def to_df(self) -> pd.DataFrame:
+    def to_df(self, timing_conversion: Optional[dict] = None) -> pd.DataFrame:
         """
         Put all the information about a Cycle object into a dataframe.
 
+        Args:
+            timing_conversion: a dictionary to convert the timing into a different unit.
+                For example, if you want to convert the timing from frames to seconds,
+                and you were recording at 30 frames per second, you can use
+                timing_conversion = {'frames': 1, 'seconds': 1/30}
+                You can list multiple units in the dictionary, and the timing will be converted to all of them,
+                for example if there are also 10 frames per volume, you can use:
+                timing_conversion = {'frames': 1, 'seconds': 1/30, 'volumes': 1/10}
+                You must include 'frames' in the dictionary! The value of frames does not have to be 1,
+                but it must be consistent with the other units. the rest of the values.
+                for example this is valid for the example above:
+                timing_conversion = {'frames': 10, 'seconds': 1/3, 'volumes': 1}.
+                if timing_conversion is None, then the timing is not converted.
+                if timing_conversion is not None, then the timing is converted and both the original and converted
+                timing are added to the dataframe.
+
         Returns:
-            a dataframe with fields 'group', 'name', 'timing' and 'description' .
+            a dataframe with columns 'timing', 'group', 'name' and 'description'.
+            'timing' will be written in all the units in the timing_conversion dictionary,
+            or just in frames, if timing_conversion is None.
         """
-        df = pd.DataFrame(columns=['timing', 'name', 'group', 'description'])
-        df['timing'] = self.duration
+        #TODO: move to/from methids to a separte class and inherit both Cycle and Timeline from it
+        # prepare timing columns
+        if timing_conversion is None:
+            timing_conversion = {'frames': 1}
+        assert 'frames' in timing_conversion.keys(), "frames must be in the timing_conversion dictionary"
+
+        timing_columns = ['duration_' + unit for unit in timing_conversion.keys()]
+        df = pd.DataFrame(columns=timing_columns + ['name', 'group', 'description'])
+
+        # write timing columns
+        for unit in timing_conversion.keys():
+            frames_per_unit = timing_conversion['frames'] / timing_conversion[unit]
+            duration = np.array(self.duration) / frames_per_unit
+            # if all are integers, turn to integer
+            if all(d.is_integer() for d in duration):
+                duration = duration.astype(int)
+            df['duration_' + unit] = duration
+
+        # write labels
         df['name'] = [label.name for label in self.label_order]
         df['group'] = [label.group for label in self.label_order]
         df['description'] = [label.description for label in self.label_order]
@@ -370,17 +405,26 @@ class Cycle:
         return cls.from_dict(d)
 
     @classmethod
-    def from_df(cls, df: pd.DataFrame):
+    def from_df(cls, df: pd.DataFrame, timing_conversion: Optional[dict] = None):
         """
         Create a Cycle object from a dataframe.
 
         Args:
-            df : dataframe to initialise the cycle. Must have columns 'group', 'name', 'timing' and 'description'.
+            df : dataframe to initialise the cycle.
+                Must have columns 'group', 'name', optional column 'description'.
+                Either column 'duration_frames' or duration column in any other unit
+                and a timing_conversion dictionary to transform it to frames.
+                For example if column 'duration_seconds' is present,
+                the timing_conversion dictionary should be
+                {'frames': 30, 'seconds': 1} if the recording was at 30 frames per second.
+            timing_conversion: a dictionary to convert the timing into a different unit.
 
         Returns:
             (Cycle): a Cycle object with labels and duration initialised from 'group', 'name', 'description' and
-                    'timing' fields of the dataframe. In the order in which they appear in the dataframe.
+                    duration fields of the dataframe. In the order in which they appear in the dataframe.
         """
+        #TODO: add a check that the dataframe is valid
+        #TODO: move to/from methids to a separte class and inherit both Cycle and Timeline from it
         label_order = []
         for _, row in df.iterrows():
             label_order.append(TimeLabel(row['name'],
@@ -388,7 +432,31 @@ class Cycle:
                                          description=row.get('description')
                                          )
                                )
-        return cls(label_order, df['timing'].values)
+        if 'duration_frames' in df.columns:
+            duration_frames = df['duration_frames'].values
+        else:
+            assert timing_conversion is not None, "if duration_frames is not in the dataframe, " \
+                                                  "timing_conversion must be provided"
+            # check that timing_conversion is a dictionary
+            assert isinstance(timing_conversion, dict), "timing_conversion must be a dictionary"
+            # check that frames are present in the timing_conversion dictionary
+            assert 'frames' in timing_conversion.keys(), "frames must be in the timing_conversion dictionary"
+            # list units that are present in both dataframe and timing_conversion dictionary
+            unit_list = [unit for unit in timing_conversion.keys() if 'duration_' + unit in df.columns]
+            # check that at least one unit from the timing_conversion dictionary is present in the dataframe
+            assert len(unit_list) > 0, "timing_conversion dictionary must have at least one " \
+                                       "of the following keys in addition to 'frames': " + \
+                                       ", ".join([col_name.split('_')[1] for col_name in
+                                                  set(df.columns) - {'name', 'group', 'description'}])
+            unit = unit_list[0]
+            duration_frames = df['duration_' + unit].values * timing_conversion['frames'] / timing_conversion[unit]
+            # if all values in duration are integer, convert to int, else raise an assertion
+            if all(d.is_integer() for d in duration_frames):
+                duration_frames = duration_frames.astype(int)
+            else:
+                assert False, "duration in frames must be integer after conversion from " + unit
+
+        return cls(label_order, duration_frames)
 
 
 class Timeline:
@@ -482,15 +550,49 @@ class Timeline:
         """
         return json.dumps(self.to_dict())
 
-    def to_df(self) -> pd.DataFrame:
+    def to_df(self, timing_conversion: Optional[dict] = None) -> pd.DataFrame:
         """
         Put all the information about a Timeline object into a dataframe.
 
+        Args:
+            timing_conversion: a dictionary to convert the timing into a different unit.
+                For example, if you want to convert the timing from frames to seconds,
+                and you were recording at 30 frames per second, you can use
+                timing_conversion = {'frames': 1, 'seconds': 1/30}
+                You can list multiple units in the dictionary, and the timing will be converted to all of them,
+                for example if there are also 10 frames per volume, you can use:
+                timing_conversion = {'frames': 1, 'seconds': 1/30, 'volumes': 1/10}
+                You must include 'frames' in the dictionary! The value of frames does not have to be 1,
+                but it must be consistent with the other units. the rest of the values.
+                for example this is valid for the example above:
+                timing_conversion = {'frames': 10, 'seconds': 1/3, 'volumes': 1}.
+                if timing_conversion is None, then the timing is not converted.
+                if timing_conversion is not None, then the timing is converted and both the original and converted
+                timing are added to the dataframe.
+
         Returns:
-            a dataframe with columns 'group', 'name', 'timing' and 'description'.
+            a dataframe with columns 'timing', 'group', 'name' and 'description'.
+            'timing' will be written in all the units in the timing_conversion dictionary,
+            or just in frames, if timing_conversion is None.
         """
-        df = pd.DataFrame(columns=['timing', 'name', 'group', 'description'])
-        df['timing'] = self.duration
+        # prepare timing columns
+        if timing_conversion is None:
+            timing_conversion = {'frames': 1}
+        assert 'frames' in timing_conversion.keys(), "frames must be in the timing_conversion dictionary"
+
+        timing_columns = ['duration_' + unit for unit in timing_conversion.keys()]
+        df = pd.DataFrame(columns=timing_columns + ['name', 'group', 'description'])
+
+        # write timing columns
+        for unit in timing_conversion.keys():
+            frames_per_unit = timing_conversion['frames'] / timing_conversion[unit]
+            duration = np.array(self.duration) / frames_per_unit
+            # if all are integers, turn to integer
+            if all(d.is_integer() for d in duration):
+                duration = duration.astype(int)
+            df['duration_' + unit] = duration
+
+        # write labels
         df['name'] = [label.name for label in self.label_order]
         df['group'] = [label.group for label in self.label_order]
         df['description'] = [label.description for label in self.label_order]
@@ -527,16 +629,23 @@ class Timeline:
         return cls.from_dict(d)
 
     @classmethod
-    def from_df(cls, df: pd.DataFrame):
+    def from_df(cls, df: pd.DataFrame, timing_conversion: Optional[dict] = None):
         """
         Create a Timeline object from a dataframe.
 
         Args:
-            df : dataframe to initialise the timeline. Must have columns 'group', 'name', 'timing' and 'description'.
+            df : dataframe to initialise the timeline.
+                Must have columns 'group', 'name', optional column 'description'.
+                Either column 'duration_frames' or duration column in any other unit
+                and a timing_conversion dictionary to transform it to frames.
+                For example if column 'duration_seconds' is present,
+                the timing_conversion dictionary should be
+                {'frames': 30, 'seconds': 1} if the recording was at 30 frames per second.
+            timing_conversion: a dictionary to convert the timing into a different unit.
 
         Returns:
             (Timeline): a Timeline object with labels and duration initialised from 'group', 'name', 'description' and
-                    'timing' fields of the dataframe. In the order in which they appear in the dataframe.
+                    duration fields of the dataframe. In the order in which they appear in the dataframe.
         """
         label_order = []
         for _, row in df.iterrows():
@@ -545,7 +654,31 @@ class Timeline:
                                          description=row.get('description')
                                          )
                                )
-        return cls(label_order, df['timing'].values)
+        if 'duration_frames' in df.columns:
+            duration_frames = df['duration_frames'].values
+        else:
+            assert timing_conversion is not None, "if duration_frames is not in the dataframe, " \
+                                                  "timing_conversion must be provided"
+            # check that timing_conversion is a dictionary
+            assert isinstance(timing_conversion, dict), "timing_conversion must be a dictionary"
+            # check that frames are present in the timing_conversion dictionary
+            assert 'frames' in timing_conversion.keys(), "frames must be in the timing_conversion dictionary"
+            # list units that are present in both dataframe and timing_conversion dictionary
+            unit_list = [unit for unit in timing_conversion.keys() if 'duration_' + unit in df.columns]
+            # check that at least one unit from the timing_conversion dictionary is present in the dataframe
+            assert len(unit_list) > 0, "timing_conversion dictionary must have at least one " \
+                                       "of the following keys in addition to 'frames': " + \
+                                       ", ".join([col_name.split('_')[1] for col_name in
+                                                  set(df.columns) - {'name', 'group', 'description'}])
+            unit = unit_list[0]
+            duration_frames = df['duration_' + unit].values * timing_conversion['frames'] / timing_conversion[unit]
+            # if all values in duration are integer, convert to int, else raise an assertion
+            if all(d.is_integer() for d in duration_frames):
+                duration_frames = duration_frames.astype(int)
+            else:
+                assert False, "duration in frames must be integer after conversion from " + unit
+
+        return cls(label_order, duration_frames)
 
 
 class Annotation:

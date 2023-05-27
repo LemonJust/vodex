@@ -131,7 +131,7 @@ def test_from_json(timeline, label_order, duration):
 
 
 def test_from_df(timeline, label_order, duration):
-    df1 = pd.DataFrame({'timing': duration,
+    df1 = pd.DataFrame({'duration_frames': duration,
                         'name': [label.name for label in label_order],
                         'group': [label.group for label in label_order],
                         'description': [label.description for label in label_order]})
@@ -142,6 +142,35 @@ def test_from_df(timeline, label_order, duration):
     assert df1_timeline.label_order[0].description == label_order[0].description
     assert df1_timeline.label_order[1].description == label_order[1].description
     assert df1_timeline.label_order[2].description == label_order[2].description
+
+    df2 = pd.DataFrame({'duration_volumes': duration,
+                        'name': [label.name for label in label_order],
+                        'group': [label.group for label in label_order],
+                        'description': [label.description for label in label_order]})
+
+    with pytest.raises(AssertionError) as e:
+        Timeline.from_df(df2)
+    assert str(e.value) == 'if duration_frames is not in the dataframe, timing_conversion must be provided'
+
+    with pytest.raises(AssertionError) as e:
+        Timeline.from_df(df2, timing_conversion=1)
+    assert str(e.value) == "timing_conversion must be a dictionary"
+
+    with pytest.raises(AssertionError) as e:
+        Timeline.from_df(df2, timing_conversion={'volumes': 1})
+    assert str(e.value) == "frames must be in the timing_conversion dictionary"
+
+    with pytest.raises(AssertionError) as e:
+        Timeline.from_df(df2, timing_conversion={'frames': 1})
+    assert str(e.value) == "timing_conversion dictionary must have at " \
+                           "least one of the following keys in addition to 'frames': volumes"
+
+    df2_timeline = Timeline.from_df(df2, timing_conversion={'frames': 1, 'volumes': 1})
+    assert df2_timeline == timeline
+
+    with pytest.raises(AssertionError) as e:
+        Timeline.from_df(df2, timing_conversion={'frames': 1, 'volumes': 2})
+    assert str(e.value) == 'duration in frames must be integer after conversion from volumes'
 
 
 def test_to_dict(timeline):
@@ -159,8 +188,23 @@ def test_to_json(timeline):
 
 
 def test_to_df(timeline):
-    df = pd.DataFrame({'timing': [1, 2, 3],
+    df = pd.DataFrame({'duration_frames': [1, 2, 3],
                        'name': ['name1', 'name2', 'name1'],
                        'group': ['group1', 'group1', 'group1'],
                        'description': [None, None, None]})
-    assert timeline.to_df().equals(df)
+    pd.testing.assert_frame_equal(timeline.to_df(), df, check_dtype=False)
+
+
+def test_to_df_timing_conversion(timeline):
+    df = pd.DataFrame({'duration_frames': [1, 2, 3],
+                       'duration_volumes': [10, 20, 30],
+                       'duration_seconds': [0.1, 0.2, 0.3],
+                       'name': ['name1', 'name2', 'name1'],
+                       'group': ['group1', 'group1', 'group1'],
+                       'description': [None, None, None]})
+    pd.testing.assert_frame_equal(timeline.to_df(timing_conversion={'frames': 10, 'volumes': 100, 'seconds': 1}),
+                                  df, check_dtype=False)
+
+    with pytest.raises(AssertionError) as e:
+        timeline.to_df(timing_conversion={'seconds': 10, 'volumes': 100})
+    assert str(e.value) == "frames must be in the timing_conversion dictionary"
