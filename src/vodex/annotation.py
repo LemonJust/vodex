@@ -177,6 +177,74 @@ class Labels:
     def __repr__(self):
         return self.__str__()
 
+    @classmethod
+    def from_dict(cls, d: dict):
+        """
+        Create a Labels object from a dictionary.
+
+        Returns:
+            (Labels): a Labels object with attributes 'group', 'group_info', 'state_names', 'states'
+                    filled from the dictionary fields.
+        """
+        group_info = None
+        state_info = None
+        if 'group_info' in d:
+            group_info = d['group_info']
+        if 'state_info' in d:
+            state_info = d['state_info']
+        return cls(d['group'], d['state_names'], group_info=group_info, state_info=state_info)
+
+    @classmethod
+    def from_df(cls, df: pd.DataFrame, group: str = None):
+        """
+        Create a Labels object from a dataframe.
+                The dataframe must have columns 'group', 'name', optional column 'description'.
+                'group' column must be the same for all rows. 'name' columns contains the state names,
+                state names can repeat and only the unique state names will be used. The descriptions are optional,
+                if provided then the descriptions of the same state name must be the same or left empty.
+
+        Arg:
+            df: the dataframe
+            group: if not None, keep only the rows with this group name.
+                Must be provided if there are multiple groups in the dataframe.
+        Returns:
+            (Labels): a Labels object with attributes 'group', 'group_info', 'state_names', 'states'
+                    inferred and filled from the dataframe.
+        """
+        # if group is not none, keep only the group rows
+        if group is not None:
+            if group not in df['group'].unique():
+                raise ValueError(f"Group {group} not found in the dataframe.")
+            df = df[df['group'] == group]
+
+        # check that group is the same for all rows
+        group = df['group'].unique()
+        if len(group) > 1:
+            raise ValueError(
+                f"More than one group found in the dataframe: {group}")
+        group = group[0]
+
+        state_names = df['name'].unique()
+        state_info = {}
+        for state_name in state_names:
+            if 'description' in df.columns:
+                # check that all descriptions are either the same or empty
+                description = df[df['name'] == state_name]['description'].unique()
+                if len(description) > 2:
+                    raise ValueError(
+                        f"More than one description found for state {state_name}: {description}")
+                elif len(description) == 2:
+                    # one must be an empty string or None
+                    if not ('' in description or None in description):
+                        raise ValueError(
+                            f"More than one description found for state {state_name}: {description}")
+                else:
+                    state_info[state_name] = description[0]
+            else:
+                state_info[state_name] = None
+
+        return cls(group, state_names.tolist(), group_info=None, state_info=state_info)
+
 
 class Cycle:
     """
@@ -350,7 +418,7 @@ class Cycle:
             'timing' will be written in all the units in the timing_conversion dictionary,
             or just in frames, if timing_conversion is None.
         """
-        #TODO: move to/from methids to a separte class and inherit both Cycle and Timeline from it
+        # TODO: move to/from methids to a separte class and inherit both Cycle and Timeline from it
         # prepare timing columns
         if timing_conversion is None:
             timing_conversion = {'frames': 1}
@@ -423,8 +491,8 @@ class Cycle:
             (Cycle): a Cycle object with labels and duration initialised from 'group', 'name', 'description' and
                     duration fields of the dataframe. In the order in which they appear in the dataframe.
         """
-        #TODO: add a check that the dataframe is valid
-        #TODO: move to/from methids to a separte class and inherit both Cycle and Timeline from it
+        # TODO: add a check that the dataframe is valid
+        # TODO: move to/from methids to a separte class and inherit both Cycle and Timeline from it
         label_order = []
         for _, row in df.iterrows():
             label_order.append(TimeLabel(row['name'],
@@ -792,6 +860,28 @@ class Annotation:
         # make a fake cycle the length of the whole recording
         frame_to_label = timeline.per_frame_list
         return cls(n_frames, labels, frame_to_label, info=info)
+
+    @classmethod
+    def from_df(cls, n_frames: int, df: pd.DataFrame, is_cycle: bool = False, info: Optional[str] = None):
+        """
+        Creates an Annotation object from a dataframe.
+
+        Args:
+            n_frames: total number of frames, must be provided
+            df: dataframe with columns 'frame' and 'label'
+            is_cycle: if True, the annotation is for a cycle
+            info: a short description of the annotation
+        Returns:
+            (Annotation): Annotation object
+        """
+        if is_cycle:
+            cycle = Cycle.from_df(df)
+            labels = Labels.from_df(df)
+            return cls.from_cycle(n_frames, labels, cycle, info=info)
+        else:
+            timeline = Timeline.from_df(df)
+            labels = Labels.from_df(df)
+            return cls.from_timeline(n_frames, labels, timeline, info=info)
 
     def get_timeline(self) -> Timeline:
         """

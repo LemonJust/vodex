@@ -7,10 +7,13 @@ from vodex import *
 from pathlib import Path
 
 import numpy as np
+import pandas as pd
 
 from .conftest import TEST_DATA, \
     VOLUMES_0_1, HALF_VOLUMES_0_1, VOLUMES_0_TAIL_SLICES_0_1, SLICES_0_1, SLICES_0, SLICES_2, \
-    VOLUMES_TAIL, VOLUME_M, SHAPE_AN, CNUM_AN, LIGHT_AN
+    VOLUMES_TAIL, VOLUME_M, \
+    SHAPE_AN, CNUM_AN, LIGHT_AN, \
+    SHAPE_CYCLE, CNUM_CYCLE, LIGHT_TML
 
 
 # Fixture to create an Experiment instance in agreement with the test database
@@ -46,6 +49,15 @@ def test_create_verbose():
         experiment.loader  # the loader is not initialized yet
 
 
+def test_from_dir():
+    data_dir_split = Path(TEST_DATA, "test_movie")
+    experiment = Experiment.from_dir(data_dir_split, 10, starting_slice=0)
+    assert isinstance(experiment, Experiment)
+    assert isinstance(experiment.db, DbReader)
+    with pytest.raises(AttributeError):
+        experiment.loader  # the loader is not initialized yet
+
+
 def test_save(experiment):
     # Create the test db file
     test_db_file = 'test_save.db'
@@ -64,6 +76,43 @@ def test_add_annotations(experiment_no_annotations):
         "SELECT FrameId FROM Annotations WHERE AnnotationTypeLabelId = 2;")
     labels = [row[0] for row in cursor.fetchall()]
     assert labels == [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35]
+
+
+def test_add_annotations_from_df(experiment_no_annotations):
+    shape_df = SHAPE_CYCLE.to_df()
+    cnum_df = CNUM_CYCLE.to_df()
+    light_df = LIGHT_TML.to_df()
+
+    # add annotations
+    experiment_no_annotations.add_annotations_from_df(shape_df, cycles=True)
+    # (if it was added successfully, there should be exactly 20 such rows)
+    cursor = experiment_no_annotations.db.connection.execute(
+        "SELECT FrameId FROM Annotations WHERE AnnotationTypeLabelId = 2;")
+    labels = [row[0] for row in cursor.fetchall()]
+    assert labels == [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35]
+
+    two_groups_df = pd.concat([cnum_df, light_df])
+    experiment_no_annotations.add_annotations_from_df(two_groups_df, cycles=['c label'])
+    cursor = experiment_no_annotations.db.connection.execute(
+        "SELECT FrameId FROM Annotations WHERE AnnotationTypeLabelId = 7;")
+    labels = [row[0] for row in cursor.fetchall()]
+    assert labels == [11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30]
+
+    cursor = experiment_no_annotations.db.connection.execute(
+        "SELECT Name FROM AnnotationTypes")
+    names = [row[0] for row in cursor.fetchall()]
+    assert names == ["c label", "light", "shape"]
+
+    cursor = experiment_no_annotations.db.connection.execute(
+        "SELECT Name, Description FROM AnnotationTypeLabels")
+    info = cursor.fetchall()
+    names = [row[0] for row in info]
+    description = [row[1] for row in info]
+    assert names == ["c", "s", "c1", "c2", "c3", "off", "on"]
+    assert description == ["circle on the screen", "square on the screen",
+                           "written c1", "written c2", None,
+                           "the intensity of the background is low",
+                           "the intensity of the background is high"]
 
 
 def test_delete_annotations(experiment):

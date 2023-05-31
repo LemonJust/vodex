@@ -7,6 +7,7 @@ FrameManager, VolumeManager, as well as Annotations, to create a database.
 
 import numpy as np
 import numpy.typing as npt
+import pandas as pd
 
 from pathlib import Path
 from typing import Union, List, Tuple, Optional, Dict, Any
@@ -69,6 +70,18 @@ class Experiment:
         db_reader = DbReader(db.connection)
         return cls(db_reader)
 
+    @classmethod
+    def from_dir(cls, dir_name: Union[Path, str], frames_per_volume: int,
+                 starting_slice: int = 0, verbose: bool = False):
+        """
+        Creates a database instance from a directory and initialises the experiment.
+        The directory should contain the image files.
+        Annotations are not initialised, but can be added later.
+        """
+        # initialise volume manager
+        volume_manager = VolumeManager.from_dir(dir_name, frames_per_volume, fgf=starting_slice)
+        return cls.create(volume_manager, [], verbose)
+
     def save(self, file_name: Union[Path, str]):
         """
         Saves a database into a file.
@@ -88,6 +101,40 @@ class Experiment:
             annotations: a list of annotations to add to the database.
         """
         DbWriter(self.db.connection).add_annotations(annotations)
+
+    def add_annotations_from_df(self, annotation_df: pd.DataFrame,
+                                cycles: Union[List[str], bool] = False, groups: Optional[str] = None,
+                                info: Optional[dict] = None):
+        """
+        Adds annotations to existing experiment from a data frame.
+        Does NOT save the changes to disc! run self.save() to save.
+
+        Args:
+            annotation_df: a dataframe with the annotation information
+            cycles: a list of the annotation names that are cycles or a boolean.
+                If False, all annotations are assumed to be timelines.
+                If True, all annotations are assumed to be cycles.
+            Specified as {'cycles': }
+            groups: the group of the annotation if there are multiple groups in the dataframe.
+                If None, all groups are added.
+            info: additional information about the annotation, dictionary with keys:
+                'annotation name': information
+        """
+        n_frames = self.db.get_n_frames()
+
+        if groups is None:
+            groups = annotation_df['group'].unique()
+
+        annotations = []
+        for group in groups:
+            group_df = annotation_df[annotation_df['group'] == group]
+            if cycles is True or (isinstance(cycles, list) and group in cycles):
+                is_cycle = True
+            else:
+                is_cycle = False
+            annotations.append(Annotation.from_df(n_frames, group_df, is_cycle, info))
+
+        self.add_annotations(annotations)
 
     def delete_annotations(self, annotation_names: List[str]):
         """

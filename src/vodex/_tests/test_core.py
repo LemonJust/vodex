@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 import pytest
 from vodex import *
+import pandas as pd
 
 from .conftest import TEST_DATA
 
@@ -155,3 +156,16 @@ class TestAnnotation:
     def test_repr(self):
         a1 = Annotation(42, self.shape, self.shape_frame_to_label, info="This is info")
         assert repr(a1) == 'Annotation type: shape\nThis is info\nTotal frames : 42\n'
+
+    def test_from_df(self):
+        df = self.shape_cycle.to_df()
+        a1 = Annotation.from_df(42, df, is_cycle=True)
+        a2 = Annotation.from_cycle(42, self.shape, self.shape_cycle)
+        assert a1 == a2
+
+        df = self.shape_timeline.to_df()
+        a1 = Annotation.from_df(42, df, is_cycle=False)
+        a3 = Annotation.from_timeline(42, self.shape, self.shape_timeline)
+        assert a1 != a2
+        assert a1 == a3
+
