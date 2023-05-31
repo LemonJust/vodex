@@ -6,6 +6,8 @@ import sqlite3
 from vodex import *
 from pathlib import Path
 
+import numpy as np
+
 from .conftest import TEST_DATA, \
     VOLUMES_0_1, HALF_VOLUMES_0_1, VOLUMES_0_TAIL_SLICES_0_1, SLICES_0_1, SLICES_0, SLICES_2, \
     VOLUMES_TAIL, VOLUME_M, SHAPE_AN, CNUM_AN, LIGHT_AN
@@ -248,6 +250,49 @@ def test_load_volumes(experiment_no_annotations):
 
     with pytest.raises(AssertionError):
         experiment_no_annotations.load_volumes([1, -2])
+
+    volumes_img = experiment_no_annotations.load_volumes(np.array([0, 1]))
+    assert (VOLUMES_0_1 == volumes_img).all()
+
+    volumes_img = experiment_no_annotations.load_volumes(np.array([-2]))
+    assert (VOLUMES_TAIL == volumes_img).all()
+
+    with pytest.raises(AssertionError) as e:
+        experiment_no_annotations.load_volumes(np.array([[0, 1], [0, 1]]))
+    assert "volumes must be a 1D array" in str(e.value)
+
+    with pytest.raises(AssertionError) as e:
+        experiment_no_annotations.load_volumes(np.array([0, 1, 2.3]))
+    assert "All the volumes must be integers" in str(e.value)
+
+
+def test_get_volume_annotations(experiment):
+    with pytest.raises(ValueError) as e:
+        experiment.get_volume_annotations([0])
+    assert "Can't assign a single label to the volume." in str(e.value)
+
+    volume_annotations = experiment.get_volume_annotations([0], annotation_names=["light", "c label"])
+    assert volume_annotations == {'light': ['off'], 'c label': ['c1'], 'volumes': [0]}
+
+    annotation = {'light': ['off', 'off', 'on'], 'c label': ['c2', 'c1', 'c2'], 'volumes': [-2, 0, 1]}
+    volume_annotations = experiment.get_volume_annotations([-2, 0, 1], annotation_names=["light", "c label"])
+    assert volume_annotations == annotation
+
+    volume_annotations = experiment.get_volume_annotations(np.array([-2, 0, 1]), annotation_names=["light", "c label"])
+    assert volume_annotations == annotation
+
+    volume_annotations = experiment.get_volume_annotations(np.array([-2.0, 0.0, 1.0]),
+                                                           annotation_names=["light", "c label"])
+    assert volume_annotations == annotation
+
+    # 2D array
+    volume_annotations = experiment.get_volume_annotations(np.array([[-2], [0], [1]]),
+                                                           annotation_names=["light", "c label"])
+    assert volume_annotations == annotation
+
+    with pytest.raises(AssertionError) as e:
+        experiment.get_volume_annotations(np.array([1.2, 3]))
+    assert "All the volumes must be integers" in str(e.value)
 
 
 def test_load_slices(experiment_no_annotations):

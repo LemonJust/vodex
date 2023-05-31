@@ -212,6 +212,45 @@ def test_get_or_frames_per_annotations(db_reader, db_reader_empty):
     assert str(e.value) == "no such table: AnnotationTypeLabels"
 
 
+def test_get_volume_annotation(db_reader, db_reader_empty):
+    all_annotations_0 = {'shape': {'volume_ids': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                                   'labels': ['c', 'c', 'c', 'c', 'c', 's', 's', 's', 's', 's']},
+                         'c label': {'volume_ids': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                                     'labels': ['c1', 'c1', 'c1', 'c1', 'c1', 'c1', 'c1', 'c1', 'c1', 'c1']},
+                         'light': {'volume_ids': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                                   'labels': ['off', 'off', 'off', 'off', 'off', 'off', 'off', 'off', 'off', 'off']}}
+    assert db_reader.get_volume_annotations([0]) == all_annotations_0
+
+    shape_annotation_0 = {'shape': {'volume_ids': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                                    'labels': ['c', 'c', 'c', 'c', 'c', 's', 's', 's', 's', 's']}}
+    assert db_reader.get_volume_annotations([0], annotation_names=['shape']) == shape_annotation_0
+
+    shape_light_annotation_0 = {'shape': {'volume_ids': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                                          'labels': ['c', 'c', 'c', 'c', 'c', 's', 's', 's', 's', 's']},
+                                'light': {'volume_ids': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                                          'labels': ['off', 'off', 'off', 'off', 'off', 'off', 'off', 'off', 'off',
+                                                     'off']}}
+    assert db_reader.get_volume_annotations([0], annotation_names=['shape', 'light']) == shape_light_annotation_0
+
+    shape_annotation_01 = {'shape': {'volume_ids': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                                    1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+                                     'labels': ['c', 'c', 'c', 'c', 'c', 's', 's', 's', 's', 's',
+                                                's', 's', 's', 's', 's', 'c', 'c', 'c', 'c', 'c']}}
+    assert db_reader.get_volume_annotations([0, 1], annotation_names=['shape']) == shape_annotation_01
+
+    with pytest.raises(Exception) as e:
+        db_reader.get_volume_annotations([0], annotation_names=['drug'])
+    assert str(e.value) == "Annotation type drug does not exist"
+
+    with pytest.raises(Exception) as e:
+        db_reader.get_volume_annotations([0], annotation_names=['shape', 'drug'])
+    assert str(e.value) == "Annotation type drug does not exist"
+
+    with pytest.raises(Exception) as e:
+        db_reader_empty.get_volume_annotations([0])
+    assert str(e.value) == "no such table: AnnotationTypes"
+
+
 def test_get_conditionIds_per_cycle_per_volumes(db_reader, db_reader_empty):
     volume_ids, condition_ids, count = db_reader.get_conditionIds_per_cycle_per_volumes("shape")
     assert volume_ids == [0, 0, 1, 1]

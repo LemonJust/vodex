@@ -7,8 +7,9 @@ FrameManager, VolumeManager, as well as Annotations, to create a database.
 
 import numpy as np
 import numpy.typing as npt
+
 from pathlib import Path
-from typing import Union, List, Tuple
+from typing import Union, List, Tuple, Optional, Dict, Any
 import warnings
 
 from .core import VolumeManager, ImageLoader
@@ -153,7 +154,8 @@ class Experiment:
             verbose: Whether to print the information about how many frames were choose/ dropped
             conditions: a list of conditions on the annotation labels
                 in a form [(group, name),(group, name), ...] where group is a string for the annotation type
-                and name is the name of the label of that annotation type. For example [('light', 'on'), ('shape','c')]
+                and name is the name of the label of that annotation type.
+                For example [('light', 'on'), ('shape','c')]
             logic: "and" or "or" , default is "and".
         Returns:
             list of volumes that were chosen.
@@ -179,7 +181,7 @@ class Experiment:
 
         return volumes
 
-    def load_volumes(self, volumes: List[int], verbose: bool = False) -> npt.NDArray:
+    def load_volumes(self, volumes: Union[npt.NDArray, List[int]], verbose: bool = False) -> npt.NDArray:
         """
         Load volumes. Will load the specified full volumes.
         All the returned volumes or slices should have the same number of frames in them.
@@ -190,9 +192,18 @@ class Experiment:
         Returns:
             4D array with the loaded volumes. TZYX order.
         """
-        frames = self.db.get_frames_per_volumes(volumes)
+        # if array convert to list of int
+        if isinstance(volumes, np.ndarray):
+            # make sure it is a 1D array
+            assert len(volumes.shape) == 1, "volumes must be a 1D array"
 
+            # make sure all the volumes can be safely converted to integers
+            assert np.all(volumes.astype(int) == volumes), "All the volumes must be integers"
+            volumes = volumes.astype(int).tolist()
+
+        frames = self.db.get_frames_per_volumes(volumes)
         info = self.db.prepare_frames_for_loading(frames)
+
         # unpack
         data_dir, file_names, file_ids, frame_in_file, volumes_per_frame = info
         # get unique volumes and check that they are the same as the ones we asked for
@@ -209,6 +220,57 @@ class Experiment:
                                                show_file_names=False,
                                                show_progress=verbose)
         return volumes_img
+
+    def get_volume_annotations(self, volumes: Union[npt.NDArray, List[int]],
+                               annotation_names: Optional[List[str]] = None) -> Dict[str, List[str]]:
+        """
+        Get annotations for volumes.
+        Will get the labels for the specified full volumes from each available annotation.
+
+        Args:
+            volumes: the indexes of volumes to get annotation for. If a multidimensional array is passed,
+                will flatten it and get annotations for all the volumes in it.
+            annotation_names: the names of the annotations to get. If None, will get all the annotations.
+
+        Returns:
+            a dictionary with the annotations for each annotation type.
+            The keys are the annotation types, the values are lists of labels for each volume.
+            The last key is "volumes" and the value is a list of volumes.
+        """
+        # TODO: throw a warning if some volumes are not in the database
+
+        # if array convert to list of int
+        if isinstance(volumes, np.ndarray):
+            # turn into a 1D array
+            volumes = volumes.flatten()
+            # make sure all the volumes can be safely converted to integers
+            assert np.all(volumes.astype(int) == volumes), "All the volumes must be integers"
+            volumes = volumes.astype(int).tolist()
+
+        print(f'volumes : {volumes}')
+        # get annotations for the volumes
+        annotations = self.db.get_volume_annotations(volumes, annotation_names=annotation_names)
+
+        # prepare dict for the annotations
+        annotation = {key: [] for key in annotations.keys()}
+        annotation["volumes"] = []
+
+        # get a single label per volume
+        for volume in volumes:
+            for group, data in annotations.items():
+                volume_ids = np.array(data["volume_ids"])
+                labels = np.array(data["labels"])
+                # check that the volume has the same labels
+                labels_per_volume = set(labels[volume_ids == volume])
+                if len(labels_per_volume) > 1:
+                    raise ValueError(f"Volume {volume} has different labels ({labels_per_volume}) "
+                                     f"for the same annotation {group}. Can't assign a single label to the volume.")
+                # add the label to the dict
+                annotation[group].append(list(labels_per_volume)[0])
+            # add the volume to the dict
+            annotation["volumes"].append(volume)
+
+        return annotation
 
     def load_slices(self, slices: List[int], volumes: List[int] = None,
                     skip_missing: bool = False, verbose: bool = False) -> npt.NDArray:

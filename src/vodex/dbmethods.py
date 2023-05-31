@@ -971,6 +971,62 @@ class DbReader:
         frame_ids = [frame[0] for frame in frame_ids]
         return frame_ids
 
+    def get_volume_annotations(self, volumes: List[int],
+                               annotation_names: Optional[List[str]] = None) -> Dict[str, Dict[str, List[str]]]:
+        """
+        Returns a dictionary with annotations for the specified volumes. If annotation_name is specified, it will return only
+        the annotations for that annotation type. Otherwise, it will return all annotations for all annotation types.
+
+        Args:
+            volumes: list of volume ids
+            annotation_names: list of names of the annotation type to return annotations for. If None, it will return
+                annotations for all annotation types
+
+        Returns:
+            dictionary with volumes ids and annotation labels for each volume and for each annotation type requested
+        """
+        # make sure volumes is a list of integers
+        volume_ids = list_of_int(volumes)
+
+        # get the annotations
+        cursor = self.connection.cursor()
+        try:
+            # check that the annotation type exists
+            cursor.execute(
+                f"""SELECT Name FROM AnnotationTypes""")
+            annotations = cursor.fetchall()
+            annotations = [annotation[0] for annotation in annotations]
+
+            if annotation_names is not None:
+                for name in annotation_names:
+                    assert name in annotations, f"Annotation type {name} does not exist"
+                annotations = annotation_names
+
+            annotation_dict = {}
+            for annotation_name in annotations:
+                cursor.execute(
+                    f"""SELECT Volumes.VolumeId, AnnotationTypeLabels.Name FROM
+                        AnnotationTypeLabels 
+                        INNER JOIN Annotations ON AnnotationTypeLabels.Id = Annotations.AnnotationTypeLabelId 
+                        INNER JOIN Volumes ON Annotations.FrameId = Volumes.FrameId
+                        INNER JOIN AnnotationTypes ON AnnotationTypes.Id = AnnotationTypeLabels.AnnotationTypeId
+                        WHERE AnnotationTypes.Name = ?
+                        AND Volumes.VolumeId in ({', '.join(['?'] * len(volume_ids))})
+                        ORDER BY Volumes.VolumeId""",
+                    [annotation_name] + volume_ids)
+
+                info = cursor.fetchall()
+                volume_ids = [row[0] for row in info]
+                labels = [row[1] for row in info]
+                annotation_dict[annotation_name] = {'volume_ids': volume_ids, 'labels': labels}
+
+        except Exception as e:
+            print(f"Could not get_volume_annotations because {e}")
+            raise e
+        finally:
+            cursor.close()
+        return annotation_dict
+
     def get_conditionIds_per_cycle_per_volumes(self, annotation_name):
         """
         For the first cycle of a given annotation, returns a list of condition IDs that correspond to each volume:
