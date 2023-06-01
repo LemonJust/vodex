@@ -158,8 +158,8 @@ class Labels:
             is_same = [
                 self.group == other.group,
                 self.group_info == other.group_info,
-                self.state_names == other.state_names,
-                self.states == other.states
+                set(self.state_names) == set(other.state_names),
+                set(self.states) == set(other.states)
             ]
 
             return np.all(is_same)

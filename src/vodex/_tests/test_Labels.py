@@ -66,7 +66,13 @@ def test_eq(labels):
     state_names = ["state1", "state2", "state3"]
     state_info = {"state1": "description of state1", "state2": "description of state2"}
     labels2 = Labels("group1", state_names, group_info="group1 description", state_info=state_info)
+    # different order of states
+    state_names = ["state2", "state1", "state3"]
+    state_info = {"state1": "description of state1", "state2": "description of state2"}
+    labels3 = Labels("group1", state_names, group_info="group1 description", state_info=state_info)
+
     assert labels == labels2
+    assert labels == labels3
     assert labels.__eq__("label") == NotImplemented
 
 
