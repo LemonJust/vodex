@@ -169,3 +169,26 @@ class TestAnnotation:
         assert a1 != a2
         assert a1 == a3
 
+        timing_conversion = {'frames': 10, 'volume': 1, 'seconds': 5}
+        df_tc = self.shape_cycle.to_df(timing_conversion=timing_conversion)
+        # remove the frames column
+        df_tc = df_tc.drop(columns=['duration_frames'])
+        a4 = Annotation.from_df(42, df_tc, is_cycle=True, timing_conversion={'frames': 10, 'volume': 1})
+        a5 = Annotation.from_df(42, df_tc, is_cycle=True, timing_conversion={'frames': 10, 'seconds': 5})
+        a6 = Annotation.from_df(42, df_tc, is_cycle=True, timing_conversion=timing_conversion)
+        assert a4 == a5
+        assert a5 == a6
+        assert a4 == a2
+        assert a4 != a3
+
+        df_tc = self.shape_timeline.to_df(timing_conversion=timing_conversion)
+        df_tc = df_tc.drop(columns=['duration_frames'])
+        a7 = Annotation.from_df(42, df_tc, is_cycle=False, timing_conversion={'frames': 10, 'volume': 1})
+        a8 = Annotation.from_df(42, df_tc, is_cycle=False, timing_conversion={'frames': 10, 'seconds': 5})
+        a9 = Annotation.from_df(42, df_tc, is_cycle=False, timing_conversion=timing_conversion)
+        assert a7 == a8
+        assert a8 == a9
+        assert a7 == a3
+        assert a7 != a2
+
+        #TODO: test with info

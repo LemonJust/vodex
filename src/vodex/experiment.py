@@ -111,6 +111,47 @@ class Experiment:
         return volume_list
 
     @property
+    def full_volumes(self) -> npt.NDArray:
+        """
+        Returns the list of full volume IDs in the experiment.
+        """
+        volume_list = self.volumes
+        return volume_list[volume_list >= 0]
+
+    def batch_volumes(self, batch_size: int, overlap: int = 0,
+                      volumes: Optional[Union[npt.NDArray, List[int]]] = None,
+                      full_only: bool = True) -> npt.NDArray:
+        """
+        Returns a list of volume IDs that can be used to load batches of volumes.
+        The batch size is given in number of volumes, and the overlap is given in number of volumes.
+        If full_only is True, only full volumes are returned.
+
+        Args:
+            batch_size: the number of volumes in each batch.
+            overlap: the number of volumes that overlap between batches.
+            volumes: the list of volumes to be batched.
+            full_only: if True, only full volumes are returned. If volumes is not None, this argument is ignored.
+
+        Returns:
+            A 2D array (n_batches x batch_size) of volume IDs that can be used to load batches of volumes.
+        """
+        if overlap >= batch_size:
+            raise ValueError("Overlap must be smaller than batch size.")
+
+        if volumes is not None:
+            volume_list = np.array(volumes)
+        else:
+            if full_only:
+                volume_list = self.full_volumes
+            else:
+                volume_list = self.volumes
+
+        batch_list = []
+        for i in range(0, len(volume_list), batch_size - overlap):
+            batch_list.append(volume_list[i:i + batch_size])
+        return np.array(batch_list)
+
+    @property
     def annotations(self) -> List[str]:
         """
         Returns the list of annotation names that have been added to the experiment.
@@ -192,8 +233,7 @@ class Experiment:
         Returns the number of the first slice in the experiment.
         """
         # TODO: cash this value when property is called for the first time
-        return self.db.get_fgf() # fgf stands for first good frame
-
+        return self.db.get_fgf()  # fgf stands for first good frame
 
     @classmethod
     def create(cls, volume_manager: VolumeManager, annotations: List[Annotation], verbose: bool = False):
@@ -254,7 +294,9 @@ class Experiment:
         DbWriter(self.db.connection).add_annotations(annotations)
 
     def add_annotations_from_df(self, annotation_df: pd.DataFrame,
-                                cycles: Union[List[str], bool] = False, groups: Optional[str] = None,
+                                cycles: Union[List[str], bool] = False,
+                                timing_conversion: Optional[dict] = None,
+                                groups: Optional[str] = None,
                                 info: Optional[dict] = None):
         """
         Adds annotations to existing experiment from a data frame.
@@ -265,7 +307,20 @@ class Experiment:
             cycles: a list of the annotation names that are cycles or a boolean.
                 If False, all annotations are assumed to be timelines.
                 If True, all annotations are assumed to be cycles.
-            Specified as {'cycles': }
+                Specified as {'cycles': }
+            timing_conversion: a dictionary to convert the timing of the annotation.
+                For example, if you want to convert the timing from frames to seconds,
+                and you were recording at 30 frames per second, you can use
+                timing_conversion = {'frames': 1, 'seconds': 1/30}
+                You can list multiple units in the dictionary, and the timing will be converted to all of them,
+                for example if there are also 10 frames per volume, you can use:
+                timing_conversion = {'frames': 1, 'seconds': 1/30, 'volumes': 1/10}
+                You must include 'frames' in the dictionary! The value of frames does not have to be 1,
+                but it must be consistent with the other units. the rest of the values.
+                for example this is valid for the example above:
+                timing_conversion = {'frames': 10, 'seconds': 1/3, 'volumes': 1}.
+                If timing_conversion is None, then the timing is not converted
+                and 'duration_frames' must be provided in the dataframe.
             groups: the group of the annotation if there are multiple groups in the dataframe.
                 If None, all groups are added.
             info: additional information about the annotation, dictionary with keys:
@@ -279,11 +334,19 @@ class Experiment:
         annotations = []
         for group in groups:
             group_df = annotation_df[annotation_df['group'] == group]
+
             if cycles is True or (isinstance(cycles, list) and group in cycles):
                 is_cycle = True
             else:
                 is_cycle = False
-            annotations.append(Annotation.from_df(n_frames, group_df, is_cycle, info))
+
+            if info is not None and group in info:
+                group_info = info[group]
+            else:
+                group_info = None
+
+            annotations.append(Annotation.from_df(n_frames, group_df,
+                                                  timing_conversion, is_cycle, group_info))
 
         self.add_annotations(annotations)
 
@@ -445,7 +508,6 @@ class Experiment:
             assert np.all(volumes.astype(int) == volumes), "All the volumes must be integers"
             volumes = volumes.astype(int).tolist()
 
-        print(f'volumes : {volumes}')
         # get annotations for the volumes
         annotations = self.db.get_volume_annotations(volumes, annotation_names=annotation_names)
 
@@ -531,7 +593,7 @@ class Experiment:
         Returns:
             list of volume IDs
         """
-        #TODO : Remove this function and use volumes property instead
+        # TODO : Remove this function and use volumes property instead
         warnings.warn(f"list_volumes will be removed in vodex 1.1.0 use volumes property instead.")
 
         return self.volumes

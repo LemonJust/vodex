@@ -486,7 +486,18 @@ class Cycle:
                 the timing_conversion dictionary should be
                 {'frames': 30, 'seconds': 1} if the recording was at 30 frames per second.
             timing_conversion: a dictionary to convert the timing into a different unit.
-
+                For example, if you want to convert the timing from frames to seconds,
+                and you were recording at 30 frames per second, you can use
+                timing_conversion = {'frames': 1, 'seconds': 1/30}
+                You can list multiple units in the dictionary, and the timing will be converted to all of them,
+                for example if there are also 10 frames per volume, you can use:
+                timing_conversion = {'frames': 1, 'seconds': 1/30, 'volumes': 1/10}
+                You must include 'frames' in the dictionary! The value of frames does not have to be 1,
+                but it must be consistent with the other units. the rest of the values.
+                for example this is valid for the example above:
+                timing_conversion = {'frames': 10, 'seconds': 1/3, 'volumes': 1}.
+                If timing_conversion is None, then the timing is not converted
+                and 'duration_frames' must be provided in the dataframe.
         Returns:
             (Cycle): a Cycle object with labels and duration initialised from 'group', 'name', 'description' and
                     duration fields of the dataframe. In the order in which they appear in the dataframe.
@@ -710,6 +721,18 @@ class Timeline:
                 the timing_conversion dictionary should be
                 {'frames': 30, 'seconds': 1} if the recording was at 30 frames per second.
             timing_conversion: a dictionary to convert the timing into a different unit.
+                For example, if you want to convert the timing from frames to seconds,
+                and you were recording at 30 frames per second, you can use
+                timing_conversion = {'frames': 1, 'seconds': 1/30}
+                You can list multiple units in the dictionary, and the timing will be converted to all of them,
+                for example if there are also 10 frames per volume, you can use:
+                timing_conversion = {'frames': 1, 'seconds': 1/30, 'volumes': 1/10}
+                You must include 'frames' in the dictionary! The value of frames does not have to be 1,
+                but it must be consistent with the other units. the rest of the values.
+                for example this is valid for the example above:
+                timing_conversion = {'frames': 10, 'seconds': 1/3, 'volumes': 1}.
+                If timing_conversion is None, then the timing is not converted
+                and 'duration_frames' must be provided in the dataframe.
 
         Returns:
             (Timeline): a Timeline object with labels and duration initialised from 'group', 'name', 'description' and
@@ -862,24 +885,39 @@ class Annotation:
         return cls(n_frames, labels, frame_to_label, info=info)
 
     @classmethod
-    def from_df(cls, n_frames: int, df: pd.DataFrame, is_cycle: bool = False, info: Optional[str] = None):
+    def from_df(cls, n_frames: int, df: pd.DataFrame,
+                timing_conversion: Optional[dict] = None,
+                is_cycle: bool = False, info: Optional[str] = None):
         """
         Creates an Annotation object from a dataframe.
 
         Args:
             n_frames: total number of frames, must be provided
             df: dataframe with columns 'frame' and 'label'
+            timing_conversion: a dictionary to convert the timing of the annotation.
+                For example, if you want to convert the timing from frames to seconds,
+                and you were recording at 30 frames per second, you can use
+                timing_conversion = {'frames': 1, 'seconds': 1/30}
+                You can list multiple units in the dictionary, and the timing will be converted to all of them,
+                for example if there are also 10 frames per volume, you can use:
+                timing_conversion = {'frames': 1, 'seconds': 1/30, 'volumes': 1/10}
+                You must include 'frames' in the dictionary! The value of frames does not have to be 1,
+                but it must be consistent with the other units. the rest of the values.
+                for example this is valid for the example above:
+                timing_conversion = {'frames': 10, 'seconds': 1/3, 'volumes': 1}.
+                If timing_conversion is None, then the timing is not converted
+                and 'duration_frames' must be provided in the dataframe.
             is_cycle: if True, the annotation is for a cycle
             info: a short description of the annotation
         Returns:
             (Annotation): Annotation object
         """
         if is_cycle:
-            cycle = Cycle.from_df(df)
+            cycle = Cycle.from_df(df, timing_conversion=timing_conversion)
             labels = Labels.from_df(df)
             return cls.from_cycle(n_frames, labels, cycle, info=info)
         else:
-            timeline = Timeline.from_df(df)
+            timeline = Timeline.from_df(df, timing_conversion=timing_conversion)
             labels = Labels.from_df(df)
             return cls.from_timeline(n_frames, labels, timeline, info=info)
 

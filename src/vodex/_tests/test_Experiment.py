@@ -97,6 +97,45 @@ def test_volumes_property(experiment, experiment_no_annotations):
     assert (experiment_no_annotations.volumes == [-2, 0, 1, 2, 3]).all()
 
 
+def test_full_volumes_property(experiment, experiment_no_annotations):
+    assert (experiment.full_volumes == [0, 1, 2, 3]).all()
+    assert (experiment_no_annotations.full_volumes == [0, 1, 2, 3]).all()
+
+
+def test_batch_volumes(experiment):
+    batch = experiment.batch_volumes(4, full_only=True)
+    assert batch.shape == (1, 4)
+    assert (batch == np.array([0, 1, 2, 3])).all()
+
+    batch = experiment.batch_volumes(2, full_only=True)
+    assert batch.shape == (2, 2)
+    assert (batch == np.array([[0, 1], [2, 3]])).all()
+
+    batch = experiment.batch_volumes(2, full_only=False)
+    assert batch.shape == (3,)
+    assert (batch[0] == np.array([-2, 0])).all()
+    assert (batch[1] == np.array([1, 2])).all()
+    assert (batch[2] == np.array([3])).all()
+
+    # Test with overlap
+    batch = experiment.batch_volumes(2, full_only=False, overlap=1)
+    assert batch.shape == (5,)
+    assert (batch[0] == np.array([-2, 0])).all()
+    assert (batch[1] == np.array([0, 1])).all()
+    assert (batch[2] == np.array([1, 2])).all()
+    assert (batch[3] == np.array([2, 3])).all()
+    assert (batch[4] == np.array([3])).all()
+
+    with pytest.raises(ValueError) as e:
+        experiment.batch_volumes(2, overlap=2)
+    assert str(e.value) == "Overlap must be smaller than batch size."
+
+    # Test with a list of volumes
+    batch = experiment.batch_volumes(3, volumes=[0, 1, 2, 3, 4, 5])
+    assert batch.shape == (2, 3)
+    assert (batch == np.array([[0, 1, 2], [3, 4, 5]])).all()
+
+
 def test_annotations_property(experiment, experiment_no_annotations):
     assert experiment.annotations == ['shape', 'c label', 'light']
     assert experiment_no_annotations.annotations == []
@@ -177,6 +216,7 @@ def test_add_annotations(experiment_no_annotations):
 
 
 def test_add_annotations_from_df(experiment_no_annotations):
+    # TODO : make fixtures for these
     shape_df = SHAPE_CYCLE.to_df()
     cnum_df = CNUM_CYCLE.to_df()
     light_df = LIGHT_TML.to_df()
@@ -191,6 +231,52 @@ def test_add_annotations_from_df(experiment_no_annotations):
 
     two_groups_df = pd.concat([cnum_df, light_df])
     experiment_no_annotations.add_annotations_from_df(two_groups_df, cycles=['c label'])
+    cursor = experiment_no_annotations.db.connection.execute(
+        "SELECT FrameId FROM Annotations WHERE AnnotationTypeLabelId = 7;")
+    labels = [row[0] for row in cursor.fetchall()]
+    assert labels == [11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30]
+
+    cursor = experiment_no_annotations.db.connection.execute(
+        "SELECT Name FROM AnnotationTypes")
+    names = [row[0] for row in cursor.fetchall()]
+    assert names == ["c label", "light", "shape"]
+
+    cursor = experiment_no_annotations.db.connection.execute(
+        "SELECT Name, Description FROM AnnotationTypeLabels")
+    info = cursor.fetchall()
+    names = [row[0] for row in info]
+    description = [row[1] for row in info]
+    assert names == ["c", "s", "c1", "c2", "c3", "off", "on"]
+    assert description == ["circle on the screen", "square on the screen",
+                           "written c1", "written c2", None,
+                           "the intensity of the background is low",
+                           "the intensity of the background is high"]
+
+
+def test_add_annotations_from_df_timing_conversion(experiment_no_annotations):
+    # TODO : make fixtures for these
+    # with timing_conversion
+    shape_df = SHAPE_CYCLE.to_df(timing_conversion={'frames': 10, 'volumes': 1})
+    shape_df = shape_df.drop(columns=['duration_frames'])
+    cnum_df = CNUM_CYCLE.to_df(timing_conversion={'frames': 10, 'volumes': 1})
+    cnum_df = cnum_df.drop(columns=['duration_frames'])
+    light_df = LIGHT_TML.to_df(timing_conversion={'frames': 10, 'volumes': 1})
+    light_df = light_df.drop(columns=['duration_frames'])
+
+    # add annotations
+    experiment_no_annotations.add_annotations_from_df(shape_df,
+                                                      timing_conversion={'frames': 10, 'volumes': 1},
+                                                      cycles=True)
+    # (if it was added successfully, there should be exactly 20 such rows)
+    cursor = experiment_no_annotations.db.connection.execute(
+        "SELECT FrameId FROM Annotations WHERE AnnotationTypeLabelId = 2;")
+    labels = [row[0] for row in cursor.fetchall()]
+    assert labels == [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35]
+
+    two_groups_df = pd.concat([cnum_df, light_df])
+    experiment_no_annotations.add_annotations_from_df(two_groups_df,
+                                                      timing_conversion={'frames': 10, 'volumes': 1},
+                                                      cycles=['c label'])
     cursor = experiment_no_annotations.db.connection.execute(
         "SELECT FrameId FROM Annotations WHERE AnnotationTypeLabelId = 7;")
     labels = [row[0] for row in cursor.fetchall()]
