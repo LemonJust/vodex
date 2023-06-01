@@ -9,7 +9,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from .conftest import TEST_DATA, \
+from .conftest import TEST_DATA, SPLIT_MOVIE_DIR, \
     VOLUMES_0_1, HALF_VOLUMES_0_1, VOLUMES_0_TAIL_SLICES_0_1, SLICES_0_1, SLICES_0, SLICES_2, \
     VOLUMES_TAIL, VOLUME_M, \
     SHAPE_AN, CNUM_AN, LIGHT_AN, \
@@ -65,6 +65,104 @@ def test_save(experiment):
     assert Path(test_db_file).is_file()
     # Clean up: delete the test file
     Path(test_db_file).unlink()
+
+
+def test_n_frames_property(experiment, experiment_no_annotations):
+    assert experiment.n_frames == 42
+    assert experiment_no_annotations.n_frames == 42
+
+
+def test_n_volumes_property(experiment, experiment_no_annotations):
+    assert experiment.n_volumes == 5
+    assert experiment_no_annotations.n_volumes == 5
+
+
+def test_n_full_volumes_property(experiment, experiment_no_annotations):
+    assert experiment.n_full_volumes == 4
+    assert experiment_no_annotations.n_full_volumes == 4
+
+
+def test_n_head_frames_property(experiment, experiment_no_annotations):
+    assert experiment.n_head_frames == 0
+    assert experiment_no_annotations.n_head_frames == 0
+
+
+def test_n_tail_frames_property(experiment, experiment_no_annotations):
+    assert experiment.n_tail_frames == 2
+    assert experiment_no_annotations.n_tail_frames == 2
+
+
+def test_volumes_property(experiment, experiment_no_annotations):
+    assert (experiment.volumes == [-2, 0, 1, 2, 3]).all()
+    assert (experiment_no_annotations.volumes == [-2, 0, 1, 2, 3]).all()
+
+
+def test_annotations_property(experiment, experiment_no_annotations):
+    assert experiment.annotations == ['shape', 'c label', 'light']
+    assert experiment_no_annotations.annotations == []
+
+
+def test_labels_property(experiment, experiment_no_annotations):
+    assert experiment.labels == {'c label': {
+        'descriptions': {'c1': 'written c1',
+                         'c2': 'written c2',
+                         'c3': None},
+        'labels': ['c1', 'c2', 'c3']},
+        'light': {
+            'descriptions': {'off': 'the intensity of the background is low',
+                             'on': 'the intensity of the background is high'},
+            'labels': ['off', 'on']},
+        'shape': {
+            'descriptions': {'c': 'circle on the screen',
+                             's': 'square on the screen'},
+            'labels': ['c', 's']}}
+    assert experiment_no_annotations.labels == {}
+
+
+def test_labels_df_property(experiment, experiment_no_annotations):
+    assert experiment.labels_df.equals(pd.DataFrame({'annotation':
+                                                         ['shape', 'shape',
+                                                          'c label', 'c label', 'c label',
+                                                          'light', 'light'],
+                                                     'label': ['c', 's',
+                                                               'c1', 'c2', 'c3',
+                                                               'off', 'on'],
+                                                     'description': ['circle on the screen',
+                                                                     'square on the screen',
+                                                                     'written c1', 'written c2', None,
+                                                                     'the intensity of the background is low',
+                                                                     'the intensity of the background is high']}))
+    assert experiment_no_annotations.labels_df.empty
+
+
+def test_cycles_property(experiment, experiment_no_annotations):
+    assert experiment.cycles == ['c label', 'shape']
+    assert experiment_no_annotations.cycles == []
+
+
+def test_file_names_property(experiment, experiment_no_annotations):
+    assert experiment.file_names == ['mov0.tif', 'mov1.tif', 'mov2.tif']
+    assert experiment_no_annotations.file_names == ['mov0.tif', 'mov1.tif', 'mov2.tif']
+
+
+def test_frames_per_file_property(experiment, experiment_no_annotations):
+    assert experiment.frames_per_file == [7, 18, 17]
+    assert experiment_no_annotations.frames_per_file == [7, 18, 17]
+
+
+def test_data_dir_property(experiment, experiment_no_annotations):
+    assert experiment.data_dir == SPLIT_MOVIE_DIR.as_posix()
+    assert experiment_no_annotations.data_dir == SPLIT_MOVIE_DIR.as_posix()
+
+
+def test_frames_per_volume_property(experiment, experiment_no_annotations):
+    assert experiment.frames_per_volume == 10
+    assert experiment_no_annotations.frames_per_volume == 10
+
+
+def test_starting_slice_property(experiment, experiment_no_annotations):
+    assert experiment.starting_slice == 0
+    assert experiment_no_annotations.starting_slice == 0
 
 
 def test_add_annotations(experiment_no_annotations):

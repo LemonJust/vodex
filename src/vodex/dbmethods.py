@@ -1209,6 +1209,24 @@ class DbReader:
             cursor.close()
         return names
 
+    def get_cycle_names(self):
+        """
+        Returns the names of all the available cycles.
+        """
+        cursor = self.connection.cursor()
+        try:
+            # create a parameterised query with variable number of parameters
+            cursor.execute("""SELECT AnnotationTypes.Name 
+                            FROM Cycles INNER JOIN AnnotationTypes 
+                            ON Cycles.AnnotationTypeId = AnnotationTypes.Id""")
+            names = [name[0] for name in cursor.fetchall()]
+        except Exception as e:
+            print(f"Could not get_cycle_names because {e}")
+            raise e
+        finally:
+            cursor.close()
+        return names
+
     def get_Structure_from_Cycle(self, annotation_name):
         """
         Returns cycle Structure if the annotation has a cycle entry or None otherwise.

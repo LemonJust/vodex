@@ -373,6 +373,15 @@ def test_get_Names_from_AnnotationTypeLabels(db_reader, db_reader_empty):
     assert str(e.value) == "no such table: AnnotationTypeLabels"
 
 
+def test_get_cycle_names(db_reader, db_reader_empty):
+    names = db_reader.get_cycle_names()
+    assert names == ["c label", "shape"]
+
+    with pytest.raises(Exception) as e:
+        db_reader_empty.get_cycle_names()
+    assert str(e.value) == "no such table: Cycles"
+
+
 def test_get_Id_map_to_Names_from_AnnotationTypeLabels(db_reader, db_reader_empty):
     mapping = db_reader.get_Id_map_to_Names_from_AnnotationTypeLabels()
     assert mapping == {1: 'c', 2: 's', 3: 'c1', 4: 'c2', 5: 'c3', 6: 'on', 7: 'off'}

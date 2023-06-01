@@ -13,6 +13,8 @@ from pathlib import Path
 from typing import Union, List, Tuple, Optional, Dict, Any
 import warnings
 
+from numpy import ndarray
+
 from .core import VolumeManager, ImageLoader
 from .annotation import Annotation
 from .dbmethods import DbReader, DbWriter
@@ -43,6 +45,155 @@ class Experiment:
         # will add the loader the first time you are loading anything
         # in load_frames() or load_volumes()
         self.loader: ImageLoader
+
+    @property
+    def n_frames(self) -> int:
+        """
+        Returns the total number of frames in the experiment.
+        """
+        # TODO: cash this value when property is called for the first time
+        return self.db.get_n_frames()
+
+    @property
+    def n_volumes(self) -> int:
+        """
+        Returns the total number of volumes in the experiment.
+        This might include partial volumes at the beginning of the experiment (ID: -1)
+        and at the end of the experiment (ID : -2).
+        """
+        # TODO: cash this value when property is called for the first time
+        return len(self.db.get_volume_list())
+
+    @property
+    def n_full_volumes(self) -> int:
+        """
+        Returns the total number of full volumes in the experiment.
+        """
+        # TODO: cash this value when property is called for the first time
+        options = self.db.get_options()
+        return int(options['num_full_volumes'])
+
+    @property
+    def n_head_frames(self) -> int:
+        """
+        Returns the number of frames in the first partial volume,
+        or 0 if there is no partial volume at the beginning.
+        """
+        # TODO: cash this value when property is called for the first time
+        options = self.db.get_options()
+        return int(options['num_head_frames'])
+
+    @property
+    def n_tail_frames(self) -> int:
+        """
+        Returns the number of frames in the last partial volume,
+        or 0 if there is no partial volume at the end.
+        """
+        # TODO: cash this value when property is called for the first time
+        options = self.db.get_options()
+        return int(options['num_tail_frames'])
+
+    @property
+    def volumes(self) -> npt.NDArray:
+        """
+        Returns the list of volume IDs in the experiment.
+        This might include partial volumes at the beginning of the experiment (ID: -1)
+        and at the end of the experiment (ID : -2).
+        """
+        # TODO: cash this value when property is called for the first time
+        volume_list = np.array(self.db.get_volume_list())
+        if np.sum(volume_list == -1) > 0:
+            warnings.warn(f"The are some frames at the beginning of the recording "
+                          f"that don't correspond to a full volume.")
+        if np.sum(volume_list == -2) > 0:
+            warnings.warn(f"The are some frames at the end of the recording "
+                          f"that don't correspond to a full volume.")
+        return volume_list
+
+    @property
+    def annotations(self) -> List[str]:
+        """
+        Returns the list of annotation names that have been added to the experiment.
+        """
+        return self.db.get_Names_from_AnnotationTypes()
+
+    @property
+    def labels(self) -> dict:
+        """
+        Returns a dict with annotation names, labels and label descriptions
+        that have been added to the experiment.
+        """
+        annotation_names = self.annotations
+        label_dict = {}
+        for annotation_name in annotation_names:
+            label_names, descriptions = self.db.get_Name_and_Description_from_AnnotationTypeLabels(annotation_name)
+            label_dict[annotation_name] = {
+                'labels': label_names,
+                'descriptions': descriptions}
+        return label_dict
+
+    @property
+    def labels_df(self) -> pd.DataFrame:
+        """
+        Returns a dataframe with annotation names, labels and label descriptions
+        that have been added to the experiment.
+        """
+        annotation_names = self.annotations
+        label_dict = {'annotation': [], 'label': [], 'description': []}
+        for annotation_name in annotation_names:
+            label_names, descriptions = self.db.get_Name_and_Description_from_AnnotationTypeLabels(annotation_name)
+            label_dict['annotation'].extend([annotation_name] * len(label_names))
+            label_dict['label'].extend(label_names)
+            label_dict['description'].extend([descriptions[key] for key in label_names])
+        return pd.DataFrame(label_dict)
+
+    @property
+    def cycles(self) -> List[str]:
+        """
+        Returns the list of cycle names that have been added to the experiment.
+        """
+        return self.db.get_cycle_names()
+
+    @property
+    def file_names(self) -> List[str]:
+        """
+        Returns the list of file names that have been added to the experiment.
+        """
+        # TODO: cash this value when property is called for the first time
+        return self.db.get_file_names()
+
+    @property
+    def frames_per_file(self) -> List[int]:
+        """
+        Returns the list of frames per file that have been added to the experiment.
+        """
+        # TODO: cash this value when property is called for the first time
+        return self.db.get_frames_per_file()
+
+    @property
+    def data_dir(self) -> str:
+        """
+        Returns the path to the data directory.
+        """
+        # TODO: cash this value when property is called for the first time
+        return self.db.get_data_dir()
+
+    @property
+    def frames_per_volume(self) -> int:
+        """
+        Returns the number of frames per volume.
+        """
+        # TODO: cash this value when property is called for the first time
+        return self.db.get_fpv()
+
+    @property
+    def starting_slice(self) -> int:
+        """
+        Returns the number of the first slice in the experiment.
+        """
+        # TODO: cash this value when property is called for the first time
+        return self.db.get_fgf() # fgf stands for first good frame
+
 
     @classmethod
     def create(cls, volume_manager: VolumeManager, annotations: List[Annotation], verbose: bool = False):
@@ -380,14 +531,10 @@ class Experiment:
         Returns:
             list of volume IDs
         """
-        volume_list = np.array(self.db.get_volume_list())
-        if np.sum(volume_list == -1) > 0:
-            warnings.warn(f"The are some frames at the beginning of the recording "
-                          f"that don't correspond to a full volume.")
-        if np.sum(volume_list == -2) > 0:
-            warnings.warn(f"The are some frames at the end of the recording "
-                          f"that don't correspond to a full volume.")
-        return volume_list
+        #TODO : Remove this function and use volumes property instead
+        warnings.warn(f"list_volumes will be removed in vodex 1.1.0 use volumes property instead.")
+
+        return self.volumes
 
     def list_conditions_per_cycle(self, annotation_type: str, as_volumes: bool = True) -> Tuple[List[int], List[str]]:
         """
@@ -401,6 +548,7 @@ class Experiment:
         Returns:
             list of the condition ids ( condition per frame or per volume) and corresponding condition names.
         """
+
         # TODO : check if empty
         if as_volumes:
             _, condition_ids, count = self.db.get_conditionIds_per_cycle_per_volumes(annotation_type)
@@ -429,6 +577,7 @@ class Experiment:
         Returns:
             list of the condition ids (cycle iterations per frame or per volume)
         """
+
         if as_volumes:
             _, cycle_its, count = self.db.get_cycleIterations_per_volumes(annotation_type)
             fpv = self.db.get_fpv()
