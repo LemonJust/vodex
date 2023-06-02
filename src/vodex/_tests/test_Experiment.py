@@ -104,27 +104,17 @@ def test_full_volumes_property(experiment, experiment_no_annotations):
 
 def test_batch_volumes(experiment):
     batch = experiment.batch_volumes(4, full_only=True)
-    assert batch.shape == (1, 4)
-    assert (batch == np.array([0, 1, 2, 3])).all()
+    assert batch == [[0, 1, 2, 3]]
 
     batch = experiment.batch_volumes(2, full_only=True)
-    assert batch.shape == (2, 2)
-    assert (batch == np.array([[0, 1], [2, 3]])).all()
+    assert batch == [[0, 1], [2, 3]]
 
     batch = experiment.batch_volumes(2, full_only=False)
-    assert batch.shape == (3,)
-    assert (batch[0] == np.array([-2, 0])).all()
-    assert (batch[1] == np.array([1, 2])).all()
-    assert (batch[2] == np.array([3])).all()
+    assert batch == [[-2, 0], [1, 2], [3]]
 
     # Test with overlap
     batch = experiment.batch_volumes(2, full_only=False, overlap=1)
-    assert batch.shape == (5,)
-    assert (batch[0] == np.array([-2, 0])).all()
-    assert (batch[1] == np.array([0, 1])).all()
-    assert (batch[2] == np.array([1, 2])).all()
-    assert (batch[3] == np.array([2, 3])).all()
-    assert (batch[4] == np.array([3])).all()
+    assert batch == [[-2, 0], [0, 1], [1, 2], [2, 3], [3]]
 
     with pytest.raises(ValueError) as e:
         experiment.batch_volumes(2, overlap=2)
@@ -132,8 +122,7 @@ def test_batch_volumes(experiment):
 
     # Test with a list of volumes
     batch = experiment.batch_volumes(3, volumes=[0, 1, 2, 3, 4, 5])
-    assert batch.shape == (2, 3)
-    assert (batch == np.array([[0, 1, 2], [3, 4, 5]])).all()
+    assert batch == [[0, 1, 2], [3, 4, 5]]
 
 
 def test_annotations_property(experiment, experiment_no_annotations):

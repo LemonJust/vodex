@@ -120,7 +120,7 @@ class Experiment:
 
     def batch_volumes(self, batch_size: int, overlap: int = 0,
                       volumes: Optional[Union[npt.NDArray, List[int]]] = None,
-                      full_only: bool = True) -> npt.NDArray:
+                      full_only: bool = True) -> List[List[int]]:
         """
         Returns a list of volume IDs that can be used to load batches of volumes.
         The batch size is given in number of volumes, and the overlap is given in number of volumes.
@@ -133,23 +133,27 @@ class Experiment:
             full_only: if True, only full volumes are returned. If volumes is not None, this argument is ignored.
 
         Returns:
-            A 2D array (n_batches x batch_size) of volume IDs that can be used to load batches of volumes.
+            A list of lists (n_batches x batch_size) of volume IDs that can be used to load batches of volumes.
         """
         if overlap >= batch_size:
             raise ValueError("Overlap must be smaller than batch size.")
 
         if volumes is not None:
-            volume_list = np.array(volumes)
+            volume_list = volumes
         else:
             if full_only:
                 volume_list = self.full_volumes
             else:
                 volume_list = self.volumes
 
+        # turn into a list if numpy array
+        if isinstance(volume_list, np.ndarray):
+            volume_list = volume_list.tolist()
+
         batch_list = []
         for i in range(0, len(volume_list), batch_size - overlap):
             batch_list.append(volume_list[i:i + batch_size])
-        return np.array(batch_list)
+        return batch_list
 
     @property
     def annotations(self) -> List[str]:
