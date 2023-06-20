@@ -6,6 +6,8 @@
 [![tests](https://github.com/LemonJust/vodex/workflows/tests/badge.svg)](https://github.com/LemonJust/vodex/actions)
 [![codecov](https://codecov.io/gh/LemonJust/vodex/branch/main/graph/badge.svg)](https://codecov.io/gh/LemonJust/vodex)
 [![napari hub](https://img.shields.io/endpoint?url=https://api.napari-hub.org/shields/napari-vodex)](https://napari-hub.org/plugins/napari-vodex)
+[![DOI](https://zenodo.org/badge/483849884.svg)](https://zenodo.org/badge/latestdoi/483849884)
+
 
 VoDEx is an open-source Python library that streamlines the management and analysis of volumetric functional imaging data. It offers a suite of tools for creating, organizing, and storing information pertaining to image acquisition and time annotation. Additionally, it allows for the retrieval of imaging data based on specific experimental conditions, enabling researchers to access and analyze the data easily. VoDEx is available as both a standalone Python package and a napari plugin, providing a user-friendly solution for processing volumetric functional imaging data, even for researchers without extensive programming experience.
 
@@ -14,7 +16,7 @@ VoDEx is an open-source Python library that streamlines the management and analy
 You can install `vodex` via [pip](https://pypi.org/project/vodex):
 
     pip install vodex
-    
+
 or via conda:
 
     conda install vodex -c conda-forge
