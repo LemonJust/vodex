@@ -8,6 +8,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from pandas.testing import assert_frame_equal
 
 from .conftest import TEST_DATA, SPLIT_MOVIE_DIR, \
     VOLUMES_0_1, HALF_VOLUMES_0_1, VOLUMES_0_TAIL_SLICES_0_1, SLICES_0_1, SLICES_0, SLICES_2, \
@@ -515,6 +516,27 @@ def test_get_volume_annotations(experiment):
     with pytest.raises(AssertionError) as e:
         experiment.get_volume_annotations(np.array([1.2, 3]))
     assert "All the volumes must be integers" in str(e.value)
+
+
+def test_get_volume_annotation_df(experiment):
+    annotation = {'light': ['off', 'off', 'on'], 'c label': ['c2', 'c1', 'c2'], 'volumes': [-2, 0, 1]}
+    annotation_df = pd.DataFrame(annotation)
+    volume_annotations_df = experiment.get_volume_annotation_df([-2, 0, 1], annotation_names=["light", "c label"])
+    assert annotation_df.equals(volume_annotations_df)
+
+
+def test_add_annotations_from_volume_annotation_df(experiment, experiment_no_annotations):
+    # get the annotation df from experiment
+    # must specify annotation_names, otherwise the annotation df will contain shape
+    # that changes in the middle of a volume and can't create a volume annotation df from it
+    all_volume_annotation_df = experiment.get_volume_annotation_df(experiment.volumes,
+                                                                   annotation_names=["light", "c label"])
+    # add the annotation df to experiment_no_annotations
+    experiment_no_annotations.add_annotations_from_volume_annotation_df(all_volume_annotation_df)
+    # check that the annotations are the same
+
+    assert_frame_equal(experiment_no_annotations.get_volume_annotation_df(experiment_no_annotations.volumes),
+                       all_volume_annotation_df, check_like=True)
 
 
 def test_load_slices(experiment_no_annotations):

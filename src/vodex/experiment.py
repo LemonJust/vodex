@@ -536,6 +536,80 @@ class Experiment:
 
         return annotation
 
+    def get_volume_annotation_df(self, volumes: Union[npt.NDArray, List[int]],
+                                 annotation_names: Optional[List[str]] = None) -> pd.DataFrame:
+        """
+        Get annotations for volumes.
+        Will get the labels for the specified full volumes from each available annotation as pandas dataframe.
+        Args:
+            volumes: the indexes of volumes to get annotation for. If a multidimensional array is passed,
+                will flatten it and get annotations for all the volumes in it.
+            annotation_names: the names of the annotations to get. If None, will get all the annotations.
+
+        Returns:
+            a dataframe with the annotations for each annotation type.
+            The columns are volumes and the annotation types with the corresponding labels for each volume.
+        """
+        # get annotations for the volumes
+        annotations = self.get_volume_annotations(volumes, annotation_names=annotation_names)
+        return pd.DataFrame(annotations)
+
+    def add_annotations_from_volume_annotation_df(self, volume_annotation_df: pd.DataFrame,
+                                                  annotation_names: Optional[List[str]] = None):
+        """
+        Add annotations from volume_annotation dataframe to the experiment.
+        Use it if you have cropped the volumes from the original movie and
+        want to add the annotations to the cropped movie.
+        The format of the dataframe should be the same as the one returned by get_volume_annotation_df.
+        The length of the volumes should be the same as the length of the experiment.
+        Will only work for annotation types that are constant for the whole volume. If you have annotations that change
+        within the volume, you will need to exclude them.
+
+        Args:
+            volume_annotation_df: the dataframe with the annotations.
+            annotation_names: the names of the annotations to add. These must be the column names in the table.
+                If None, will add all the annotations in the table and will
+                assume that all the columns in the dataframe that are not "volumes" are the annotation names.
+                ! If you have modified the table to add additional columns that are NOT annotations,
+                you must specify the annotation names,
+                otherwise vodex will attempt to add those columns as annotations!
+        """
+        # make a copy of the dataframe to avoid modifying the original
+        volume_annotation_df = volume_annotation_df.copy()
+
+        # get the columns in the dataframe that are not "
+        if annotation_names is None:
+            annotation_names = list(volume_annotation_df.columns)
+            annotation_names.remove("volumes")
+
+        # add duration column to the dataframe
+        volume_annotation_df["duration"] = self.frames_per_volume
+
+        # get index of the volume -1 (head)
+        head_volume = volume_annotation_df[volume_annotation_df["volumes"] == -1].index
+        # get index of the volume -2 (tail)
+        tail_volume = volume_annotation_df[volume_annotation_df["volumes"] == -2].index
+        # set the duration for partial volumes
+        if len(head_volume) > 0:
+            volume_annotation_df.loc[head_volume, "duration"] = self.n_head_frames
+            # assign the row to the beginning of the dataframe
+            volume_annotation_df = pd.concat([volume_annotation_df.loc[head_volume],
+                                              volume_annotation_df.drop(head_volume)])
+        if len(tail_volume) > 0:
+            volume_annotation_df.loc[tail_volume, "duration"] = self.n_tail_frames
+            # assign the row to the end of the dataframe
+            volume_annotation_df = pd.concat([volume_annotation_df.drop(tail_volume),
+                                              volume_annotation_df.loc[tail_volume]])
+
+        # add the annotations to the experiment
+        for annotation_name in annotation_names:
+            # get the labels for the annotation
+            annotation_df = pd.DataFrame({"group": np.repeat(annotation_name, len(volume_annotation_df)).astype(str),
+                                          "name": volume_annotation_df[annotation_name].values,
+                                          "duration_frames": volume_annotation_df["duration"].values})
+            # add the annotation
+            self.add_annotations_from_df(annotation_df)
+
     def load_slices(self, slices: List[int], volumes: List[int] = None,
                     skip_missing: bool = False, verbose: bool = False) -> npt.NDArray:
         """
