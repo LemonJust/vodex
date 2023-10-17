@@ -17,7 +17,7 @@ You can install `vodex` via [pip](https://pypi.org/project/vodex):
 
     pip install vodex
 
-or via conda:
+or via conda ( although this is not recommended as the conda package might be not up to date ):
 
     conda install vodex -c conda-forge
 
@@ -32,11 +32,11 @@ VoDEx is designed to address the challenges in functional imaging studies where 
 VoDEx is implemented as a [napari plugin](https://napari-hub.org/plugins/napari-vodex) for interactive use with a GUI and as an open-source [Python package](https://pypi.org/project/vodex), making it a useful tool for image analysis and allowing for integration into a wide range of analysis pipelines.
 
 <p align="center">
-  <img src="docs/assets/vodex_infographics_w_data_and_labels.PNG" alt="cover" width="1200"/>
+  <img src="docs/assets/paper_figure_w_time.JPG" alt="cover" width="1200"/>
 </p>
 
 ## Use Cases
-VoDEx has been successfully applied in the study of numerosity estimation in zebrafish larvae, where it played a key role in the processing of whole-brain functional imaging data acquired using light-sheet fluorescence microscopy. The implementation was carried out in Jupyter notebooks, as well as in a custom Python package specifically designed for this study, showcasing the versatility of integrating VoDEx into a comprehensive analysis pipeline. Full analysis pipelines for different numerosity stimuli combinations are available as sets of Jupyter notebooks at [github.com/LemonJust/numan](github.com/LemonJust/numan) under notebooks/individual datasets.
+VoDEx has been successfully applied in the study of numerosity estimation in zebrafish larvae, where it played a key role in the processing of whole-brain functional imaging data acquired using light-sheet fluorescence microscopy. Some use case scenarious such as using vodex for batch processing, creating and using time annotations is described in the [supplemental note](https://oup.silverchair-cdn.com/oup/backfile/Content_public/Journal/bioinformatics/39/9/10.1093_bioinformatics_btad568/3/btad568_supplementary_data.pdf?Expires=1700587925&Signature=GPLxBySTH5IqwazmoYV8OJIJJtUOhuQRd0mcBTB2v0~0Cg5qiKAp3uBgjVTBtQ8fyDvV27NMFM2ImQsjrVMUoO~2lAtv~UNRs3qy9W2c7lhCjnypShPnAXPK76-Xh8S9XbrP-AKLpTDJ~wwyzKx-mg77lz6ZTrymeiXlLWz4weNHdJ~01cRzGnCkNxGvrRbXaao8gHyajOtgl8G8yzxEFvvSWXDCP0tTxqGoAO3MeeVy4FS1ec-0Not1k1M40365Pa8xu6SQ2tCCJ0I7WLk9xjttQIlabKQx33JC2SmFBQ5IYF-D9DZ0cL2mKEXGNN-fzp3IzFWvD6Z4TjtxNGcXfw__&Key-Pair-Id=APKAIE5G5CRDK6RD3PGA) as a part of the [vodex paper](https://doi.org/10.1093/bioinformatics/btad568). Full analysis pipelines for different numerosity stimuli combinations are available as sets of Jupyter notebooks at [github.com/LemonJust/numan](github.com/LemonJust/numan) under notebooks/individual datasets.
 
 ## Contributing
 
@@ -51,4 +51,5 @@ Distributed under the terms of the [BSD-3] license,
 ## Citing VoDEx
 If you use VoDEx in your research, please cite our paper:
 
-Nadtochiy, A., Luu, P., Fraser, S. E., & Truong, T. V. (2023). VoDEx: a Python library for time annotation and management of volumetric functional imaging data. arXiv preprint arXiv:2305.07438.
+Anna Nadtochiy, Peter Luu, Scott E Fraser, Thai V Truong, VoDEx: a Python library for time annotation and management of volumetric functional imaging data, Bioinformatics, Volume 39, Issue 9, September 2023, btad568, 
+[https://doi.org/10.1093/bioinformatics/btad568](https://doi.org/10.1093/bioinformatics/btad568)
