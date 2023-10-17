@@ -1,0 +1,1265 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+      
+        <link rel="prev" href="../">
+      
+      
+      
+      <link rel="icon" href="../../img/icons8_layers.ico">
+      <meta name="generator" content="mkdocs-1.5.3, mkdocs-material-9.4.6">
+    
+    
+      
+        <title>Usage - VoDEx Docs</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.35e1ed30.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.356b1318.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce((e,_)=>(e<<5)-e+_.charCodeAt(0),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+   <link href="../../assets/stylesheets/glightbox.min.css" rel="stylesheet"/><style>
+        html.glightbox-open { overflow: initial; height: 100%; }
+        .gslide-title { margin-top: 0px; user-select: text; }
+        .gslide-desc { color: #666; user-select: text; }
+        .gslide-image img { background: white; }
+        
+            .gscrollbar-fixer { padding-right: 15px; }
+            .gdesc-inner { font-size: 0.75rem; }
+            body[data-md-color-scheme="slate"] .gdesc-inner { background: var(--md-default-bg-color);}
+            body[data-md-color-scheme="slate"] .gslide-title { color: var(--md-default-fg-color);}
+            body[data-md-color-scheme="slate"] .gslide-desc { color: var(--md-default-fg-color);}
+            </style> <script src="../../assets/javascripts/glightbox.min.js"></script></head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="blue-grey" data-md-color-accent="indigo">
+  
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&"object"==typeof palette.color)for(var key of Object.keys(palette.color))document.body.setAttribute("data-md-color-"+key,palette.color[key])</script>
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#launch-napari-vodex" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="VoDEx Docs" class="md-header__button md-logo" aria-label="VoDEx Docs" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8h5Z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3V6m0 5h18v2H3v-2m0 5h18v2H3v-2Z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            VoDEx Docs
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Usage
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="blue-grey" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_2" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 7H7a5 5 0 0 0-5 5 5 5 0 0 0 5 5h10a5 5 0 0 0 5-5 5 5 0 0 0-5-5m0 8a3 3 0 0 1-3-3 3 3 0 0 1 3-3 3 3 0 0 1 3 3 3 3 0 0 1-3 3Z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="black" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_2">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 7H7a5 5 0 0 0-5 5 5 5 0 0 0 5 5h10a5 5 0 0 0 5-5 5 5 0 0 0-5-5m0 8a3 3 0 0 1-3-3 3 3 0 0 1 3-3 3 3 0 0 1 3 3 3 3 0 0 1-3 3Z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+    
+      <label class="md-header__button md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5Z"/></svg>
+      </label>
+      <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5Z"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11h12Z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41Z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/LemonJust/vodex" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.4.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2023 Fonticons, Inc.--><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6zm-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3zm44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9zM244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8zM97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1zm-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7zm32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1zm-11.4-14.7c-1.6 1-1.6 3.6 0 5.9 1.6 2.3 4.3 3.3 5.6 2.3 1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2z"/></svg>
+  </div>
+  <div class="md-source__repository">
+    LemonJust/vodex
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../install/" class="md-tabs__link">
+        
+  
+    
+  
+  Installation
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../qstart/" class="md-tabs__link">
+          
+  
+    
+  
+  Quick Start
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../api/" class="md-tabs__link">
+          
+  
+    
+  
+  API
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../examples/" class="md-tabs__link">
+        
+  
+    
+  
+  Examples
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../db/" class="md-tabs__link">
+        
+  
+    
+  
+  Database
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../contribute/" class="md-tabs__link">
+        
+  
+    
+  
+  Contributions
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../data/" class="md-tabs__link">
+        
+  
+    
+  
+  Data
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../" class="md-tabs__link">
+          
+  
+    
+  
+  napari_vodex
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+  
+
+<nav class="md-nav md-nav--primary md-nav--lifted md-nav--integrated" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="VoDEx Docs" class="md-nav__button md-logo" aria-label="VoDEx Docs" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8h5Z"/></svg>
+
+    </a>
+    VoDEx Docs
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/LemonJust/vodex" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.4.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2023 Fonticons, Inc.--><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6zm-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3zm44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9zM244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8zM97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1zm-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7zm32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1zm-11.4-14.7c-1.6 1-1.6 3.6 0 5.9 1.6 2.3 4.3 3.3 5.6 2.3 1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2z"/></svg>
+  </div>
+  <div class="md-source__repository">
+    LemonJust/vodex
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Home
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../install/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Installation
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+      
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../qstart/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    Quick Start
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_3" id="__nav_3_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            Quick Start
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../qstart/new_experiment/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Create Experiment
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../qstart/load_experiment/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Load Experiment
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../qstart/load_volumes/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Load Volumes
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+      
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../api/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    API
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            API
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/core/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Core
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/annotation/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Annotation
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/dbmethods/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Dbmethods
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/loaders/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Loaders
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/experiment/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Experiment
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Examples
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../db/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Database
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../contribute/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Contributions
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../data/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Data
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+    
+    
+    
+    
+      
+      
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" checked>
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    napari_vodex
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_9" id="__nav_9_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            napari_vodex
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+    
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  <span class="md-ellipsis">
+    Usage
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  <span class="md-ellipsis">
+    Usage
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#launch-napari-vodex" class="md-nav__link">
+    Launch napari-vodex
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#create-new-experiment" class="md-nav__link">
+    Create New Experiment
+  </a>
+  
+    <nav class="md-nav" aria-label="Create New Experiment">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-image-data" class="md-nav__link">
+    1. Image Data
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-time-annotation" class="md-nav__link">
+    2. Time Annotation
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-save-experiment-to-a-database" class="md-nav__link">
+    3. Save Experiment to a DataBase
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#load-saved-experiment" class="md-nav__link">
+    Load Saved Experiment
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#load-volumes-into-napari-viewer" class="md-nav__link">
+    Load Volumes into Napari Viewer
+  </a>
+  
+    <nav class="md-nav" aria-label="Load Volumes into Napari Viewer">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#load-based-on-volumes-id" class="md-nav__link">
+    Load based on volumes ID
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#load-based-on-experimental-conditions" class="md-nav__link">
+    Load based on experimental conditions
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+  
+  
+
+
+  <h1>Usage</h1>
+
+<p>This section contains instructions how to use napari-vodex.</p>
+<h2 id="launch-napari-vodex">Launch napari-vodex</h2>
+<p>After following the installation instructions, you should see napari-vodex in your napari under <code>Plugis --&gt; Vodex Data Loader (napari-vodex)</code>. When you start it, it creates two buttons - <code>Load Saved Experiment</code> and <code>Create New Experiment</code></p>
+<h2 id="create-new-experiment">Create New Experiment</h2>
+<p>Let's create the annotation for the toy dataset. Hit <code>Create New Experiment</code>. It will initialize three tabs:</p>
+<p>The <strong>Image Data</strong> tab contains the information about the image files, their order and the information about the volumes : frames per volume and the first frame in the recording that is at the beginning of a volume.</p>
+<p>The <strong>Time Annotation</strong> tab will contain the information about the time annotations ;)</p>
+<p>The <strong>Load/Save Data</strong> tab allows to load individual volumes: based on their ID or based on the time annotation and also allows to save experiment (the information from the <strong>Image Data</strong> and <strong>Time Annotation</strong> tabs) to a database for future use with vodex or napari-vodex.</p>
+<h3 id="1-image-data">1. Image Data</h3>
+<p><a class="glightbox" href="fig01.png" data-type="image" data-width="100%" data-height="auto" data-desc-position="bottom"><img align="right" alt="Image Data Tab" src="fig01.png" width="300" /></a> Start with the Image Data tab.</p>
+<p>You can see an example of a fully filled out tab for the <a href="https://lemonjust.github.io/vodex/data/#toy-dataset">Toy Dataset</a> on the right. For more details on how it was filled out, see the expandable box at the bottom.</p>
+<ol>
+<li>Click <code>Browse</code> and choose the folder that contains your recording. The recording could be saved as multiple files.</li>
+<li>Choose <code>file type</code>. Currently only TIFF files are supported, but if you added the support to your type of files, as described in <a href="https://lemonjust.github.io/vodex/contribute/">Contributions</a>, your file type should appear here.</li>
+<li>Hit <code>Fetch files</code>. Vodex will search the directory for the files of the type that you choose. The files will appear in the window below.</li>
+<li><strong>Inspect the files carefully!</strong> The files appear in the order (top to bottom) in which they will be read by vodex. It is very important that they are in the correct order, or the rest of the annotations will be off. You can <code>drag the files to change the order</code> and delete the files that you don't want by clicking <code>Delete File</code> with a file selected.
+Click <code>Save File Order</code> when you are done.</li>
+<li>Enter <code>frames per volume</code>. If you work with a 2D data but still want to use vodex, leave frames per volume as 1.</li>
+<li>If your recording was not synchronized with the volumes, you can specify the first frame in the recording that correspond to the beginning of a full volume (<code>first good frame</code>). It the beginning of the recording is at the beginning of a volume, leave it as 0.</li>
+<li>Hit <code>Save Volume Info</code>.</li>
+<li><strong>Read carefully</strong> the short description of your data that: how many total frames, how many full volumes and how many frames that don't make a full volume at the beginning and at the end of the recording. If everything looks good, hit <code>Create Experiment</code>. This will allow you to load volumes using their ID numbers (For example volumes number 3, 8 and 30 to 40) and to add time annotations.</li>
+</ol>
+<details class="example">
+<summary>Toy Dataset: Creating experiment</summary>
+<p>The data used in these examples is a toy dataset, described in <a href="https://lemonjust.github.io/vodex/data/#toy-dataset">Data</a>. You can download the toy dataset from <a href="https://github.com/LemonJust/vodex/tree/main/data/test/test_movie">GitHub</a>. To create an experiment, we click <code>Browse</code>, locate the folder with the three tif files. Choose TIFF from the <code>file type</code> drop down menu, and click <code>Fetch files</code>. The files are in the proper prder already, so we click <code>Save File Order</code>. We enter 10 for <code>frames per volume</code> and click <code>Save Volume Info</code>. You can see that the total number of frames is 42, which is correct, there are 4 volumes and 2 extra frames at the end, which is also correct. Finally, we click <code>Create Experiment</code>.  </p>
+</details>
+<h3 id="2-time-annotation">2. Time Annotation</h3>
+<p><a class="glightbox" href="fig02.png" data-type="image" data-width="100%" data-height="auto" data-desc-position="bottom"><img align="right" alt="Time Annotation Tab" src="fig02.png" width="300" /></a> Start with the Image Data tab. Switch to Time Annotation tab and click <code>Add annotation</code>. You will be asked to create an annotation name: this is the name of the phenomena that you are describing. It could be some kind of stimuli/ drug/ behaviour, etc. After you name the annotation, the tab to enter the labels and the actual annotation of your recording.</p>
+<p>You can see an example of a filled out tab for <code>light</code> annotation for the <a href="https://lemonjust.github.io/vodex/data/#toy-dataset">Toy Dataset</a> on the right. For more details on how it was filled out, see the expandable box at the bottom.</p>
+<ol>
+<li>
+<p>Click <code>Add label</code> to create a label. A label is a particular condition: a certain state of the phenomena that you are describing. Add as many labels as you need. Double click on the description cell to add the description for each label (optional). You can delete a line by selecting it and clicking <code>Delete selected</code>.</p>
+</li>
+<li>
+<p>Choose if the annotation is a <code>Cycle</code> or a <code>Timeline</code>. Cycles can describe a short period of time and will be repeated to cover the duration of the whole recording. Timelines must describe the whole recording.</p>
+</li>
+<li>Next you need to describe the order in which the conditions are following and their duration (in frames). Click <code>Add condition</code> to add a line to the annotation. You can delete a line by selecting it and clicking <code>Delete condition</code>.</li>
+<li>After you are done, click <code>Add annotation to the experiment</code>. This will record the annotation and you can now use it at the <code>Load/Save Data</code> tab to choose the volumes that you want to load.</li>
+</ol>
+<p>One experiment can have multiple annotations. Add as many annotations as you need. You can switch between the annotations with the combobox at the top-right corner of the tab, by the <code>Available annotations:</code> label.</p>
+<p>Remember that you <strong>must press</strong> the <code>Add annotation to the experiment</code> button to be able to use the annotation to load volumes and to save it when you are saving the experiment to a DataBase.</p>
+<details class="example">
+<summary>Toy Dataset: Adding time annotation</summary>
+<p><a class="glightbox" href="fig02bc.png" data-type="image" data-width="100%" data-height="auto" data-desc-position="bottom"><img align="right" alt="Time Annotation Tab" src="fig02bc.png" width="400" /></a> By following the <a href="https://lemonjust.github.io/vodex/data/#time-annotation-structure">time annotation description, for the toy dataset</a>, we fill out the three annotation types. The other two annotations for the toy experiment are on the right (click to expand).</p>
+</details>
+<h3 id="3-save-experiment-to-a-database">3. Save Experiment to a DataBase</h3>
+<p><a class="glightbox" href="fig03.png" data-type="image" data-width="100%" data-height="auto" data-desc-position="bottom"><img align="right" alt="Time Annotation Tab" src="fig03.png" width="145" /></a> Once you filled out the Image data information and added the annotations, you can save the experiment into a database. While you don't have to save the experiment before loading the volumes, we highly recommend that you do so for your future reference, especially if you plan to use the volumes that were loaded with VoDEx in the subsequent analysis. This will give you the ability to come back to the annotation later and recheck that you did not make any mistakes.</p>
+<p>You can see an example of a <code>Load/Save Data</code> tab after we saved our annotation on the right [click on image to zoom in]. The bottom line shows the saved file location.</p>
+<p>Go to the <code>Load/Save Data</code> tab and click <code>Save</code> button at the bottom.
+Choose the folder and give your database a name (*.db).</p>
+<details class="tip">
+<summary>How to explore the DataBase content</summary>
+<p>The DataBase is using SQLite and we recommend using a <a href="https://sqlitebrowser.org/">DB Browser for SQLite</a> to explore the DataBase content. It is also a good place to test out your queries if you want to add some functionality to the vodex <a href="https://lemonjust.github.io/vodex/api/dbmethods/">dbmethods module</a>.</p>
+</details>
+<h2 id="load-saved-experiment">Load Saved Experiment</h2>
+<p>To load the experiment, choose <code>Load Saved Experiment</code> after launching napari-vodex. Then click the <code>Load</code> button to search for the saved database file. Vodex will load the experiment and fill out all the <code>Image Data</code> and <code>Time Annotation</code> information, that you can see in the corresponding tabs.</p>
+<p>You can edit and delete time annotations and add more. These changes will not be saved to the original file, remember to save the file to keep the changes.</p>
+<details class="example">
+<summary>Toy Dataset: Loading an experiment</summary>
+<p>After we load the example that we saved in the previous section, all the fields look the same as when we filled them out. [click on image to zoom in].
+<a class="glightbox" href="fig04.png" data-type="image" data-width="100%" data-height="auto" data-desc-position="bottom"><img alt="Time Annotation Tab" src="fig04.png" /></a></p>
+</details>
+<h2 id="load-volumes-into-napari-viewer">Load Volumes into Napari Viewer</h2>
+<p>Finally, you can use napari-vodex to load volumes into napari. To do so you must have experiment created ( or loaded) and head to the <code>Load/Save Data</code> tab.</p>
+<h3 id="load-based-on-volumes-id">Load based on volumes ID</h3>
+<p>Volume IDs are simply the numbers in which they follow from the beginning of the recording. The volumes numbering starts with 0: the first full volume's ID is 0, the second volume's ID is 1, the third's ID is 2 , etc. Enter the IDs of the volumes at the <code>Volumes:</code> edit line on top of the tab and press <code>Load</code>. Vodex will load the requested volumes and name them with the same text that you used to request them.</p>
+<details class="info">
+<summary>How to specify the volumes</summary>
+<p>You can specify the volumes as a line of integers separated by a comma (3, 4, 5, 6, 7) or request a slice by specifying the first and the last volume to load (3:7). Both examples will load the volumes with IDs 3, 4, 5, 6, and 7. You can mix the two methods. For example 2, 5:8, 3, 6:9 will load the volumes with IDs 2, 5, 6, 7, 8, 3, 6, 7, 8, 9 in this order. Note how the same volume can be loaded many times and the volume IDs do not have to be all ascending.</p>
+</details>
+<details class="example">
+<summary>Toy Dataset: Loading volumes based on volume IDs</summary>
+<p><a class="glightbox" href="fig07.png" data-type="image" data-width="100%" data-height="auto" data-desc-position="bottom"><img align="right" alt="Loading volumes based on volume IDs" src="fig07.png" width="700" /></a> An example shows the first slice in the two volumes, that we loaded : volumes with IDs 0 and 3. Note that the image layer created in napari (in the left panel) is clled <code>0,3</code> as well. [click on image to zoom in].</p>
+<p>Note: frames numbers start at 1 , while volume IDs and slice numbers start at 0.</p>
+</details>
+<h3 id="load-based-on-experimental-conditions">Load based on experimental conditions</h3>
+<p>To load volumes based on conditions, you must have at least one time annotation added to the experiment (make sure you pressed that <code>Add annotation to the experiment</code> button).</p>
+<p>If you have added time annotations to the experiment, you will see the annotation's names and labels. <code>Click the checkboxes</code> by the labels for which you want to get the volumes and choose how to combine them with a logical <code>or</code> or a logical <code>and</code>. Then click <code>Find volumes</code> button to get a list of volume IDs that correspond to the chosen conditions, or  <code>Load</code> to load all such volumes into napari.</p>
+<p>When you are choosing <code>or</code> all the conditions you picked will be combined with a logical or. Meaning, vodex will pick volumes with slices that correspond to at least one condition that you picked. It doesn't mean that the whole volume corresponds to one of the conditions: half of the slices in the volume can correspond to one condition and the other half to the other.</p>
+<p>When you are choosing <code>and</code>, vodex will pick volumes with slices that correspond to all the condition that you picked at the same time. If at least one slice in a volume does not correspond to all the conditions, such volume will not be picked.</p>
+<details class="example">
+<summary>Toy Dataset: Loading volumes based on conditions</summary>
+<p><a class="glightbox" href="fig06.png" data-type="image" data-width="100%" data-height="auto" data-desc-position="bottom"><img align="right" alt="Loading volumes based on conditions" src="fig06.png" width="700" /></a> An example shows the first slice in the two volumes, that we loaded, such that both is true at the same time: the background is dark and C1 label is present on every slice of the volumes. These happen to be volumes with IDs 0 and 3. Note that the image layer created in napari (in the left panel) is named according to our query <code>c label-c1_and_light-off</code>. [click on image to zoom in].</p>
+</details>
+<details class="danger">
+<summary>Toy Dataset: About <code>or</code> and <code>and</code> logic</summary>
+<ol>
+<li>
+<p><a class="glightbox" href="fig05a.png" data-type="image" data-width="100%" data-height="auto" data-desc-position="bottom"><img align="right" alt="Loading volumes based on conditions" src="fig05a.png" width="200" /></a> Compare the <code>or</code> and <code>and</code> behavior at the two images on the right. Note how when the logic is set to <code>or</code>, volumes 0 and 3 are being picked. Even though only half of each volume corresponds to <code>shape-c</code> [click on image to zoom in]. When we swith logic to <code>and</code> , no volumes satisfy the condition. <br /> <br /> <br /></p>
+</li>
+<li>
+<p><a class="glightbox" href="fig05b.png" data-type="image" data-width="100%" data-height="auto" data-desc-position="bottom"><img align="right" alt="Loading volumes based on conditions" src="fig05b.png" width="100" /></a> Note how when the logic is set to <code>or</code>, if you have all the conditions in any annotation picked, it will always return all the volumes in the recording, ignoring the rest of the labels that you choose and even if no full volumes correspond to each of the conditions individually. [click on image to zoom in]. <br /> <br /> <br /></p>
+</li>
+<li>
+<p><a class="glightbox" href="fig05c.png" data-type="image" data-width="100%" data-height="auto" data-desc-position="bottom"><img align="right" alt="Loading volumes based on conditions" src="fig05c.png" width="100" /></a> Note that you do not have to pick conditions from all the annotations. When no labels are picked for a particular annotation, that annotation is ignored. [click on image to zoom in].</p>
+</li>
+</ol>
+</details>
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12Z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="../" class="md-footer__link md-footer__link--prev" aria-label="Previous: napari_vodex: A napari plugin for VoDEx.">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11h12Z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                napari_vodex: A napari plugin for VoDEx.
+              </div>
+            </div>
+          </a>
+        
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Copyright &copy; 2022 - 2023 Anna Nadtochiy
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        <div class="md-social">
+  
+    
+    
+    
+    
+    <a href="https://github.com/LemonJust" target="_blank" rel="noopener" title="LemonJust on GitHub" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.4.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2023 Fonticons, Inc.--><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6zm-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3zm44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9zM244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8zM97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1zm-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7zm32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1zm-11.4-14.7c-1.6 1-1.6 3.6 0 5.9 1.6 2.3 4.3 3.3 5.6 2.3 1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2z"/></svg>
+    </a>
+  
+    
+    
+    
+    
+    <a href="https://www.linkedin.com/in/anna-nadtochiy/" target="_blank" rel="noopener" title="LemonJust (Anna Nadtochiy) on LinkedIn" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.4.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2023 Fonticons, Inc.--><path d="M416 32H31.9C14.3 32 0 46.5 0 64.3v383.4C0 465.5 14.3 480 31.9 480H416c17.6 0 32-14.5 32-32.3V64.3c0-17.8-14.4-32.3-32-32.3zM135.4 416H69V202.2h66.5V416zm-33.2-243c-21.3 0-38.5-17.3-38.5-38.5S80.9 96 102.2 96c21.2 0 38.5 17.3 38.5 38.5 0 21.3-17.2 38.5-38.5 38.5zm282.1 243h-66.4V312c0-24.8-.5-56.7-34.5-56.7-34.6 0-39.9 27-39.9 54.9V416h-66.4V202.2h63.7v29.2h.9c8.9-16.8 30.6-34.5 62.9-34.5 67.2 0 79.7 44.3 79.7 101.9V416z"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    <script id="__config" type="application/json">{"base": "../..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.indexes", "navigation.top", "navigation.instant", "toc.follow", "toc.integrate", "search.suggest", "search.highlight", "navigation.footer", "content.code.copy"], "search": "../../assets/javascripts/workers/search.f886a092.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.aecac24b.min.js"></script>
+      
+    
+  <script>document$.subscribe(() => {const lightbox = GLightbox({"touchNavigation": true, "loop": false, "zoomable": true, "draggable": true, "openEffect": "zoom", "closeEffect": "zoom", "slideEffect": "slide"});})</script></body>
+</html>
